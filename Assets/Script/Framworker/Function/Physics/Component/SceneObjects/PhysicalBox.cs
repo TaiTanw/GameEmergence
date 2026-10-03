@@ -22,7 +22,7 @@ public class PhysicalBox : BasicEntity
         RaycastHit2D hit = FindGroundHit(groundV.position, cPhysics.boxCastH, a,
             -transform.up, contactFilter);
         // 顶头与脚下同属接触查询，沿用同一层掩码和 Trigger 过滤。
-        RaycastHit2D topHit = Physics2D.defaultPhysicsScene.BoxCast(upV.position, cPhysics.boxCastH, a,
+        RaycastHit2D topHit = PhysicsWorld.BoxCast(upV.position, cPhysics.boxCastH, a,
             transform.up, 0f, contactFilter);
         nowGemetry.istop = topHit.collider != null;
         //缓存真实命中法线；斜坡位移与着地判定必须使用表面信息
@@ -43,9 +43,9 @@ public class PhysicalBox : BasicEntity
         nowGemetry.groundCollider = onGroundNow ? hit.collider : null;
         // 左右墙只记几何接触。箱体没有贴墙下滑，不把侧面来源送进持续效果登记。
         contactFilter.SetLayerMask(cPhysics.wallLayer);
-        RaycastHit2D hit1 = Physics2D.defaultPhysicsScene.BoxCast(leftV.position, cPhysics.boxCastV, a,
+        RaycastHit2D hit1 = PhysicsWorld.BoxCast(leftV.position, cPhysics.boxCastV, a,
             -transform.right, 0f, contactFilter);
-        RaycastHit2D hit2 = Physics2D.defaultPhysicsScene.BoxCast(rightV.position, cPhysics.boxCastV, a,
+        RaycastHit2D hit2 = PhysicsWorld.BoxCast(rightV.position, cPhysics.boxCastV, a,
             transform.right, 0f, contactFilter);
         nowGemetry.onLeftWall = false;
         nowGemetry.leftWallCollider = null;

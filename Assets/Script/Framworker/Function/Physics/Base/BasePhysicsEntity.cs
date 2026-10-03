@@ -63,9 +63,9 @@ public abstract class BasePhysicsEntity : BasicEntity
         nowGemetry.groundCollider = onGroundNow ? hit.collider : null;
         //检测左右靠墙
         contactFilter.SetLayerMask(cPhysics.wallLayer);
-        RaycastHit2D hit1 = Physics2D.defaultPhysicsScene.BoxCast(leftV.position, cPhysics.boxCastV, 0,
+        RaycastHit2D hit1 = PhysicsWorld.BoxCast(leftV.position, cPhysics.boxCastV, 0,
             Vector2.left, 0f, contactFilter);
-        RaycastHit2D hit2 = Physics2D.defaultPhysicsScene.BoxCast(rightV.position, cPhysics.boxCastV, 0,
+        RaycastHit2D hit2 = PhysicsWorld.BoxCast(rightV.position, cPhysics.boxCastV, 0,
             Vector2.right, 0f, contactFilter);
         nowGemetry.onLeftWall = false;
         nowGemetry.leftWallCollider = null;

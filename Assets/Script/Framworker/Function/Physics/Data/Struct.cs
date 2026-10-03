@@ -308,7 +308,7 @@ namespace PhyData
     /// <summary>
     /// 每个实体持有的相位 4 查询工作区，由 ProbeCandidateEnvironment 清空、复用和填充。
     /// 候选终点＝基础预测终点＋实体间偏置；分别保存移动路径、终点重叠、脚下与抬升净空的命中。
-    /// 原始法线和距离交给环境判定方法解释；单向组件字典只记录身份，不直接表示可通行。
+    /// 原始法线和距离供环境判定与最终请求裁剪读取；单向组件字典只记录身份，不直接表示可通行。
     /// 接触回算改变偏置后会重查本工作区；它不是帧初着地事实，也不保存最终请求或跨帧状态。
     /// </summary>
     internal sealed class EntityCandidateGeometry
@@ -324,6 +324,13 @@ namespace PhyData
         // 单向碰撞体 → 有效平台效应器
         internal readonly Dictionary<Collider2D, PlatformEffector2D> oneWayEffectors =
             new Dictionary<Collider2D, PlatformEffector2D>();
+
+        internal void RecordOneWayEffector(Collider2D hit)
+        {
+            if (hit.usedByEffector && hit.TryGetComponent(out PlatformEffector2D effector) &&
+                effector.isActiveAndEnabled && effector.useOneWay)
+                oneWayEffectors[hit] = effector;
+        }
     }
 
     /// <summary>
@@ -338,6 +345,34 @@ namespace PhyData
         public float allowedHorizontalDelta; // 环境允许的水平位移
         public Vector2 requestedWorldDelta; // 本帧请求位移
         public float blockedHorizontalDirection; // X 阻挡方向：-1 左、1 右、0 无
+    }
+
+    /// <summary>
+    /// 一次位移请求与下一物理步观测到的刚体位置；供运行时只读比较请求和实际移动。
+    /// requestStep 是提交请求的实体物理步，observedStep 是随后采样的实体物理步。
+    /// 实测差值可能包含 Unity 碰撞修正及其它外部位置写入，不宣称是纯引擎修正量。
+    /// </summary>
+    public readonly struct EntityDisplacementObservation
+    {
+        public readonly int requestStep;
+        public readonly int observedStep;
+        public readonly Vector2 requestOrigin;
+        public readonly Vector2 requestedWorldDelta;
+        public readonly Vector2 actualPosition;
+
+        public Vector2 RequestedTarget => requestOrigin + requestedWorldDelta;
+        public Vector2 ActualWorldDelta => actualPosition - requestOrigin;
+        public Vector2 DifferenceFromRequest => actualPosition - RequestedTarget;
+
+        public EntityDisplacementObservation(int requestStep, int observedStep,
+            Vector2 requestOrigin, Vector2 requestedWorldDelta, Vector2 actualPosition)
+        {
+            this.requestStep = requestStep;
+            this.observedStep = observedStep;
+            this.requestOrigin = requestOrigin;
+            this.requestedWorldDelta = requestedWorldDelta;
+            this.actualPosition = actualPosition;
+        }
     }
 
 }

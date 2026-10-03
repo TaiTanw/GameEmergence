@@ -6,10 +6,17 @@ using UnityEngine;
 /// 角色与箱子共用的物理执行主体，负责自身的物理相位及候选环境判定。
 /// 阅读主线：相位 1 几何 → 2 环境 → 3 速度/预测 → 4 管理器接触解算与本实体环境约束 → 5 提交。
 /// 环境关系由 EntityEnvironmentContext 管理，累计速度由 EntityEffectState 持有；
-/// 本类保存同帧运动快照、候选查询缓存和解算结果，最终只调用一次 MovePosition。
+/// 本类保存同帧运动快照、候选查询缓存和解算结果，最终经 Unity 后端入口提交一次位移。
 /// </summary>
 public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForce, IEnvironmentReceiver
 {
+    /// <summary>Unity 查询与提交端；其它后端可在实体层替换此入口。</summary>
+    protected virtual IPhysicsWorldAccess2D PhysicsWorld => UnityPhysicsWorldAccess2D.Instance;
+
+    /// <summary>当前环境请求策略；与 Unity 查询和提交入口分别替换。</summary>
+    internal IEntityRequestSolveStrategy RequestSolveStrategy { get; set; } =
+        CurrentEntityRequestSolver.Instance;
+
     protected Rigidbody2D rb; //刚体
     protected BoxCollider2D boxCollider;//碰撞器
 
@@ -83,7 +90,16 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// 实体解算结果：相位 4 合成请求位移；相位 5 只提交。
     /// </summary>
     protected EntitySolutionResult entitySolutionResult;
-    private readonly EntityCandidateGeometry candidateGeometry = new EntityCandidateGeometry(); // 候选环境查询缓存
+    private readonly EntityCandidateGeometry candidateGeometry = new EntityCandidateGeometry(); // 候选查询与请求裁剪工作区
+
+    // 相位 5 只留下待观察的请求；下一物理步相位 1 才发布实际位置。
+    private int displacementStep;
+    private int pendingDisplacementStep;
+    private Vector2 pendingDisplacementOrigin;
+    private Vector2 pendingRequestedDelta;
+    private bool hasPendingDisplacement;
+    private EntityDisplacementObservation lastDisplacementObservation;
+    private bool hasDisplacementObservation;
 
     // 相位 1 overlap 工作缓存；有效 Trigger 再写入 nowGemetry.regionOverlaps。
     private readonly List<Collider2D> regionOverlapHits = new List<Collider2D>();
@@ -161,6 +177,13 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     // 本帧静态环境阻挡的水平进入方向；0 表示未阻挡。
     internal float BlockedHorizontalDirection => entitySolutionResult.blockedHorizontalDirection;
 
+    /// <summary>读取上一次已观察到的请求与实际落点；当前相位 5 的请求尚未包含在内。</summary>
+    public bool TryGetLastDisplacementObservation(out EntityDisplacementObservation observation)
+    {
+        observation = lastDisplacementObservation;
+        return hasDisplacementObservation;
+    }
+
     /// <summary>
     /// 当前平面速度（主动 + 被动；动态接触力在相位 3 从容器累计到被动速度）
     /// 相位 3 构建运动快照的自由速度读口；该值尚未经过地面位移处理，不等于最终世界位移除以 dt。
@@ -182,9 +205,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     }
 
     /// <summary>
-    /// 实体自身解算数据刷新入口（相位4中）
+    /// 相位 4 查询候选环境并改写环境约束结果的入口。
     /// 相位 4 将预测终点与当前接触偏置组成候选终点，重建路径、终点重叠及脚下命中。
-    /// 排除实体碰撞体后，调用 ResolveCandidateEnvironment 得到环境允许的 X 和额外坡面 Y。
+    /// 排除实体碰撞体后，交由环境请求策略得到允许的 X 和额外坡面 Y。
     /// 接触回算后可再次调用；复用列表但重置上轮查询，不改帧初着地事实，也不提交移动。
     /// </summary>
     internal void ProbeCandidateEnvironment(PhysicalBoundingBox prediction)
@@ -204,24 +227,23 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         // 安全：无碰撞体或查询层配置时，本帧没有可用的候选环境事实。
         if (boxCollider == null || !boxCollider.enabled || cPhysics == null) return;
 
-        Bounds bounds = boxCollider.bounds;
+        Bounds bounds = PhysicsWorld.ReadAabb(boxCollider);
         candidateGeometry.candidateCenter = prediction.point + entitySolutionResult.displacementOffset;
         candidateGeometry.candidateDelta = candidateGeometry.candidateCenter - (Vector2)bounds.center;
         ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
         filter.SetLayerMask((int)cPhysics.groundLayer | (int)cPhysics.wallLayer);
-        PhysicsScene2D scene = Physics2D.defaultPhysicsScene;
         float distance = candidateGeometry.candidateDelta.magnitude;
         // 零位移无需路径扫掠；终点重叠和脚下查询仍须执行。
         if (distance > 0f)
-            scene.BoxCast(bounds.center, bounds.size, 0f, candidateGeometry.candidateDelta / distance,
+            PhysicsWorld.BoxCast(bounds.center, bounds.size, 0f, candidateGeometry.candidateDelta / distance,
                 distance, filter, candidateGeometry.pathHits);
-        scene.OverlapBox(candidateGeometry.candidateCenter, bounds.size, 0f, filter,
+        PhysicsWorld.OverlapBox(candidateGeometry.candidateCenter, bounds.size, 0f, filter,
             candidateGeometry.endpointOverlaps);
         filter.SetLayerMask(cPhysics.groundLayer);
         // 从候选框上方回扫到脚下，距离减去 lift 才是候选底部的原始有符号间隙。
         // 回扫可能先命中天花板或单向平台，不能直接把首个结果当作支撑。
         candidateGeometry.downwardCastLift = bounds.size.y + Mathf.Abs(candidateGeometry.candidateDelta.y) + 0.01f;
-        scene.BoxCast(candidateGeometry.candidateCenter + Vector2.up * candidateGeometry.downwardCastLift,
+        PhysicsWorld.BoxCast(candidateGeometry.candidateCenter + Vector2.up * candidateGeometry.downwardCastLift,
             bounds.size, 0f, Vector2.down, candidateGeometry.downwardCastLift + 0.05f,
             filter, candidateGeometry.downwardHits);
 
@@ -232,7 +254,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             if (hit == null || hit.attachedRigidbody == rb || EnvironmentCapabilities.FindEntity(hit) != null)
                 candidateGeometry.pathHits.RemoveAt(i);
             else
-                RecordOneWayEffector(hit);
+                candidateGeometry.RecordOneWayEffector(hit);
         }
         for (int i = candidateGeometry.endpointOverlaps.Count - 1; i >= 0; i--)
         {
@@ -240,7 +262,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             if (hit == null || hit.attachedRigidbody == rb || EnvironmentCapabilities.FindEntity(hit) != null)
                 candidateGeometry.endpointOverlaps.RemoveAt(i);
             else
-                RecordOneWayEffector(hit);
+                candidateGeometry.RecordOneWayEffector(hit);
         }
         for (int i = candidateGeometry.downwardHits.Count - 1; i >= 0; i--)
         {
@@ -248,142 +270,19 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             if (hit == null || hit.attachedRigidbody == rb || EnvironmentCapabilities.FindEntity(hit) != null)
                 candidateGeometry.downwardHits.RemoveAt(i);
             else
-                RecordOneWayEffector(hit);
+                candidateGeometry.RecordOneWayEffector(hit);
         }
-        ResolveCandidateEnvironment(bounds, scene);
+        RequestSolveStrategy.ResolveCandidate(BuildEnvironmentSolveInput(bounds), candidateGeometry,
+            PhysicsWorld, ref entitySolutionResult);
     }
 
-    /// <summary>
-    /// [F_6.2_5] 先确定可爬坡面，再用其它路径命中缩短允许的水平位移。
-    /// X 被限制时重查受限终点的坡面 Y，避免沿用完整路程的抬升量。
-    /// 已有向上位移的顶面限制在 FinalizeRequestedDisplacement 中处理。
-    /// </summary>
-    private void ResolveCandidateEnvironment(Bounds bounds, PhysicsScene2D scene)
-    {
-        float dx = candidateGeometry.candidateDelta.x;
-        if (Mathf.Abs(dx) <= 0.0001f) return;
-        float minUp = Mathf.Cos(Mathf.Clamp(cPhysics.maxClimbAngle, 0f, 89f) * Mathf.Deg2Rad);
-        float currentBottom = bounds.min.y;
-        entitySolutionResult.environmentOffset.y = FindSlopeRise(bounds, scene,
-            candidateGeometry.candidateCenter, dx, candidateGeometry.downwardHits, minUp,
-            out Collider2D climbSurface);
-
-        float pathLength = candidateGeometry.candidateDelta.magnitude;
-        foreach (RaycastHit2D hit in candidateGeometry.pathHits)
-        {
-            if (hit.collider == null || hit.collider == climbSurface ||
-                IsOneWayPassThrough(hit, currentBottom)) continue;
-            // 起点重叠法线可能为零；终点仍重叠非支撑面时保守阻止水平穿入。单独处理“起点已接触，而且终点仍重叠”的情况
-            if (hit.distance <= 0f && candidateGeometry.endpointOverlaps.Contains(hit.collider) &&
-                hit.normal.y < minUp)
-            {
-                // F_6.2_6 墙角回归：零距离表示已经接触；只有法线明确反对本帧 X 时才阻止进入。
-                // 法线为零或正在离开墙角时，不能凭“仍有重叠”锁死两个方向。
-                //当确实向墙挤入时需要置零水平偏置
-                if (hit.normal.x * dx < -0.0001f)
-                    entitySolutionResult.allowedHorizontalDelta = 0f;
-                continue;
-            }
-            if (hit.normal.x * dx >= -0.0001f) continue;
-            // 起点零距离的法线不用于坡角；非可通行障碍按零余量处理。
-            float allowed = Mathf.Max(0f, hit.distance - 0.001f) * Mathf.Abs(dx) / pathLength;
-            entitySolutionResult.allowedHorizontalDelta = Mathf.Sign(dx) *
-                Mathf.Min(Mathf.Abs(entitySolutionResult.allowedHorizontalDelta), allowed);
-        }
-
-        // F_6.2_6-2：障碍缩短 X 后，只在允许的终点重查坡面 Y。
-        float allowedX = entitySolutionResult.allowedHorizontalDelta;
-        if (Mathf.Abs(allowedX - dx) <= 0.0001f) return;
-        entitySolutionResult.environmentOffset.y = 0f;
-        if (Mathf.Abs(allowedX) <= 0.0001f) return;
-        Vector2 allowedCenter = candidateGeometry.candidateCenter + Vector2.right * (allowedX - dx);
-        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
-        filter.SetLayerMask(cPhysics.groundLayer);
-        scene.BoxCast(allowedCenter + Vector2.up * candidateGeometry.downwardCastLift,
-            bounds.size, 0f, Vector2.down, candidateGeometry.downwardCastLift + 0.05f,
-            filter, candidateGeometry.allowedDownwardHits);
-        entitySolutionResult.environmentOffset.y = FindSlopeRise(bounds, scene,
-            allowedCenter, allowedX, candidateGeometry.allowedDownwardHits, minUp, out _);
-    }
-
-    /// <summary>
-    /// 计算坡面抬升偏移
-    /// </summary>
-    private float FindSlopeRise(Bounds bounds, PhysicsScene2D scene, Vector2 center, float dx,
-        List<RaycastHit2D> hits, float minUp, out Collider2D support)
-    {
-        support = null;
-        float rise = 0f;
-        foreach (RaycastHit2D hit in hits)
-        {
-            Collider2D surface = hit.collider;
-            if (surface == null || surface.attachedRigidbody == rb ||
-                EnvironmentCapabilities.FindEntity(surface) != null) continue;
-            RecordOneWayEffector(surface);
-            if (hit.normal.y < minUp || hit.normal.x * dx >= 0f ||
-                IsOneWayPassThrough(hit, bounds.min.y)) continue;
-            float needed = candidateGeometry.downwardCastLift - hit.distance;
-            float slopeRise = Mathf.Abs(dx * hit.normal.x / hit.normal.y);
-            // 只接受确实穿入、未超过本次爬坡高度且比已有结果更高的支撑。
-            if (needed <= 0f || needed > slopeRise + 0.01f || needed <= rise) continue;
-            support = surface;
-            rise = needed;
-        }
-        if (support == null || HasLiftObstacle(bounds, scene, center, support, rise))
-        {
-            support = null;
-            return 0f;
-        }
-        return rise;
-    }
-
-    /// <summary>
-    /// 在候选终点向上扫掠额外抬升量，检查这次抬升是否碰到其它有效环境障碍。
-    /// 忽略本次爬坡支撑、自身及其它实体；单向平台按通行方向处理，避免把坡面自身当作顶障碍。
-    /// true表示有上升阻挡
-    /// </summary>
-    private bool HasLiftObstacle(Bounds bounds, PhysicsScene2D scene, Vector2 center, Collider2D support, float rise)
-    {
-        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
-        filter.SetLayerMask((int)cPhysics.groundLayer | (int)cPhysics.wallLayer);
-        candidateGeometry.liftHits.Clear();
-        scene.BoxCast(center, bounds.size, 0f, Vector2.up,
-            rise, filter, candidateGeometry.liftHits);
-        foreach (RaycastHit2D hit in candidateGeometry.liftHits)
-        {
-            if (hit.collider == null || hit.collider == support || hit.collider.attachedRigidbody == rb ||
-                EnvironmentCapabilities.FindEntity(hit.collider) != null) continue;
-            RecordOneWayEffector(hit.collider);
-            if (!IsOneWayPassThrough(hit, bounds.min.y)) return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// 判断本次命中是否应穿过单向平台。非单向碰撞体返回 false，继续参与普通环境判定。
-    /// 单向面结合有效承托角、本帧上行方向、当前底部高度及原脚下支撑身份判断。
-    /// </summary>
-    private bool IsOneWayPassThrough(RaycastHit2D hit, float currentBottom)
-    {
-        if (!candidateGeometry.oneWayEffectors.TryGetValue(hit.collider, out PlatformEffector2D effector))
-            return false;
-        // 单向面仅从有效上侧承托；从下向上经过时不由坡面额外抬升。
-        if (Vector2.Angle(effector.transform.up, hit.normal) > effector.surfaceArc * 0.5f)
-            return true;
-        return nowGemetry.groundCollider != hit.collider &&
-            (candidateGeometry.candidateDelta.y > 0f || currentBottom < hit.point.y - 0.01f);
-    }
-
-    /// <summary>
-    /// 缓存有效单向效应器的身份；是否阻挡交给 IsOneWayPassThrough 按本次运动解释。
-    /// </summary>
-    private void RecordOneWayEffector(Collider2D hit)
-    {
-        // 只有碰撞体实际使用的、已启用的单向组件才进入缓存。
-        if (hit.usedByEffector && hit.TryGetComponent(out PlatformEffector2D effector) &&
-            effector.isActiveAndEnabled && effector.useOneWay)
-            candidateGeometry.oneWayEffectors[hit] = effector;
-    }
+    private EntityEnvironmentSolveInput BuildEnvironmentSolveInput(Bounds bounds) =>
+        new EntityEnvironmentSolveInput(bounds, rb,
+            cPhysics != null ? cPhysics.groundLayer : default,
+            cPhysics != null ? cPhysics.wallLayer : default,
+            cPhysics != null ? cPhysics.maxClimbAngle : 0f,
+            nowGemetry.groundCollider, nowGemetry.isGrounded,
+            playerPhysicsData.verticalSpeed, Time.fixedDeltaTime, motionFrame);
 
     /// <summary>
     /// 相位 1 共用脚下查询：覆盖实体碰撞框前缘，在多个命中中选法线最朝上的有效支撑。
@@ -396,8 +295,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         groundProbeHits.Clear();
         // F_6.2_6-6：上坡抬升按完整碰撞框前缘计算；着地探针也覆盖该前缘，避免箱体被抬起后中心脚探针悬空。
         if (boxCollider != null && boxCollider.enabled)
-            size.x = Mathf.Max(size.x, boxCollider.bounds.size.x);
-        Physics2D.defaultPhysicsScene.BoxCast(center, size, angle, direction, GroundProbeDistance,
+            size.x = Mathf.Max(size.x, PhysicsWorld.ReadAabb(boxCollider).size.x);
+        PhysicsWorld.BoxCast(center, size, angle, direction, GroundProbeDistance,
             filter, groundProbeHits);
         RaycastHit2D support = default;
         float bestUp = 0.7f;
@@ -412,52 +311,12 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         return support;
     }
 
-    /// <summary>
-    /// 相位 4 合成请求：基础位移＋接触偏置＋环境修正，并采用环境允许的水平位移。
-    /// 水平移动被接触纠偏或障碍缩短时，只同步缩短自身沿坡 Y；独立竖直速度、接触 Y、平台位移保留。
-    /// 随后用已有路径命中限制撞顶的向上运动，记录最终静态水平阻挡方向。
-    /// 本方法不清理累计速度、不写刚体；管理器回算完毕后清理速度，相位 5 才提交。
-    /// </summary>
+    /// <summary>把本帧运动与候选环境工作区交给当前策略，生成最终位移请求。</summary>
     internal void FinalizeRequestedDisplacement()
     {
-        // F_6.2_6-3：允许的 X 替代候选 X；已有实体间 Y 偏置独立相加。
-        Vector2 candidateDelta = motionFrame.plannedWorldDelta + entitySolutionResult.displacementOffset;
-        float allowedX = entitySolutionResult.allowedHorizontalDelta;
-        // F_6.2_7-6：接触纠偏和静态裁剪都会缩短沿坡 X，Y 必须相对原自身运动同步缩短。
-        // 不能只比较候选 X：接触回算已改小它时，该比较会留下完整上坡 Y，反复把推动者抬离支撑。
-        float motionX = motionFrame.motionDelta.x;
-        //计算实体移动可取比例
-        float retained = Mathf.Abs(motionX) > 0.0001f
-            ? Mathf.Clamp01((allowedX - motionFrame.platformDelta.x) / motionX) : 1f;
-        //计算斜坡Y
-        float groundSlopeY = nowGemetry.isGrounded
-            ? motionFrame.motionDelta.y - playerPhysicsData.verticalSpeed * Time.fixedDeltaTime : 0f;
-        //计算全位移请求
-        //Y:角色沿坡位移-被舍弃的上升+实体位移偏置
-        entitySolutionResult.requestedWorldDelta = new Vector2(allowedX,
-            candidateDelta.y - groundSlopeY * (1f - retained) + entitySolutionResult.environmentOffset.y);
-
-        // F_6.2_6-7：候选路径已扫到顶面障碍时，按首个可达比例限制整段上升与同行 X。
-        // 实体间 Y 偏置也属于候选路径；原先 dx=0 时环境分支直接返回，导致它穿入平台再被引擎挤回。
-        float pathLength = candidateGeometry.candidateDelta.magnitude;
-        if (candidateGeometry.candidateDelta.y > 0.0001f &&
-            entitySolutionResult.requestedWorldDelta.y > 0f && pathLength > 0f)
-        {
-            float reachable = 1f;
-            foreach (RaycastHit2D hit in candidateGeometry.pathHits)
-            {
-                if (hit.collider == null || hit.collider == nowGemetry.groundCollider ||
-                    hit.normal.y >= -0.7f || IsOneWayPassThrough(hit, boxCollider.bounds.min.y)) continue;
-                float fraction = Mathf.Clamp01(Mathf.Max(0f, hit.distance - 0.001f) / pathLength);
-                reachable = Mathf.Min(reachable, fraction);
-            }
-            entitySolutionResult.requestedWorldDelta *= reachable;
-        }
-
-        // F_6.2_6-4：记录最终 X 阻挡方向；F_6.2_7-4 在接触对回算完毕后清理累计速度。
-        bool finalBlocked = Mathf.Abs(entitySolutionResult.requestedWorldDelta.x) + 0.0001f <
-            Mathf.Abs(candidateDelta.x);
-        entitySolutionResult.blockedHorizontalDirection = finalBlocked ? Mathf.Sign(candidateDelta.x) : 0f;
+        Bounds bounds = boxCollider != null ? PhysicsWorld.ReadAabb(boxCollider) : default;
+        RequestSolveStrategy.FinalizeRequest(BuildEnvironmentSolveInput(bounds), candidateGeometry,
+            ref entitySolutionResult);
     }
 
     /// <summary>
@@ -616,6 +475,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 
     protected virtual void OnEnable()
     {
+        displacementStep = 0;
+        hasPendingDisplacement = false;
+        hasDisplacementObservation = false;
 #if UNITY_EDITOR
         if (Application.isPlaying)
             PhysicsEditorObservationBridge.NotifyEntityEnabled(this);
@@ -643,8 +505,22 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void GeometricQueryPhase()
     {
+        ObservePreviousDisplacement();
         GeometricQuery();
         CollectRegionOverlapFacts();
+    }
+
+    /// <summary>自动模拟已越过上次相位 5；先采样刚体位置，再更新本步几何事实。</summary>
+    private void ObservePreviousDisplacement()
+    {
+        displacementStep++;
+        if (!hasPendingDisplacement || rb == null) return;
+
+        lastDisplacementObservation = new EntityDisplacementObservation(
+            pendingDisplacementStep, displacementStep, pendingDisplacementOrigin,
+            pendingRequestedDelta, PhysicsWorld.ReadBodyPosition(rb));
+        hasDisplacementObservation = true;
+        hasPendingDisplacement = false;
     }
 
     /// <summary>
@@ -658,9 +534,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         if (boxCollider == null || !boxCollider.enabled) return;
 
         ContactFilter2D filter = new ContactFilter2D { useTriggers = true };
-        filter.SetLayerMask(Physics2D.GetLayerCollisionMask(boxCollider.gameObject.layer));
+        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(boxCollider.gameObject.layer));
         regionOverlapHits.Clear();
-        boxCollider.OverlapCollider(filter, regionOverlapHits);
+        PhysicsWorld.OverlapCollider(boxCollider, filter, regionOverlapHits);
         foreach (Collider2D other in regionOverlapHits)
         {
             // 安全：销毁、禁用或不在激活层级的碰撞体不是有效命中。
@@ -668,7 +544,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             // 区域选择：只保留对方 Trigger，避免把实心地面/墙写进区域事实。
             if (!other.isTrigger) continue;
             // 区域规则：排除自身与显式忽略对；层矩阵已在 filter 中筛选。
-            if (other.gameObject == gameObject || Physics2D.GetIgnoreCollision(boxCollider, other)) continue;
+            if (other.gameObject == gameObject || PhysicsWorld.GetIgnoreCollision(boxCollider, other)) continue;
             // 与 Unity 触发条件一致：至少一方具有 Rigidbody2D。
             if (boxCollider.attachedRigidbody == null && other.attachedRigidbody == null) continue;
             nowGemetry.regionOverlaps.Add(other);
@@ -781,8 +657,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             return;
 
         PhysicalBoundingBox box = new PhysicalBoundingBox();
-        box.point = (Vector2)boxCollider.bounds.center + motionFrame.plannedWorldDelta;
-        box.size = boxCollider.bounds.extents; // 半长宽，与解算器 v3=a.size+b.size 一致
+        Bounds bounds = PhysicsWorld.ReadAabb(boxCollider);
+        box.point = (Vector2)bounds.center + motionFrame.plannedWorldDelta;
+        box.size = bounds.extents; // 半长宽，与解算器 v3=a.size+b.size 一致
         box.motionFrame = motionFrame;
         box.myPhyBox = this;
 #if UNITY_EDITOR
@@ -859,22 +736,30 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void DisplacementCorrection()
     {
+        Vector2 requestOrigin = PhysicsWorld.ReadBodyPosition(rb);
+        Vector2 requestedDelta = entitySolutionResult.requestedWorldDelta;
 #if UNITY_EDITOR
         Vector2 debugUnconstrainedDelta = motionFrame.plannedWorldDelta + entitySolutionResult.displacementOffset;
         PhysicsEditorObservationBridge.ReportMovementRequested(
             this,
             entitySolutionResult.displacementOffset,
             debugUnconstrainedDelta,
-            entitySolutionResult.requestedWorldDelta,
-            rb.position + entitySolutionResult.requestedWorldDelta,
+            requestedDelta,
+            requestOrigin + requestedDelta,
             entitySolutionResult.blockedHorizontalDirection != 0f);
 #endif
         // F_6.2_6-5：相位 5 只提交一次，不再按帧初贴墙标志裁剪。
-        rb.MovePosition(rb.position + entitySolutionResult.requestedWorldDelta);
+        PhysicsWorld.SubmitPosition(rb, requestOrigin + requestedDelta);
+        pendingDisplacementStep = displacementStep;
+        pendingDisplacementOrigin = requestOrigin;
+        pendingRequestedDelta = requestedDelta;
+        hasPendingDisplacement = true;
     }
 
     protected virtual void OnDisable()
     {
+        hasPendingDisplacement = false;
+        hasDisplacementObservation = false;
 #if UNITY_EDITOR
         if (Application.isPlaying)
             PhysicsEditorObservationBridge.NotifyEntityDisabled(this);

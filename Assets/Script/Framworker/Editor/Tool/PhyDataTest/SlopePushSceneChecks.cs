@@ -69,6 +69,10 @@ public static class SlopePushSceneChecks
         var heldPlayerY = new List<float>();
         int airborneHeld = 0;
         Vector2 pushStart = player.DebugActualPosition, releaseStart = default, reverseStart = default;
+        bool hasPreviousRequest = false;
+        Vector2 previousBoxOrigin = default, previousPlayerOrigin = default;
+        Vector2 previousBoxRequest = default, previousPlayerRequest = default;
+        Vector2 previousBoxActual = default, previousPlayerActual = default;
         BasicEntity[] entities = reverseOrder ? new BasicEntity[] { player, box } : new BasicEntity[] { box, player };
         SimulationMode2D oldMode = Physics2D.simulationMode;
         Physics2D.simulationMode = SimulationMode2D.Script;
@@ -79,6 +83,11 @@ public static class SlopePushSceneChecks
                 action.onMove = tick < 20 ? 0f : tick < 420 ? -1f : tick < 480 ? 0f : 1f;
                 Physics2D.SyncTransforms();
                 foreach (BasicEntity e in entities) Invoke(e, "GeometricQueryPhase");
+                if (hasPreviousRequest)
+                {
+                    CheckObservation(box, previousBoxOrigin, previousBoxRequest, previousBoxActual);
+                    CheckObservation(player, previousPlayerOrigin, previousPlayerRequest, previousPlayerActual);
+                }
                 foreach (BasicEntity e in entities) Invoke(e, "PhyFunUpdate");
                 foreach (BasicEntity e in entities) Invoke(e, "SpeedCalculation");
                 Invoke(PhysicsSolverMgr.Instance, "ContactForSolution");
@@ -87,6 +96,13 @@ public static class SlopePushSceneChecks
                 foreach (BasicEntity e in entities) Invoke(e, "DisplacementCorrection");
                 Physics2D.Simulate(Time.fixedDeltaTime);
                 Vector2 ba = box.DebugActualPosition - b0, pa = player.DebugActualPosition - p0;
+                previousBoxOrigin = b0;
+                previousPlayerOrigin = p0;
+                previousBoxRequest = bs.requestedWorldDelta;
+                previousPlayerRequest = ps.requestedWorldDelta;
+                previousBoxActual = box.DebugActualPosition;
+                previousPlayerActual = player.DebugActualPosition;
+                hasPreviousRequest = true;
                 Vector2 be = ba - bs.requestedWorldDelta, pe = pa - ps.requestedWorldDelta;
                 trace.AppendLine(FormattableString.Invariant($"{tick},{action.onMove},{b0.x:F6},{b0.y:F6},{p0.x:F6},{p0.y:F6},{box.DebugIsGrounded},{player.DebugIsGrounded},{box.DebugGroundNormal.x:F6},{box.DebugGroundNormal.y:F6},{player.DebugGroundNormal.x:F6},{player.DebugGroundNormal.y:F6},{bs.requestedWorldDelta.x:F6},{bs.requestedWorldDelta.y:F6},{ps.requestedWorldDelta.x:F6},{ps.requestedWorldDelta.y:F6},{ba.x:F6},{ba.y:F6},{pa.x:F6},{pa.y:F6},{be.x:F6},{be.y:F6},{pe.x:F6},{pe.y:F6},{bs.blockedHorizontalDirection},{ps.blockedHorizontalDirection}"));
                 if (tick >= 250 && tick < 420)
@@ -117,6 +133,20 @@ public static class SlopePushSceneChecks
             UnityEngine.Object.DestroyImmediate(box.gameObject);
             UnityEngine.Object.DestroyImmediate(player.gameObject);
         }
+    }
+
+    /// <summary>相位 1 发布的是上次模拟后的实际位置，且可回溯到对应的位移请求。</summary>
+    private static void CheckObservation(BasicEntity entity, Vector2 origin, Vector2 request,
+        Vector2 actual)
+    {
+        Require(entity.TryGetLastDisplacementObservation(out EntityDisplacementObservation observation),
+            entity.name + ": missing displacement observation");
+        Require(observation.observedStep == observation.requestStep + 1,
+            entity.name + ": observation step mismatch");
+        Require((observation.requestOrigin - origin).sqrMagnitude < 0.00000001f &&
+            (observation.requestedWorldDelta - request).sqrMagnitude < 0.00000001f &&
+            (observation.actualPosition - actual).sqrMagnitude < 0.00000001f,
+            entity.name + ": request/actual observation mismatch");
     }
 
     /// <summary>
