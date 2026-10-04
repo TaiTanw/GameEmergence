@@ -28,6 +28,7 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     readonly Dictionary<ContactAttenuationKey, float> pendingAttenuations = new Dictionary<ContactAttenuationKey, float>(); // 新接触速度衰减请求（每帧清空）
     readonly List<ContactForceDecision> pendingContactForces = new List<ContactForceDecision>(); // 本帧有向力参数，等待统一写入
     readonly List<DirectedContactPlan> pendingContactPlans = new List<DirectedContactPlan>(); // 当前策略的当帧有向力决定
+    readonly List<HorizontalBlockDecision> pendingHorizontalBlocks = new List<HorizontalBlockDecision>(); // 沿水平接触传来的阻挡方向，等待写回
     readonly List<ContactForceLink> pendingExitedContactLinks = new List<ContactForceLink>(); // 本帧退出的旧有向关系
 
     public void Init()
@@ -55,6 +56,7 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
         currentContactForceLinks.Clear();
         pendingAttenuations.Clear();
         pendingContactForces.Clear();
+        pendingHorizontalBlocks.Clear();
         pendingExitedContactLinks.Clear();
         pendingOffsets.Clear();
         //求解位移偏置量
@@ -64,6 +66,9 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
         // F_6.2_7-3：先求环境可行位移，再把静态裁剪反馈给实体接触对。
         ResolveEnvironmentRequests();
         ResolveResidualHorizontalOverlaps();
+        // 残余回算已结束。此时才把末箱的静墙方向传给上游箱子和玩家，供随后的施力登记读取。
+        ContactStrategy.PlanPropagatedHorizontalBlocks(projectingArray, pendingHorizontalBlocks);
+        ApplyPropagatedHorizontalBlocks();
         ApplyContactEffectsAfterFinalRequests();
 
         // 本帧预测快照用完即清；下一帧由各实体重新上报。
@@ -74,6 +79,13 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     {
         foreach (EntityOffsetDecision decision in pendingOffsets)
             decision.entity.AccumulateDisplacementOffset(decision.offset);
+    }
+
+    void ApplyPropagatedHorizontalBlocks()
+    {
+        foreach (HorizontalBlockDecision decision in pendingHorizontalBlocks)
+            if (decision.entity != null)
+                decision.entity.AdoptPropagatedHorizontalBlock(decision.direction);
     }
 
     /// <summary>
@@ -128,6 +140,7 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     }
 
     /// <summary>
+    /// 收集可行有向力
     /// 最终请求确定后请策略判断有向接触是否可行，管理器只登记来源关系和当帧效果决定。
     /// </summary>
     void CollectFeasibleContactForces()

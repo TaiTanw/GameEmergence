@@ -174,8 +174,19 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 
     // F_6.2_7-1：供相位 4 接触对回算读取的本帧最终请求位移。
     internal Vector2 RequestedWorldDelta => entitySolutionResult.requestedWorldDelta;
-    // 本帧静态环境阻挡的水平进入方向；0 表示未阻挡。
+    // 残余回算期间：该实体自己被静墙裁剪的水平进入方向，0 表示未阻挡。
+    // 水平传播写回之后：还包含本帧从上游接触传来的同一方向。
     internal float BlockedHorizontalDirection => entitySolutionResult.blockedHorizontalDirection;
+
+    /// <summary>
+    /// 接纳沿水平接触传来的阻挡方向。已有直接裁剪或更早写入的方向时保持原值。
+    /// </summary>
+    internal void AdoptPropagatedHorizontalBlock(float direction)
+    {
+        // 安全：0 不是方向；已有方向时不覆盖直接静墙裁剪。
+        if (direction == 0f || entitySolutionResult.blockedHorizontalDirection != 0f) return;
+        entitySolutionResult.blockedHorizontalDirection = direction;
+    }
 
     /// <summary>读取上一次已观察到的请求与实际落点；当前相位 5 的请求尚未包含在内。</summary>
     public bool TryGetLastDisplacementObservation(out EntityDisplacementObservation observation)
@@ -687,7 +698,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void UpdatePassiveEffectSpeed()
     {
-        effectState.UpdatePassiveSpeed(playerPhysicsData, envImpact, self_resistanceCoefficient);
+        effectState.UpdatePassiveSpeed(playerPhysicsData, envImpact, self_resistanceCoefficient,
+            entitySolutionResult.blockedHorizontalDirection);
     }
     /// <summary>
     /// 子类实现水平速度主动操作(后处理

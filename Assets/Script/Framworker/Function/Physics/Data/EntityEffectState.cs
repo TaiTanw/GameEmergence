@@ -16,6 +16,7 @@ internal sealed class EntityEffectState
     private readonly HashSet<IDynamicAddForce> dynamicSources = new HashSet<IDynamicAddForce>();
     private readonly Dictionary<IDynamicAddForce, ForceData> dynamicForces =
         new Dictionary<IDynamicAddForce, ForceData>();
+    private readonly List<IDynamicAddForce> dynamicRemovalBuffer = new List<IDynamicAddForce>();
     private IForceAction receiver;
     private bool isRecalculate;
 
@@ -202,21 +203,23 @@ internal sealed class EntityEffectState
         dynamicForces[source] = data;
     }
 
-    public void UpdatePassiveSpeed(PlayerPhysicsData movement, float envImpact, float resistance)
+    public void UpdatePassiveSpeed(PlayerPhysicsData movement, float envImpact, float resistance,
+        float blockedHorizontalDirection = 0f)
     {
         Vector2 speed = Vector2.zero;
         AccumulateTimedSpeed(ref speed);
-        AccumulateDynamicSpeed(ref speed, envImpact, resistance);
+        AccumulateDynamicSpeed(ref speed, envImpact, resistance, blockedHorizontalDirection);
         AccumulateStateVelocity(ref speed);
         movement.phyHSpeed = speed.x;
         movement.phyVSpeed = speed.y;
     }
 
-    private void AccumulateDynamicSpeed(ref Vector2 speed, float envImpact, float resistance)
+    private void AccumulateDynamicSpeed(ref Vector2 speed, float envImpact, float resistance,
+        float blockedHorizontalDirection)
     {
+        dynamicRemovalBuffer.Clear();
         if (dynamicSources.Count == 0) return;
 
-        List<IDynamicAddForce> removal = new List<IDynamicAddForce>(dynamicSources.Count);
         foreach (IDynamicAddForce source in dynamicSources)
         {
             ForceData data = dynamicForces[source];
@@ -230,7 +233,12 @@ internal sealed class EntityEffectState
             switch (data.type)
             {
                 case E_PhyForceType.apply:
-                    speed.x += data.FixUpdate(envImpact);
+                    data.FixUpdate(envImpact);
+                    // 实际逻辑：这里读到的是上一帧相位 4 的阻挡方向。力与它同号时，本帧不把 apply 加进被动速度。
+                    if (blockedHorizontalDirection != 0f && data.Force * blockedHorizontalDirection > 0f)
+                        data.speedStacking = 0f;
+                    else
+                        speed.x += data.speedStacking;
                     dynamicForces[source] = data;
                     break;
                 case E_PhyForceType.controlRecovery:
@@ -253,7 +261,7 @@ internal sealed class EntityEffectState
 
                     if (Mathf.Abs(data.speedStacking) < 0.2)
                     {
-                        removal.Add(source);
+                        dynamicRemovalBuffer.Add(source);
                         dynamicForces.Remove(source);
                     }
                     else
@@ -265,7 +273,8 @@ internal sealed class EntityEffectState
             }
         }
 
-        foreach (IDynamicAddForce source in removal)
+        foreach (IDynamicAddForce source in dynamicRemovalBuffer)
             dynamicSources.Remove(source);
+        dynamicRemovalBuffer.Clear();
     }
 }

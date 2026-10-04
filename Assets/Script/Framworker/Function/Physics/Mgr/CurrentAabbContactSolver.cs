@@ -12,6 +12,7 @@ internal sealed class CurrentAabbContactSolver : IContactSolveStrategy
     private const float MinEnvironmentSum = 0.0001f;
     private const float ClosingSpeedEpsilon = 0.01f;
     private const float ContactForceGain = 10f;
+    readonly Dictionary<BasicEntity, float> horizontalBlockByEntity = new Dictionary<BasicEntity, float>();
 
     public int MaxFeedbackPasses => 2;
 
@@ -185,6 +186,70 @@ internal sealed class CurrentAabbContactSolver : IContactSolveStrategy
             new DynamicForceParameters(targetSpeed * ContactForceGain, Mathf.Abs(targetSpeed), 0f),
             sourceSeparateSign, receiverWeight));
         return targetSpeed;
+    }
+
+    public void PlanPropagatedHorizontalBlocks(IReadOnlyList<PhysicalBoundingBox> predictions,
+        List<HorizontalBlockDecision> blocks)
+    {
+        horizontalBlockByEntity.Clear();
+        for (int i = 0; i < predictions.Count; i++)
+        {
+            BasicEntity entity = predictions[i].myPhyBox;
+            // 安全：没有实体的预测框不参与传播。
+            if (entity == null) continue;
+            // 实际逻辑：只把已经由静墙裁剪写下的方向当作传播源。0 留空，等上游传过来。
+            if (entity.BlockedHorizontalDirection != 0f)
+                horizontalBlockByEntity[entity] = entity.BlockedHorizontalDirection;
+        }
+
+        // 一条链最长逐跳穿过全部实体；没有新方向就停止。
+        for (int pass = 0; pass < predictions.Count; pass++)
+        {
+            bool changed = false;
+            for (int i = 0; i < predictions.Count; i++)
+            {
+                for (int j = i + 1; j < predictions.Count; j++)
+                {
+                    if (!IsHorizontalPushContact(predictions[i], predictions[j])) continue;
+                    changed |= TrySpreadHorizontalBlock(predictions[i], predictions[j]);
+                    changed |= TrySpreadHorizontalBlock(predictions[j], predictions[i]);
+                }
+            }
+            if (!changed) break;
+        }
+
+        foreach (var pair in horizontalBlockByEntity)
+        {
+            // 实际逻辑：直接裁剪已经在实体上，只把新传到的方向交回管理器。
+            if (pair.Key.BlockedHorizontalDirection != 0f) continue;
+            blocks.Add(new HorizontalBlockDecision(pair.Key, pair.Value));
+        }
+    }
+
+    static bool IsHorizontalPushContact(PhysicalBoundingBox a, PhysicalBoundingBox b)
+    {
+        // 安全：缺实体不能判断谁在推谁。
+        if (a.myPhyBox == null || b.myPhyBox == null) return false;
+        Vector2 delta = a.point - b.point;
+        Vector2 overlap = a.size + b.size - new Vector2(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
+        // 实际逻辑：用预测框。残余回算可能已把上游箱子推开，请求终点会丢掉这条推挤。
+        // 水平重叠不大于竖直重叠时，才是左右推，而不是上下叠放。
+        return overlap.x > 0f && overlap.y > 0f && overlap.x <= overlap.y;
+    }
+
+    bool TrySpreadHorizontalBlock(PhysicalBoundingBox from, PhysicalBoundingBox toward)
+    {
+        BasicEntity source = from.myPhyBox;
+        BasicEntity target = toward.myPhyBox;
+        // 安全：这一对在外层已要求双方都有实体。
+        if (source == null || target == null) return false;
+        if (!horizontalBlockByEntity.TryGetValue(source, out float block) || block == 0f) return false;
+        if (horizontalBlockByEntity.TryGetValue(target, out float existing) && existing != 0f) return false;
+        // 实际逻辑：阻挡方向为正表示墙在右侧，推它的人在左侧。只沿相反一侧传递。
+        float deltaX = toward.point.x - from.point.x;
+        if (deltaX * block >= 0f) return false;
+        horizontalBlockByEntity[target] = block;
+        return true;
     }
 
     private struct ContactSpeedResolution

@@ -15,6 +15,25 @@ internal interface IContactSolveStrategy
         List<EntityOffsetDecision> offsets);
     void PlanContactEffects(IReadOnlyList<PhysicalBoundingBox> predictions,
         List<DirectedContactPlan> effects);
+    void PlanPropagatedHorizontalBlocks(IReadOnlyList<PhysicalBoundingBox> predictions,
+        List<HorizontalBlockDecision> blocks);
+}
+
+/// <summary>
+/// 相位 4 残余回算之后，准备写回某个实体的水平阻挡方向。
+/// 只描述「谁要带上哪一个方向」；直接静墙裁剪仍由环境请求写入，这里不覆盖已有方向。
+/// 职能：当前接触策略的当帧决定，不持有跨帧速度。
+/// </summary>
+internal readonly struct HorizontalBlockDecision
+{
+    internal readonly BasicEntity entity;
+    internal readonly float direction;
+
+    internal HorizontalBlockDecision(BasicEntity entity, float direction)
+    {
+        this.entity = entity;
+        this.direction = direction;
+    }
 }
 
 /// <summary>本帧有向接触的力参数和新接触衰减比例；不保存接收者的累计速度。</summary>
