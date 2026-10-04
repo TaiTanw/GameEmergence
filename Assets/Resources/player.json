@@ -22,13 +22,22 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
+                },
+                {
+                    "name": "Interact",
+                    "type": "Button",
+                    "id": "c4a1e8d2-6b7f-4a15-9c3e-1f0a8b2d44e1",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
                 {
                     "name": "",
                     "id": "609ec706-67fe-49f9-a01a-9db11c372122",
-                    "path": "<jump>",
+                    "path": "<Keyboard>/space",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -50,7 +59,7 @@
                 {
                     "name": "negative",
                     "id": "1278604c-f3e5-43ea-b9c3-3569f095e90a",
-                    "path": "<left>",
+                    "path": "<Keyboard>/a",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -61,59 +70,22 @@
                 {
                     "name": "positive",
                     "id": "eb5a4169-3513-4767-8a6a-e1c68f02ac34",
-                    "path": "<right>",
+                    "path": "<Keyboard>/d",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
                     "action": "Move",
                     "isComposite": false,
                     "isPartOfComposite": true
-                }
-            ]
-        },
-        {
-            "name": "miniGame",
-            "id": "b7260ee9-1158-4e77-a6a1-9cc69d44f6d2",
-            "actions": [
-                {
-                    "name": "Click",
-                    "type": "Button",
-                    "id": "689723ef-13a6-4710-8418-ca4ab69bb77a",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": true
-                },
-                {
-                    "name": "Point",
-                    "type": "Value",
-                    "id": "aaa51c85-bef5-4135-bc53-2ce345bbf9e0",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": true
-                }
-            ],
-            "bindings": [
-                {
-                    "name": "",
-                    "id": "5f38def8-670b-40df-bf53-b007db0f36d2",
-                    "path": "<Mouse>/leftButton",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "Click",
-                    "isComposite": false,
-                    "isPartOfComposite": false
                 },
                 {
                     "name": "",
-                    "id": "e5351090-f0b9-4cc7-972c-86bdfc71e3bc",
-                    "path": "<Mouse>/position",
+                    "id": "a91c0e77-2d4b-4f6a-8e15-0c7b3a9d12f4",
+                    "path": "<Keyboard>/e",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "Point",
+                    "action": "Interact",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

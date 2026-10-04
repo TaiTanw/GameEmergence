@@ -6,17 +6,6 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
-
-
-/// <summary>
-/// 当前可修改的键位
-/// </summary>
-public enum E_InputActioon
-{
-    left,
-    right,
-    jump,
-}
 /// <summary>
 /// 数据与初始化管理器
 /// </summary>
@@ -50,18 +39,6 @@ public class DataAndInitMgr
 
     #region 持久化数据结构类
     /// <summary>
-    /// 改建数据
-    /// </summary>
-    public class InputInfo
-    {
-
-        [FieldOrder(0)] public string left = "<Keyboard>/a";
-        [FieldOrder(1)] public string right = "<Keyboard>/d";
-
-        [FieldOrder(2)] public string jump = "<Keyboard>/space";
-    }
-
-    /// <summary>
     /// 音乐数据
     /// </summary>
     public class MusicInfo
@@ -85,57 +62,35 @@ public class DataAndInitMgr
     #endregion
 
     #region 改键相关
-    //
-    //核心文件，只读
+    // 基础动作资产只加载一次。默认键位写在 Resources/player.json，改键只持久化绑定覆盖。
     private InputActionAsset assetin;
     public InputActionAsset asset => assetin;
+    static string BindingOverridePath => Application.persistentDataPath + "/InputBindingOverrides.json";
 
-    public InputInfo info;
-    
-    public E_InputActioon nowInputType;
-    //改键相关变量
-
- 
-    /// <summary>
-    /// 保存改建数据
-    /// 保存数据唯一入口，为便于管理，所以info为外部只读
-    /// </summary>
-    public void SeveInputValue()
+    /// <summary>把当前资产上的绑定覆盖写入持久化。不重新生成基础资产。</summary>
+    public void SaveBindingOverrides()
     {
-
-        //获取字符串值
-        string toJson = JsonUtility.ToJson(info);
-        //写入数据文件
-        File.WriteAllText(UnityEngine.Application.persistentDataPath + "/InputInfo.json", toJson);
-        //同步内存数据
-        LoadRebind();
-        
+        if (assetin == null) return;
+        File.WriteAllText(BindingOverridePath, assetin.SaveBindingOverridesAsJson());
     }
+
     /// <summary>
-    /// 加载改建数据
+    /// 加载基础动作资产，并套用已有绑定覆盖。
+    /// 不读取旧的 InputInfo.json，也不再替换整份 JSON。
     /// </summary>
     public void LoadRebind()
     {
-        string path = UnityEngine.Application.persistentDataPath + "/InputInfo.json";
-        if (File.Exists(path))
+        // 实际逻辑：资产已在内存时不重新 FromJson，避免换掉已订上的动作实例。
+        if (assetin == null)
         {
-            string strJson = File.ReadAllText(path);
-            info = JsonUtility.FromJson<InputInfo>(strJson);
+            TextAsset source = Resources.Load<TextAsset>("player");
+            assetin = InputActionAsset.FromJson(source.text);
         }
-        else
-        {
-            info= new InputInfo();
-        }
-        //读取原始文件
-        string jsonbase = Resources.Load<TextAsset>("player").text;
-        //替换关键字符
-        //string json = jsonbase.Replace("<up>", info.up);
-        //json= json.Replace("<down>", info.down);
-        string json= jsonbase.Replace("<left>", info.left);
-        json= json.Replace("<right>", info.right);
-        json= json.Replace("<jump>", info.jump);
-        //生成配置文件
-        assetin = InputActionAsset.FromJson(json);
+        // 安全：没有覆盖文件时用资产里的默认键位。
+        if (!File.Exists(BindingOverridePath)) return;
+        string overrides = File.ReadAllText(BindingOverridePath);
+        if (string.IsNullOrEmpty(overrides)) return;
+        assetin.LoadBindingOverridesFromJson(overrides);
     }
     #endregion
 

@@ -56,6 +56,12 @@ public class BasePlayerState : IBehavioralState
         this.playActionData = playActionData;
     }
 
+    /// <summary>本帧改用玩家此刻持有的输入。初始化时留下的引用不再继续使用。</summary>
+    public void SetFrameInput(PlayerInputData input)
+    {
+        this.input = input;
+    }
+
     public virtual void Enter()
     {
         

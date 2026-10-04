@@ -14,6 +14,7 @@ public class InputChangePanel : BasePanel
     private Text leftT;
     private Text rightT;
     private Text FT;
+    private Text interactT;
 
 
 
@@ -24,6 +25,7 @@ public class InputChangePanel : BasePanel
         leftT = FindUIObj<Text>("leftT");
         rightT = FindUIObj<Text>("rightT");
         FT = FindUIObj<Text>("FT");
+        interactT = FindUIObj<Text>("interactT");
         //初始化文本面板显示
         UpdateUIvalue();
 
@@ -44,20 +46,21 @@ public class InputChangePanel : BasePanel
 
             case "left":
                 print("左键修改");
-                ChangeInputAtionI(E_InputActioon.left);
-
+                InputControlMgr.Instance.StartRebind("Move", 1, UpdateUIvalue);
                 break;
 
             case "right":
                 print("右键修改");
-                ChangeInputAtionI(E_InputActioon.right);
-
+                InputControlMgr.Instance.StartRebind("Move", 2, UpdateUIvalue);
                 break;
 
             case "ff":
                 print("跳跃修改");
-                ChangeInputAtionI(E_InputActioon.jump);
-
+                InputControlMgr.Instance.StartRebind("Jump", 0, UpdateUIvalue);
+                break;
+            case "interact":
+                print("交互修改");
+                InputControlMgr.Instance.StartRebind("Interact", 0, UpdateUIvalue);
                 break;
             case "out":
                 //print("退出改建面板");
@@ -70,49 +73,15 @@ public class InputChangePanel : BasePanel
        
     }
     
-    private void ChangeInputAtionI(E_InputActioon type)
-    {
-        DataAndInitMgr.Instance.nowInputType = type;
-        InputSystem.onAnyButtonPress.CallOnce(ChangeBtnReally);
-
-    }
-    private void ChangeBtnReally(InputControl control)//注意时序问题，按键修改都写在函数内部！！！
-    {
-        //拆分获得可替换字符
-        string[] nowPaths = control.path.Split('/');
-        string nowpath = $"<{nowPaths[1]}>/{nowPaths[2]}";
-        //构建类用于赋值,从管理器获取，避免多次修改的数据被覆盖
-        DataAndInitMgr.InputInfo nowInfo= DataAndInitMgr.Instance.info;
-        //根据当前类型判断修改项
-        switch (DataAndInitMgr.Instance.nowInputType)
-        {
-
-            case E_InputActioon.left:
-                nowInfo.left=nowpath;
-                break;
-            case E_InputActioon.right:
-                nowInfo.right=nowpath;
-                break;
-            case E_InputActioon.jump:
-                nowInfo.jump=nowpath;
-                break;
-        }
-        //重新加载
-        DataAndInitMgr.Instance.SeveInputValue();
-        //更新面板
-        UpdateUIvalue();
-        //更改键位
-        InputControlMgr.Instance.BindInputAsset();
-    }
-
     /// <summary>
-    /// 面板更新
+    /// 面板更新。显示覆盖之后的有效路径。
     /// </summary>
     public void UpdateUIvalue()
     {
-
-        leftT.text = DataAndInitMgr.Instance.asset.FindAction("Move").bindings[1].path;
-        rightT.text = DataAndInitMgr.Instance.asset.FindAction("Move").bindings[2].path;
-        FT.text = DataAndInitMgr.Instance.asset.FindAction("Jump").bindings[0].path;
+        InputActionAsset asset = DataAndInitMgr.Instance.asset;
+        leftT.text = asset.FindAction("Move").bindings[1].effectivePath;
+        rightT.text = asset.FindAction("Move").bindings[2].effectivePath;
+        FT.text = asset.FindAction("Jump").bindings[0].effectivePath;
+        interactT.text = asset.FindAction("Interact").bindings[0].effectivePath;
     }   
 }

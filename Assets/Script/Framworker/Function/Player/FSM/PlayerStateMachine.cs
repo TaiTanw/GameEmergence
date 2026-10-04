@@ -140,12 +140,22 @@ public class PlayerStateMachine
     /// <param name="stateMachine">玩家自身状态机</param>
     public void Update(PlayerInputData input)
     {
-        //传入执行，状态类负责实际功能
+        // 实际逻辑：没有控制权时停掉本角色的移动输出，不清理管理器那份共享边沿。
+        if (input == null)
+        {
+            if (nowMovement != null)
+                nowMovement.onMove = 0f;
+            return;
+        }
+        onGround.SetFrameInput(input);
+        inAir.SetFrameInput(input);
+        onWallSliding.SetFrameInput(input);
         onState.Update();
         //效果已经触发，则关闭，防止持续响应
         input.jumpPressed = false;//触发类型按键全部统一由状态机复原
         input.jumpRelease = false;
-        //Debug.Log(nowMovement.onMove);
+        input.interactTapped = false;
+        input.interactLongPressed = false;
     }
     /// <summary>
     /// 重置可跳次数

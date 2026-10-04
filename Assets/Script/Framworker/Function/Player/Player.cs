@@ -13,6 +13,8 @@ public class PlayerInputData
     public float moveInput;     //水平输入
     public bool jumpPressed;     // 这一帧是否按下
     public bool jumpRelease;       //跳跃是否长按中
+    public bool interactTapped;    // 交互短按，与长按互斥
+    public bool interactLongPressed; // 交互长按，只成立一次
 }
 /// <summary>
 /// 持续性动作执行数据（瞬时动作靠事件触发
