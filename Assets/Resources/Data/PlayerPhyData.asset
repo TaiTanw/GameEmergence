@@ -19,8 +19,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 192
   maxClimbAngle: 45
-  boxCastH: {x: 0.75, y: 0.1}
-  boxCastV: {x: 0.02, y: 1.6}
+  boxCastH: {x: 0.56, y: 0.1}
+  boxCastV: {x: 0.02, y: 1.5}
   groundV: {x: -2.54, y: -1.27}
   leftV: {x: -2.95, y: -0.47}
   rightV: {x: -2.16, y: -0.46}
