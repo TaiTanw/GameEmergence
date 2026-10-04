@@ -90,8 +90,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         AbortInteractHold();
         action.Disable();
         rebindOperation = action.PerformInteractiveRebinding(bindingIndex)
-            .WithControlsExcluding("<Mouse>/position")
-            .WithControlsExcluding("<Mouse>/delta")
+            .WithControlsHavingToMatchPath("<Keyboard>")
             .WithCancelingThrough("<Keyboard>/escape")
             .OnComplete(operation => FinishRebind(operation, action, actionWasEnabled, mapWasEnabled, onComplete))
             .OnCancel(operation => FinishRebind(operation, action, actionWasEnabled, mapWasEnabled, null))
@@ -111,6 +110,33 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         if (mapWasEnabled && input.currentActionMap != null && !input.currentActionMap.enabled)
             InputOpenOrClose(true);
         onComplete?.Invoke();
+    }
+
+    /// <summary>
+    /// 扫描 player 动作图里的实际按键。复合轴本身不参与。两条绑定路径相同即冲突。
+    /// </summary>
+    public bool HasPlayerBindingConflict(out string message)
+    {
+        message = null;
+        if (player1 == null) return false;
+        var used = new Dictionary<string, string>();
+        foreach (InputAction action in player1.actions)
+        {
+            foreach (InputBinding binding in action.bindings)
+            {
+                // 实际逻辑：1D 轴的父绑定不是按键。
+                if (binding.isComposite || string.IsNullOrEmpty(binding.effectivePath)) continue;
+                string path = binding.effectivePath;
+                string label = string.IsNullOrEmpty(binding.name) ? action.name : action.name + "/" + binding.name;
+                if (used.TryGetValue(path, out string other))
+                {
+                    message = other + " 与 " + label + " 使用了相同按键";
+                    return true;
+                }
+                used.Add(path, label);
+            }
+        }
+        return false;
     }
 
     void UnbindGameplayActions()

@@ -15,6 +15,7 @@ public class InputChangePanel : BasePanel
     private Text rightT;
     private Text FT;
     private Text interactT;
+    private Text conflictT;
 
 
 
@@ -26,6 +27,7 @@ public class InputChangePanel : BasePanel
         rightT = FindUIObj<Text>("rightT");
         FT = FindUIObj<Text>("FT");
         interactT = FindUIObj<Text>("interactT");
+        conflictT = FindUIObj<Text>("conflictT");
         //初始化文本面板显示
         UpdateUIvalue();
 
@@ -63,10 +65,15 @@ public class InputChangePanel : BasePanel
                 InputControlMgr.Instance.StartRebind("Interact", 0, UpdateUIvalue);
                 break;
             case "out":
-                //print("退出改建面板");
-                //存入数据(可放入面板退出按钮）
-                //DataAndInitMgr.Instance.SeveInputValue();
-                //隐藏
+                if (InputControlMgr.Instance.HasPlayerBindingConflict(out string conflict))
+                {
+                    // 实际逻辑：有冲突时留在面板，等玩家改开重复键。
+                    if (conflictT != null)
+                        conflictT.text = conflict;
+                    return;
+                }
+                if (conflictT != null)
+                    conflictT.text = "";
                 UIMgr.Instance.UIBack();
                 break;
         }
