@@ -28,6 +28,27 @@ internal sealed class EntityEffectState
 
     public void BindReceiver(IForceAction value) => receiver = value;
 
+    public void ResetTransientMotion()
+    {
+        timedSpeeds.Clear();
+        dynamicRemovalBuffer.Clear();
+        foreach (var entry in dynamicForces)
+        {
+            // 刷新：旧实体接触力不能跨位置重用；有效环境关系和参数仍由 Context 保留。
+            if (!(entry.Key is IEnvironmentSource)) dynamicRemovalBuffer.Add(entry.Key);
+        }
+        foreach (IDynamicAddForce source in dynamicRemovalBuffer)
+        { dynamicSources.Remove(source); dynamicForces.Remove(source); }
+        dynamicRemovalBuffer.Clear();
+        foreach (IDynamicAddForce source in dynamicSources)
+        {
+            ForceData force = dynamicForces[source];
+            force.speedStacking = 0f;
+            dynamicForces[source] = force;
+        }
+        isRecalculate = true;
+    }
+
     public void RegisterMovementModifier(EnvironmentRegistration source, float offset)
     {
         movementModifiers[source] = offset;

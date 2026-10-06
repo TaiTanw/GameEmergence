@@ -244,7 +244,7 @@ public static class EnvironmentIntegrationChecks
             $"单一环境宿主提供平台能力并建立一份来源关系 [{body.Frame.platformDelta} / {platform.Delta}, sources={body.EnvironmentContext.DebugSourceCount}]");
         MethodInfo build = typeof(BasicEntity).GetMethod("BuildMotionFrame", BindingFlags.Static | BindingFlags.NonPublic);
         EntityMotionFrame motion = (EntityMotionFrame)build.Invoke(null, new object[]
-            { body, new Vector2(2, 0), 0f, true, Vector2.up, body.Frame.platformDelta, .02f });
+            { body, new Vector2(2, 0), 0f, true, Vector2.up, body.Frame.platformDelta, .02f, false });
         Near(motion.plannedWorldDelta.x, .04f + platform.Delta.x, "平台位移在实际运动快照中仅计一次 X");
         Near(motion.plannedWorldDelta.y, platform.Delta.y, "平台位移在实际运动快照中仅计一次 Y");
         platform.enabled = false;
@@ -485,7 +485,8 @@ public static class EnvironmentIntegrationChecks
             box.Query();
             Check(box.Grounded && box.Ground == ground && box.DebugGroundNormal.x > .2f,
                 $"冰面侧面接触不替换坡面支撑 [{box.Ground?.name} / {iceSide.name} / {box.DebugGroundNormal}]");
-            Vector2 request = box.CandidateRequest(new Vector2(-.08f, Mathf.Tan(slope) * .08f));
+            Vector2 request = box.CandidateRequest(new Vector2(-.08f, Mathf.Tan(slope) * .08f),
+                groundSlopeDeltaY: Mathf.Tan(slope) * .08f);
             Check(Mathf.Abs(request.x) < .01f && Mathf.Abs(request.y) < .01f,
                 $"冰面侧挡使单个箱体的沿坡请求停止 [{request}]");
         }
@@ -523,7 +524,7 @@ public static class EnvironmentIntegrationChecks
             box.Query();
             Check(box.Grounded && box.Ground == ground, "受阻接触对仍保留坡面支撑");
             var solver = new PhysicsSolverMgr();
-            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f));
+            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f, Mathf.Tan(slope) * .08f));
             solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
             typeof(PhysicsSolverMgr).GetMethod("ContactForSolution", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(solver, null);
@@ -537,7 +538,7 @@ public static class EnvironmentIntegrationChecks
             Check(box.DebugDynamicForceCount == 0, "被冰面挡住时不登记不可行接触力");
             iceSide.enabled = false;
             Physics2D.SyncTransforms();
-            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f));
+            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f, Mathf.Tan(slope) * .08f));
             solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
             typeof(PhysicsSolverMgr).GetMethod("ContactForSolution", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(solver, null);
@@ -546,7 +547,7 @@ public static class EnvironmentIntegrationChecks
             box.SetContactStack(pusher, -2f);
             iceSide.enabled = true;
             Physics2D.SyncTransforms();
-            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f));
+            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f, Mathf.Tan(slope) * .08f));
             solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
             typeof(PhysicsSolverMgr).GetMethod("ContactForSolution", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(solver, null);
@@ -589,12 +590,14 @@ public static class EnvironmentIntegrationChecks
             Vector2 verticalOffsetRequest = box.CandidateRequest(Vector2.zero, Vector2.up * .1f);
             Check(verticalOffsetRequest.y < .02f,
                 $"坡顶平台底面限制实体间向上挤出 [{verticalOffsetRequest}]");
-            Vector2 requested = box.CandidateRequest(new Vector2(.3f, Mathf.Tan(slope) * .3f));
+            Vector2 requested = box.CandidateRequest(new Vector2(.3f, Mathf.Tan(slope) * .3f),
+                groundSlopeDeltaY: Mathf.Tan(slope) * .3f);
             Check(requested.x < .04f && requested.y < .03f,
                 $"坡顶平台底面阻止沿坡上升 [{requested} / {platform.name}]");
             platform.transform.position = origin + new Vector3(2.8f, 1.8f, 0f);
             Physics2D.SyncTransforms();
-            requested = box.CandidateRequest(new Vector2(.3f, Mathf.Tan(slope) * .3f));
+            requested = box.CandidateRequest(new Vector2(.3f, Mathf.Tan(slope) * .3f),
+                groundSlopeDeltaY: Mathf.Tan(slope) * .3f);
             Check(requested.x < .27f && requested.y < .16f,
                 $"坡顶平台边缘限制进入后的上升 [{requested}]");
         }
@@ -1035,10 +1038,10 @@ public sealed class EnvironmentCheckBox : PhysicalBox
         data.speedStacking = speed;
         forces[source] = data;
     }
-    public PhysicalBoundingBox Prediction(Vector2 baseDelta, float horizontalSpeed)
+    public PhysicalBoundingBox Prediction(Vector2 baseDelta, float horizontalSpeed, float groundSlopeDeltaY = 0f)
     {
         EntityMotionFrame frame = new EntityMotionFrame(Vector2.zero,
-            new Vector2(horizontalSpeed, 0f), baseDelta, Vector2.zero);
+            new Vector2(horizontalSpeed, 0f), baseDelta, Vector2.zero, groundSlopeDeltaY);
         typeof(BasicEntity).GetField("motionFrame", BindingFlags.Instance | BindingFlags.NonPublic)
             .SetValue(this, frame);
         entitySolutionResult = default;
@@ -1051,9 +1054,10 @@ public sealed class EnvironmentCheckBox : PhysicalBox
             myPhyBox = this
         };
     }
-    public Vector2 CandidateRequest(Vector2 baseDelta, Vector2 offset = default)
+    public Vector2 CandidateRequest(Vector2 baseDelta, Vector2 offset = default, float groundSlopeDeltaY = 0f)
     {
-        EntityMotionFrame frame = new EntityMotionFrame(Vector2.zero, Vector2.zero, baseDelta, Vector2.zero);
+        // 合成输入必须明确哪些 Y 属于坡面；接触偏置和世界竖直位移仍保持独立。
+        EntityMotionFrame frame = new EntityMotionFrame(Vector2.zero, Vector2.zero, baseDelta, Vector2.zero, groundSlopeDeltaY);
         typeof(BasicEntity).GetField("motionFrame", BindingFlags.Instance | BindingFlags.NonPublic)
             .SetValue(this, frame);
         entitySolutionResult.displacementOffset = offset;

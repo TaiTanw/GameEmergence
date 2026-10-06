@@ -48,3 +48,15 @@ public interface IPlatformMotion { Vector2 Delta { get; } }
 
 /// <summary>提供墙滑倍率，BasePhysicsEntity 解析、CharacterPhysics 消费。职能：墙滑能力；有效接口存在才可墙滑，普通墙仍可阻挡。</summary>
 public interface IWallSlideSurface { float WallSlideMultiplier { get; } }
+
+/// <summary>
+/// 职能：区域水事实采样契约，不登记速度或资源。
+/// 同一来源分别回答当前是否允许游泳，以及指定采样点是否进入它的有效水域。
+/// </summary>
+public interface IWaterRegion
+{
+    bool SwimmingEnabled { get; }
+    bool ContainsWaterPoint(Collider2D region, Vector2 point);
+    /// <summary>在指定世界 X 读取可用的水平水面；不支持的形状返回 false。</summary>
+    bool TryGetSurfaceY(Collider2D region, float worldX, out float surfaceY);
+}

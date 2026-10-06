@@ -123,8 +123,8 @@ internal sealed class CurrentEntityRequestSolver : IEntityRequestSolveStrategy
         float motionX = input.motionFrame.motionDelta.x;
         float retained = Mathf.Abs(motionX) > 0.0001f
             ? Mathf.Clamp01((allowedX - input.motionFrame.platformDelta.x) / motionX) : 1f;
-        float groundSlopeY = input.isGrounded
-            ? input.motionFrame.motionDelta.y - input.verticalSpeed * input.fixedDeltaTime : 0f;
+        // 实际逻辑：水平阻挡只按比例扣除真正的坡面补偿；水流、主动竖直运动和平台 Y 保留。
+        float groundSlopeY = input.motionFrame.groundSlopeDeltaY;
         result.requestedWorldDelta = new Vector2(allowedX,
             candidateDelta.y - groundSlopeY * (1f - retained) + result.environmentOffset.y);
 

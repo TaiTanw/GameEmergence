@@ -169,6 +169,12 @@ public abstract class BasePhysicsEntity : BasicEntity
         base.OnDisable();
     }
 
+    protected override void OnMotionRefresh(bool relocated)
+    {
+        // 保持位置的轻刷新仍须保留尚未穿完的平台忽略对；迁移位置才撤销旧对。
+        if (relocated) EndOneWayDrops();
+    }
+
     protected override void PhyFunUpdate()
     {
         base.PhyFunUpdate();

@@ -158,14 +158,15 @@ public static class SlopePushSceneChecks
         var data = (PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData", InstanceFlags).GetValue(box);
         data.verticalSpeed = 2f;
         var frame = new EntityMotionFrame(new Vector2(-5f, 2f), new Vector2(-5f, 4.5f),
-            new Vector2(-.1f, .05f + 2f * Time.fixedDeltaTime), new Vector2(0f, .02f));
+            new Vector2(-.1f, .05f + 2f * Time.fixedDeltaTime), new Vector2(0f, .02f), .05f);
         typeof(BasicEntity).GetField("motionFrame", InstanceFlags).SetValue(box, frame);
         object geometry = typeof(BasicEntity).GetField("candidateGeometry", InstanceFlags).GetValue(box);
         geometry.GetType().GetField("candidateDelta", InstanceFlags).SetValue(geometry, Vector2.zero);
         foreach (float platformX in new[] { 0f, .03f })
         foreach (float retained in new[] { 0f, .5f, 1f })
         {
-            frame = new EntityMotionFrame(frame.freeVelocity, frame.motionVelocity, frame.motionDelta, new Vector2(platformX, .02f));
+            frame = new EntityMotionFrame(frame.freeVelocity, frame.motionVelocity, frame.motionDelta,
+                new Vector2(platformX, .02f), frame.groundSlopeDeltaY);
             typeof(BasicEntity).GetField("motionFrame", InstanceFlags).SetValue(box, frame);
             var solution = new EntitySolutionResult { allowedHorizontalDelta = -.1f * retained + platformX,
                 displacementOffset = new Vector2(.1f * (1f - retained), .03f) };

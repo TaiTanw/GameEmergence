@@ -34,4 +34,21 @@ public sealed class UnityPhysicsWorldAccess2D : IPhysicsWorldAccess2D
         Physics2D.IgnoreCollision(first, second, ignore);
 
     public void SubmitPosition(Rigidbody2D body, Vector2 target) => body.MovePosition(target);
+
+    public void RestoreBodyMotion(Rigidbody2D body, Vector2? position)
+    {
+        body.velocity = Vector2.zero;
+        body.angularVelocity = 0f;
+        if (position.HasValue)
+        {
+            // 显式迁移同时对齐子物体探针。启用插值时只写 body.position 会留下旧 Transform。
+            Vector3 pose = body.transform.position;
+            pose.x = position.Value.x;
+            pose.y = position.Value.y;
+            body.transform.position = pose;
+            body.position = position.Value;
+        }
+        // 刷新后的几何立即用于水/支撑重采样，不等待旧 Transform 同步。
+        Physics2D.SyncTransforms();
+    }
 }

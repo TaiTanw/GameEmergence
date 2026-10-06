@@ -44,6 +44,7 @@ public sealed class EntityEnvironmentContext
     /// 瞬时物理快照
     /// </summary>
     public EntityEnvironmentFrame Frame { get; private set; } = EntityEnvironmentFrame.Empty;
+    public EntityWaterFrame WaterFrame { get; private set; }
 
 #if UNITY_EDITOR
     /// <summary>[EditorOnly] 绑定来源数，不包含已退出、仍在实体中衰减的动态速度。</summary>
@@ -121,7 +122,8 @@ public sealed class EntityEnvironmentContext
     /// 相位 2 一次核对脚下和区域：脚下仍按支撑 Collider，区域按实体本帧重叠到的 Trigger。
     /// [ENV-02] 职能：实体环境刷新入口；核对事实 → 核对管线 → 采样。
     /// </summary>
-    public void RefreshEnvironment(Collider2D ground, List<Collider2D> regionOverlaps)
+    public void RefreshEnvironment(Collider2D ground, List<Collider2D> regionOverlaps, Vector2? waterSamplePoint = null,
+        Bounds? waterBody = null)
     {
         // 核对事实：先收齐脚下与区域身份，同一来源只在完整集合中保留一次。
         IEnvironmentSource groundSource = EnvironmentCapabilities.FindHost(ground);
@@ -131,6 +133,38 @@ public sealed class EntityEnvironmentContext
         SynchronizeSources();
         // 采样：复用脚下宿主，区域命中不提供脚下参数。
         SampleGroundFrame(groundSource);
+        SampleWaterFrame(regionOverlaps, waterSamplePoint, waterBody);
+    }
+
+    private void SampleWaterFrame(List<Collider2D> regions, Vector2? point, Bounds? body)
+    {
+        bool submerged = false, swimming = false;
+        bool partial = false, surfaceSwimming = false;
+        float surfaceY = float.NegativeInfinity;
+        // 事实缺席：未提供角色采样点或区域命中时，不沿用上一帧水事实。
+        if (point.HasValue && regions != null)
+            foreach (Collider2D region in regions)
+            {
+                IEnvironmentSource source = EnvironmentCapabilities.FindHost(region);
+                // 实际逻辑：在同一有效水源内核对淹没和游泳，禁止跨来源拼接条件。
+                if (!(source is IWaterRegion water) || !source.IsEnvironmentActive) continue;
+                // 上缘入水独立决定淹没，氧气不读取水面动作或按键。
+                if (water.ContainsWaterPoint(region, point.Value))
+                {
+                    submerged = true;
+                    swimming |= water.SwimmingEnabled;
+                }
+                // 水面事实：身体跨过同一水源的上边界，且下缘仍在其有效范围。
+                if (!body.HasValue || !water.TryGetSurfaceY(region, body.Value.center.x, out float height)
+                    || body.Value.max.y <= height || body.Value.min.y >= height
+                    || !water.ContainsWaterPoint(region, new Vector2(body.Value.center.x, body.Value.min.y))) continue;
+                partial = true;
+                // 多池重叠：优先选允许游泳的水面，再在同类中选最高者；不拼接其它来源的许可。
+                if ((water.SwimmingEnabled && !surfaceSwimming) ||
+                    (water.SwimmingEnabled == surfaceSwimming && height > surfaceY)) surfaceY = height;
+                surfaceSwimming |= water.SwimmingEnabled;
+            }
+        WaterFrame = new EntityWaterFrame(submerged, swimming, partial, surfaceSwimming, partial ? surfaceY : 0f);
     }
 
     /// <summary>核对事实：每次重建脚下与区域的完整来源集合，只收集身份，不登记或撤销效果。</summary>
@@ -186,5 +220,6 @@ public sealed class EntityEnvironmentContext
         removalBuffer.Clear();
         currentSources.Clear();
         Frame = EntityEnvironmentFrame.Empty;
+        WaterFrame = default;
     }
 }

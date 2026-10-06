@@ -270,6 +270,7 @@ namespace PhyData
     /// 相位 3 输出的只读运动快照，每帧整体替换；预测和接触解算读取同一份基础运动。
     /// freeVelocity 是速度更新后的世界合速度，motionVelocity/motionDelta 是支撑处理后的自身运动；
     /// 平台携带另存 platformDelta，合成 plannedWorldDelta 供预测使用，不作为自身接触施力速度。
+    /// groundSlopeDeltaY 明确区分地面切线补偿与世界竖直运动，供水平阻挡按比例缩短坡面分量。
     /// 速度单位为世界单位/秒，位移单位为世界单位。相位 4 的约束结果另存 EntitySolutionResult，
     /// 这份快照不保存接触纠偏、最终请求或 Unity 实际落点，也不持有跨帧累计速度。
     /// </summary>
@@ -279,15 +280,18 @@ namespace PhyData
         public readonly Vector2 motionVelocity; // 自身运动速度（支撑处理后）
         public readonly Vector2 motionDelta; // 自身基础位移
         public readonly Vector2 platformDelta; // 支撑平台携带位移（离地为零）
+        public readonly float groundSlopeDeltaY; // 仅地面切线带出的 Y；世界竖直运动和平台携带不属于它
         public readonly Vector2 plannedWorldDelta; // 预测基础位移＝自身＋平台
 
         /// <summary>保存各运动分量，并将自身位移与平台位移合成为预测基础；不在这里施加碰撞约束。</summary>
-        public EntityMotionFrame(Vector2 freeVelocity, Vector2 motionVelocity, Vector2 motionDelta, Vector2 platformDelta)
+        public EntityMotionFrame(Vector2 freeVelocity, Vector2 motionVelocity, Vector2 motionDelta, Vector2 platformDelta,
+            float groundSlopeDeltaY = 0f)
         {
             this.freeVelocity = freeVelocity;
             this.motionVelocity = motionVelocity;
             this.motionDelta = motionDelta;
             this.platformDelta = platformDelta;
+            this.groundSlopeDeltaY = groundSlopeDeltaY;
             plannedWorldDelta = motionDelta + platformDelta;
         }
     }

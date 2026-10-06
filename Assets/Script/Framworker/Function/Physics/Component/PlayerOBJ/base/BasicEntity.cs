@@ -12,6 +12,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 {
     /// <summary>Unity 查询与提交端；其它后端可在实体层替换此入口。</summary>
     protected virtual IPhysicsWorldAccess2D PhysicsWorld => UnityPhysicsWorldAccess2D.Instance;
+    protected virtual bool MotionUpdatesEnabled => true;
+    protected virtual bool UsesWorldAxisMovement => false;
 
     /// <summary>当前环境请求策略；与 Unity 查询和提交入口分别替换。</summary>
     internal IEntityRequestSolveStrategy RequestSolveStrategy { get; set; } =
@@ -500,6 +502,30 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         nowPhyFun = new BasePhyFunData();
     }
 
+    /// <summary>显式刷新运动；资源/道具效果不归此入口，环境撤销须由规则调用者单独选择。</summary>
+    public void RefreshMotionState(Vector2? position = null, bool releaseEnvironmentEffects = false)
+    {
+        OnMotionRefresh(position.HasValue);
+        hasPendingDisplacement = hasDisplacementObservation = false;
+        motionFrame = default;
+        entitySolutionResult = default;
+        playerPhysicsData.horizontalSpeed = playerPhysicsData.verticalSpeed = 0f;
+        playerPhysicsData.phyHSpeed = playerPhysicsData.phyVSpeed = 0f;
+        if (releaseEnvironmentEffects) environmentContext?.ReleaseAll();
+        effectState.ResetTransientMotion();
+        PhysicsWorld.RestoreBodyMotion(rb, position);
+        ResampleEnvironment();
+    }
+
+    protected virtual void OnMotionRefresh(bool relocated) { }
+
+    public void ResampleEnvironment()
+    {
+        GeometricQuery();
+        CollectRegionOverlapFacts();
+        PhyFunUpdate();
+    }
+
     protected virtual void OnEnable()
     {
         displacementStep = 0;
@@ -585,10 +611,20 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         // 相位 1 已拿到脚下 Collider 和区域 Trigger 重叠；从这里进入 RefreshEnvironment。
         // 着地才传脚下；离地传 null，使旧 Ground 依据被撤销。普通无脚本地面也可着地。
         // 相位 1 已按空中/着地重置自身阻力。本相位只乘一次表面倍率，不跨帧累乘。
+        Bounds? waterBody = GetWaterSampleBounds();
         EnvironmentContext.RefreshEnvironment(
             nowGemetry.isGrounded ? nowGemetry.groundCollider : null,
-            nowGemetry.regionOverlaps);
+            nowGemetry.regionOverlaps, waterBody.HasValue
+                ? new Vector2(waterBody.Value.center.x, waterBody.Value.max.y) : (Vector2?)null, waterBody);
         self_resistanceCoefficient *= EnvironmentFrame.slowingMultiplier;
+    }
+
+    private Bounds? GetWaterSampleBounds()
+    {
+        // 安全：没有有效身体几何时不发布淹没。
+        if (boxCollider == null || !boxCollider.enabled) return null;
+        // 上缘中心仍为淹没口径；整框另用于独立的半露出水面事实。
+        return PhysicsWorld.ReadAabb(boxCollider);
     }
 
     /// <summary>
@@ -597,6 +633,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void SpeedCalculation()
     {
+        // 实际逻辑：待机角色不积分、不提交预测；区域采样仍沿原相位更新。
+        if (!MotionUpdatesEnabled) return;
         //水平速度计算
         HorizontalSpeedCalculation();
         //竖直速度计算
@@ -613,7 +651,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             nowGemetry.isGrounded,
             nowGemetry.groundNormal,
             platformDelta,
-            Time.fixedDeltaTime);
+            Time.fixedDeltaTime, UsesWorldAxisMovement);
         PositionPrediction();
     }
 
@@ -632,14 +670,15 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         bool isGrounded,
         Vector2 groundNormal,
         Vector2 platformDelta,
-        float fixedDeltaTime)
+        float fixedDeltaTime, bool worldAxisMovement)
     {
         Vector2 integratedVelocityDelta = freeVelocity * fixedDeltaTime;
         Vector2 motionVelocity = freeVelocity;
         Vector2 moveDelta = integratedVelocityDelta;
-        if (isGrounded)
+        float groundSlopeDeltaY = 0f;
+        if (isGrounded && !worldAxisMovement)
         {
-            // TODO（后续竖直环境速度建模）：freeVelocity.y 含 phyVSpeed，但旧着地分支只保留 verticalSpeed。
+            // 普通着地仍走原切线规则；游泳走世界双轴，避免池底吞掉竖直水流。
             // verticalSpeed 本身含重力/跳跃；平台 Y 独立相加，不能用于替代被省略的 phyVSpeed。
             moveDelta = new Vector2(0, verticalSpeed * fixedDeltaTime);
             float moveAmount = freeVelocity.x * fixedDeltaTime;
@@ -651,10 +690,12 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             Vector2 tangentDirection = tangent.normalized;
             motionVelocity = new Vector2(0f, verticalSpeed) + tangentDirection * Mathf.Abs(freeVelocity.x);
             moveDelta += tangentDirection * Mathf.Abs(moveAmount);
+            groundSlopeDeltaY = tangentDirection.y * Mathf.Abs(moveAmount);
         }
 
         Vector2 appliedPlatformDelta = isGrounded ? platformDelta : Vector2.zero;
-        EntityMotionFrame frame = new EntityMotionFrame(freeVelocity, motionVelocity, moveDelta, appliedPlatformDelta);
+        EntityMotionFrame frame = new EntityMotionFrame(freeVelocity, motionVelocity, moveDelta, appliedPlatformDelta,
+            groundSlopeDeltaY);
 #if UNITY_EDITOR
         PhysicsEditorObservationBridge.ReportMotionBuilt(
             entity,
@@ -764,6 +805,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void DisplacementCorrection()
     {
+        // 实际逻辑：暂停运动不提交上一次残留请求。
+        if (!MotionUpdatesEnabled) return;
         Vector2 requestOrigin = PhysicsWorld.ReadBodyPosition(rb);
         Vector2 requestedDelta = entitySolutionResult.requestedWorldDelta;
 #if UNITY_EDITOR
