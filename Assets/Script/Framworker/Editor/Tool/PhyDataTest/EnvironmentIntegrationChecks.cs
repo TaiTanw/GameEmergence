@@ -43,6 +43,16 @@ public static class EnvironmentIntegrationChecks
             CheckGroundLifecycle();
             CheckDynamicForceRefresh();
             CheckRegions();
+            CheckWaterRegions();
+            CheckPlayerCapabilities();
+            CheckPlayerControlSwitch();
+            CheckFourWayBehavior();
+            CheckSwimmingExecution();
+            CheckDeathRequestContracts();
+            CheckOxygenResources();
+            CheckPlayerRefresh();
+            CheckWaterLevel();
+            CheckSwimmingPresentation();
             CheckCapabilities();
             CheckCapabilityOwnership();
             CheckUniqueEnvironmentHost();
@@ -76,6 +86,404 @@ public static class EnvironmentIntegrationChecks
     {
         try { Run(); EditorApplication.Exit(0); }
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+    }
+
+    private static void CheckPlayerCapabilities()
+    {
+        var body = new PlayerCapabilityContext(PlayerIdentity.Body);
+        var spirit = new PlayerCapabilityContext(PlayerIdentity.Spirit);
+        var all = new PlayerCapabilityPermissions(true, true, true, true, true);
+        body.ApplyPermissions(all);
+        spirit.ApplyPermissions(all);
+        Check(!SetFlightForm(body, true), "实体身份拒绝飞行，即使外部误给许可");
+        Check(body.ResolveFourWay(new EntityWaterFrame(true, true)) == FourWayMode.Swimming, "实体有效水能力进入游泳");
+        Check(SetFlightForm(spirit, true), "精神体获准后可开启飞行形态");
+        Check(spirit.ResolveFourWay(new EntityWaterFrame(true, true)) == FourWayMode.Flying, "飞行优先于淹没和游泳");
+        Check(spirit.ResolveFourWay(default) == FourWayMode.Flying, "水事实撤销不关闭飞行");
+        SetFlightForm(spirit, false);
+        Check(spirit.ResolveFourWay(new EntityWaterFrame(true, true)) == FourWayMode.Swimming, "精神体行走形态也可游泳");
+        Check(spirit.ResolveFourWay(new EntityWaterFrame(true, false)) == FourWayMode.None, "淹没但游泳关闭时无四向候选");
+        spirit.ApplyPermissions(PlayerCapabilityPermissions.Standby);
+        Check(!spirit.Permissions.motionUpdates && !spirit.Permissions.resourceUpdates, "待机运动和资源开关独立于控制引用");
+    }
+
+    private static void CheckFourWayBehavior()
+    {
+        var geometry = new GeometryPhysicsData { isGrounded = true };
+        var function = new PhysicalFunctionData();
+        var movement = new MovementData();
+        var input = new PlayerInputData { moveInput = 1f, verticalInput = 1f, sprintHeld = true, jumpPressed = true };
+        var fsm = new PlayerStateMachine();
+        fsm.InitData(new ReadOnly_GeometryPhysicsData(geometry, function), input, movement);
+        int jumps = 0;
+        fsm.EventSystem.AddEventListener(PlayerStateMachine.E_playEvent.jump, () => jumps++);
+        fsm.stamina = 50f;
+        fsm.jbtB = true;
+        fsm.Update(input, FourWayMode.Swimming, true, true, 1f);
+        Check(movement.nowState == PlayerStateMachine.E_playerState.swimming, "池底着地时游泳行为仍优先");
+        Near(new Vector2(movement.onMove, movement.verticalInput).magnitude, 1f, "四向斜向归一化");
+        Check(jumps == 0 && !fsm.jbtB && !input.jumpPressed, "入水不执行普通跳跃并清跳跃缓冲");
+        Near(movement.speedScale, 1f, "游泳不叠疾跑倍率");
+        Near(fsm.stamina, 70f, "游泳按原规则恢复体力");
+        fsm.Update(null, FourWayMode.Swimming, true, true, 1f);
+        Check(movement.nowState == PlayerStateMachine.E_playerState.swimming, "无输入仍保留水行为");
+        Near(movement.onMove, 0f, "失去控制后四向水平主动悬停");
+        Near(movement.verticalInput, 0f, "失去控制后四向竖直主动悬停");
+        Near(fsm.stamina, 90f, "无输入仍更新获准资源");
+        fsm.Update(null, FourWayMode.Swimming, true, false, 1f);
+        Near(fsm.stamina, 90f, "关闭资源许可暂停资源更新");
+        fsm.Update(input, FourWayMode.None, true, true, 0f);
+        Check(movement.nowState == PlayerStateMachine.E_playerState.isOnGround, "离水时按当前几何回着地");
+        geometry.isGrounded = false;
+        fsm.Update(input, FourWayMode.Swimming, true, true, 0f);
+        fsm.Update(input, FourWayMode.None, true, true, 0f);
+        Check(movement.nowState == PlayerStateMachine.E_playerState.inAir, "空中离水不恢复旧着地状态");
+        fsm.Update(input, FourWayMode.Flying, true, true, 0f);
+        Check(new ReadOnly_ActionData(movement).isFlying && !new ReadOnly_ActionData(movement).isSwimming, "飞行与游泳原因互斥");
+        fsm.Update(input, FourWayMode.Swimming, false, true, 0f);
+        Near(movement.onMove, 0f, "移动许可关闭不改变水事实但屏蔽操作");
+    }
+
+    private static void CheckSwimmingExecution()
+    {
+        Player player = PlayerActor("player20.prefab");
+        CharacterPhysics physics = player.GetComponent<CharacterPhysics>();
+        var fsm = (PlayerStateMachine)typeof(Player).GetField("fsm", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player);
+        var geometry = (GeometryPhysicsData)typeof(BasicEntity).GetField("nowGemetry", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics);
+        var speeds = (PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics);
+        var input = new PlayerInputData { moveInput = 1f, verticalInput = 1f, jumpPressed = true, sprintHeld = true };
+        MethodInfo horizontal = typeof(BasicEntity).GetMethod("HorizontalSpeedCalculation", BindingFlags.Instance | BindingFlags.NonPublic);
+        MethodInfo vertical = typeof(BasicEntity).GetMethod("VerticalSpeedCalculation", BindingFlags.Instance | BindingFlags.NonPublic);
+        MethodInfo build = typeof(BasicEntity).GetMethod("BuildMotionFrame", BindingFlags.Static | BindingFlags.NonPublic);
+        fsm.Update(input, FourWayMode.Swimming, true, true, 0f);
+        speeds.verticalSpeed = -100f;
+        typeof(CharacterPhysics).GetMethod("Jump", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(physics, null);
+        horizontal.Invoke(physics, null);
+        vertical.Invoke(physics, null);
+        Near(new Vector2(speeds.horizontalSpeed, speeds.verticalSpeed).magnitude, 6f, "游泳主动速度双轴一致且斜向不加速");
+        Check(!(bool)typeof(CharacterPhysics).GetField("jump", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics), "游泳物理消费前清待执行跳跃");
+        WaterWithEffects water = Prefab<WaterWithEffects>("WaterPoolWithEffects.prefab", NextPosition());
+        typeof(WaterWithEffects).GetField("flowVelocity", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(water, new Vector2(2f, 3f));
+        Physics2D.SyncTransforms();
+        physics.EnvironmentContext.RefreshEnvironment(null, new List<Collider2D> { water.GetComponent<Collider2D>() }, (Vector2)water.transform.position);
+        horizontal.Invoke(physics, null);
+        vertical.Invoke(physics, null);
+        Near(new Vector2(speeds.horizontalSpeed, speeds.verticalSpeed).magnitude, 4.5f, "水移速修饰同时作用两轴主动速度");
+        Near(speeds.phyHSpeed, 2f, "二维恒定水流沿原持续速度通道 X");
+        Near(speeds.phyVSpeed, 3f, "二维恒定水流沿原持续速度通道 Y");
+        EntityMotionFrame motion = (EntityMotionFrame)build.Invoke(null, new object[]
+            { physics, physics.GetPlanarVelocity(), speeds.verticalSpeed, true, Vector2.up, new Vector2(1f, 2f), .02f, true });
+        Near(motion.plannedWorldDelta.y, (speeds.verticalSpeed + 3f) * .02f + 2f, "池底四向运动保留竖直水流和一次平台携带");
+        fsm.Update(null, FourWayMode.Swimming, true, true, 0f);
+        horizontal.Invoke(physics, null);
+        vertical.Invoke(physics, null);
+        Near(speeds.horizontalSpeed, 0f, "零输入水平方向主动悬停");
+        Near(speeds.verticalSpeed, 0f, "零输入竖直方向主动悬停");
+        Check(speeds.phyHSpeed == 2f && speeds.phyVSpeed == 3f, "主动悬停不清水流");
+        physics.EnvironmentContext.RefreshEnvironment(null, new List<Collider2D>(), Vector2.zero);
+        input.moveInput = 0f;
+        input.verticalInput = 1f;
+        fsm.Update(input, FourWayMode.Swimming, true, true, 0f);
+        horizontal.Invoke(physics, null);
+        vertical.Invoke(physics, null);
+        float exitSpeed = speeds.verticalSpeed;
+        geometry.isGrounded = false;
+        fsm.Update(null, FourWayMode.None, true, true, 0f);
+        horizontal.Invoke(physics, null);
+        vertical.Invoke(physics, null);
+        Near(speeds.verticalSpeed, exitSpeed + physics.gravity * Time.fixedDeltaTime, "离水继承当前游泳竖直速度再受重力");
+        Near(speeds.phyVSpeed, 0f, "离开水后撤销该水源持续流速");
+    }
+
+    private sealed class RefreshOutcomeProbe : IPlayerRunRefreshRules
+    {
+        public bool complete;
+        public int completions;
+        public Player subject;
+        public bool TryRestartExploration(Player deadPlayer)
+        { subject = deadPlayer; if (complete) completions++; return complete; }
+    }
+
+    private sealed class UncommittedFormProbe : IPlayerFormRules
+    {
+        public bool TryChangeForm(Player subject, bool flying, PlayerFormChangeReason reason) => true;
+    }
+
+    private static void CheckDeathRequestContracts()
+    {
+        Player body = PlayerActor("player20.prefab");
+        Player spirit = PlayerActor("SpiritPlayer.prefab");
+        var refresh = new RefreshOutcomeProbe();
+        var rules = new PlayerLifecycleRules(body, spirit, refresh);
+        rules.ConfigureStage(PlayerGameplayStage.Escape);
+        Check(body.TryRequestDeath(PlayerDeathCause.OxygenDepleted), "氧气死亡保存明确死者请求");
+        PlayerDeathRequest request = body.PendingDeath.Value;
+        Check(request.subject == body && request.cause == PlayerDeathCause.OxygenDepleted, "死亡请求不查询当前控制目标替换死者");
+        Check(!body.TryRequestDeath(PlayerDeathCause.Abyss), "同周期深渊和氧气只保留一个请求");
+        body.BindDeathReceiver(rules);
+        Check(body.DeathStatus == PlayerDeathStatus.Pending && body.PendingDeath.HasValue, "刷新服务未完成不能报告死亡处理完成");
+        refresh.complete = true;
+        body.RetryPendingDeath();
+        Check(body.DeathStatus == PlayerDeathStatus.Handled && !body.PendingDeath.HasValue, "结果服务提交成功后确认请求完成");
+        Check(refresh.subject == body && refresh.completions == 1, "逃生消费者传递正确死者且只完成一次");
+        rules.ReceiveDeath(request);
+        Check(refresh.completions == 1, "已完成旧请求重放不再次刷新");
+        Check(!body.TryRequestDeath(PlayerDeathCause.Abyss), "完成后未刷新周期仍拒绝同周期重复死亡");
+        rules.ConfigureStage(PlayerGameplayStage.Exploration, true);
+        spirit.ApplyCapabilities(new PlayerCapabilityPermissions(true, true, true, true, true));
+        spirit.BindDeathReceiver(rules);
+        Check(spirit.TryRequestDeath(PlayerDeathCause.Abyss), "精神体行走深渊共用统一死亡入口");
+        Check(spirit.DeathStatus == PlayerDeathStatus.Pending && rules.IsSimulation, "探索形态依赖缺席保持请求和模拟状态");
+        Check(!spirit.RequestSpiritForm(true, PlayerFormChangeReason.Death), "穿墙和扣费模块缺席不伪造飞行成功");
+        spirit.BindFormRules(new UncommittedFormProbe(), null);
+        Check(!spirit.RequestSpiritForm(true, PlayerFormChangeReason.Death), "形态规则只返回成功但未提交实际形态时仍拒绝确认");
+    }
+
+    private static void CheckOxygenResources()
+    {
+        var fsm = new PlayerStateMachine();
+        Check(!fsm.TickOxygen(1f, true, false, true), "淹没先扣氧而非立即死亡");
+        Near(fsm.oxygen, 90f, "氧气按时间扣一次");
+        fsm.TickOxygen(1f, true, false, false);
+        Near(fsm.oxygen, 90f, "待机许可暂停氧气更新");
+        fsm.TickOxygen(1f, false, false, true);
+        Near(fsm.oxygen, 100f, "离水逐渐恢复并限制上限");
+        fsm.oxygen = 50f;
+        fsm.TickOxygen(1f, true, true, true);
+        Near(fsm.oxygen, 70f, "飞行淹没不耗氧并沿资源参数恢复");
+        fsm.oxygen = 10f;
+        Check(fsm.TickOxygen(1f, true, false, true), "氧气归零只发一次死亡信号");
+        int repeated = 0;
+        for (int i = 0; i < 120; i++) if (fsm.TickOxygen(1f / 60f, true, false, true)) repeated++;
+        Check(repeated == 0 && fsm.oxygen == 0f, "持续淹没两秒不重复死亡且不低于零");
+        fsm.TickOxygen(1f, false, false, true);
+        Check(fsm.TickOxygen(2f, true, false, true), "恢复正值后可以开始下一次耗尽周期");
+        var fast = new PlayerStateMachine();
+        var slow = new PlayerStateMachine();
+        for (int i = 0; i < 60; i++) fast.TickOxygen(1f / 60f, true, false, true);
+        for (int i = 0; i < 5; i++) slow.TickOxygen(.2f, true, false, true);
+        Check(Mathf.Abs(fast.oxygen - slow.oxygen) < .001f, "氧气不同逻辑帧率按累计时间一致");
+        var split = new PlayerStateMachine();
+        split.TickOxygen(.02f, true, false, true);
+        split.TickOxygen(.48f, true, false, true);
+        Near(split.oxygen, 95f, "入离水按所消费快照对应的逻辑时间扣减");
+    }
+
+    private static void CheckPlayerRefresh()
+    {
+        Player player = PlayerActor("player20.prefab");
+        CharacterPhysics physics = player.GetComponent<CharacterPhysics>();
+        Physics2D.SyncTransforms();
+        Bounds bounds = player.GetComponent<BoxCollider2D>().bounds;
+        WaterWithEffects water = Prefab<WaterWithEffects>("WaterPoolWithEffects.prefab", new Vector3(bounds.center.x, bounds.max.y, 0f));
+        Physics2D.SyncTransforms();
+        physics.ResampleEnvironment();
+        Check(player.WaterFacts.submerged, $"刷新用例出生几何已完全淹没 [body={bounds}, water={water.GetComponent<Collider2D>().bounds}]");
+        player.ApplyCapabilities(new PlayerCapabilityPermissions(false, true, false, false, true));
+        physics.ResampleEnvironment();
+        Check(player.WaterFacts.submerged, "仅暂停运动时水事实仍可采样");
+        player.TickLogic(.1f);
+        Near(player.ResourceFacts.oxygen, 99f, "暂停运动但许可资源更新时仍耗氧");
+        player.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+        Vector2 origin = player.transform.position;
+        var fsm = (PlayerStateMachine)typeof(Player).GetField("fsm", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player);
+        fsm.staminaMax = 150f;
+        fsm.stamina = fsm.oxygen = 0f;
+        fsm.jbtB = true;
+        player.TryRequestDeath(PlayerDeathCause.OxygenDepleted);
+        uint firstCycle = player.PendingDeath.Value.cycle;
+        player.GetComponent<Rigidbody2D>().velocity = new Vector2(10f, 20f);
+        physics.AddTimeSpeed(1f, 30f);
+        player.RefreshRuntime();
+        Check((Vector2)player.transform.position == origin, "不指定位置的轻刷新保留精神体/角色坐标");
+        Check(player.WaterFacts.submerged && player._ActionData.isSwimming, "深水刷新重采样而非永久伪装离水");
+        Near(player.ResourceFacts.oxygen, 100f, "刷新恢复氧气");
+        Near(player.ResourceFacts.stamina, 150f, "刷新资源保留当前生效上限");
+        Check(!fsm.jbtB && !player.PendingDeath.HasValue, "刷新清旧跳跃缓冲和死亡周期");
+        Check(player.GetComponent<Rigidbody2D>().velocity == Vector2.zero && physics.GetPlanarVelocity() == Vector2.zero, "刷新清原生和自研速度缓存");
+        Check(physics.EnvironmentContext.DebugSourceCount == 1, "轻刷新保留仍命中的水效果关系");
+        player.TryRequestDeath(PlayerDeathCause.Abyss);
+        Check(player.PendingDeath.Value.cycle > firstCycle, "刷新后可以开始新死亡周期");
+        player.RefreshRuntime(origin + Vector2.up * 20f, true);
+        Check(!player.WaterFacts.submerged && physics.EnvironmentContext.DebugSourceCount == 0, "带位置与显式撤销的刷新按新几何退出旧水效果");
+    }
+
+    private static void CheckWaterLevel()
+    {
+        WaterRegion water = Prefab<WaterRegion>("WaterPool.prefab", NextPosition());
+        MethodInfo phase = typeof(WaterRegion).GetMethod("AdvanceWaterLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        Physics2D.SyncTransforms();
+        Bounds original = water.GetComponent<BoxCollider2D>().bounds;
+        phase.Invoke(water, null);
+        Physics2D.SyncTransforms();
+        Check(water.GetComponent<BoxCollider2D>().bounds == original, "未配置普通池保持静态");
+        float bottom = original.min.y;
+        float surface = original.max.y;
+        Check(water.ConfigureWaterLevel(bottom, surface, 2f, false), "规则层可配置水位和上涨许可");
+        phase.Invoke(water, null);
+        Physics2D.SyncTransforms();
+        Near(water.SurfaceY, surface, "关闭许可水面不涨");
+        water.ConfigureWaterLevel(bottom, surface, 2f, true);
+        for (int i = 0; i < 5; i++) phase.Invoke(water, null);
+        Physics2D.SyncTransforms();
+        Bounds risen = water.GetComponent<BoxCollider2D>().bounds;
+        Check(Mathf.Abs(risen.max.y - (surface + 10f * Time.fixedDeltaTime)) < .003f, "相位零按许可和速率上涨");
+        Near(risen.min.y, bottom, "上涨固定水底");
+        Check(Mathf.Abs(water.GetComponent<SpriteRenderer>().bounds.max.y - risen.max.y) < .003f, "显示水面与判定范围一致");
+        Check(!water.ConfigureWaterLevel(bottom, bottom, 1f, true), "拒绝空水域而不猜测几何");
+        water.ConfigureWaterLevel(bottom, risen.max.y, 2f, false);
+        phase.Invoke(water, null);
+        Physics2D.SyncTransforms();
+        Check(Mathf.Abs(water.SurfaceY - risen.max.y) < .003f, "撤销上涨许可保留当前水位");
+    }
+
+    private static void CheckSwimmingPresentation()
+    {
+        Player player = PlayerActor("player20.prefab");
+        PresentationLayer presentation = player.GetComponentInChildren<PresentationLayer>();
+        var fsm = (PlayerStateMachine)typeof(Player).GetField("fsm", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player);
+        var physics = player.GetComponent<CharacterPhysics>();
+        var geometry = (GeometryPhysicsData)typeof(BasicEntity).GetField("nowGemetry", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics);
+        var speed = (PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics);
+        var input = new PlayerInputData { verticalInput = 1f };
+        MethodInfo update = typeof(PresentationLayer).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);
+        FieldInfo animation = typeof(PresentationLayer).GetField("currentAnimation", BindingFlags.Instance | BindingFlags.NonPublic);
+        FieldInfo trigger = typeof(PresentationLayer).GetField("activeTrigger", BindingFlags.Instance | BindingFlags.NonPublic);
+        Animator animator = presentation.GetComponent<Animator>();
+        animator.Rebind();
+        animator.Update(0f);
+        geometry.isGrounded = true;
+        fsm.Update(input, FourWayMode.Swimming, true, true, 0f);
+        speed.verticalSpeed = 6f;
+        update.Invoke(presentation, null);
+        Check(animation.GetValue(presentation).ToString() == "Swim", "水底几何着地仍播放独立游泳状态");
+        Check(trigger.GetValue(presentation).ToString() == "None", "游泳上浮不启动跳跃触发");
+        speed.verticalSpeed = 12f;
+        update.Invoke(presentation, null);
+        Check(animation.GetValue(presentation).ToString() == "Swim" && trigger.GetValue(presentation).ToString() == "None", "游泳竖直速度增加不误判跳跃冲量");
+        fsm.Update(input, FourWayMode.None, true, true, 0f);
+        update.Invoke(presentation, null);
+        Check(animation.GetValue(presentation).ToString() == "Idle" && trigger.GetValue(presentation).ToString() == "None", "水底退出游泳不误播旧落地动作");
+        fsm.Update(input, FourWayMode.Flying, true, true, 0f);
+        update.Invoke(presentation, null);
+        Check(animation.GetValue(presentation).ToString() == "Flight", "飞行原因拥有独立表现接入口");
+        Check(animator.HasState(0, Animator.StringToHash("Base Layer.Swim")), "控制器已有独立游泳状态");
+    }
+
+    private static Player PlayerActor(string prefab)
+    {
+        Player player = Prefab<Player>(prefab, NextPosition());
+        typeof(CharacterPhysics).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(player.GetComponent<CharacterPhysics>(), null);
+        typeof(Player).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(player, null);
+        typeof(PresentationLayer).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(player.GetComponentInChildren<PresentationLayer>(), null);
+        typeof(Player).GetMethod("Start", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(player, null);
+        return player;
+    }
+
+    private static void CheckPlayerControlSwitch()
+    {
+        Player body = PlayerActor("player20.prefab");
+        Player spirit = PlayerActor("SpiritPlayer.prefab");
+        Check(body.Identity == PlayerIdentity.Body && spirit.Identity == PlayerIdentity.Spirit, "双预设共用脚本并持有固定身份");
+        InputControlMgr manager = NewObject("control switch", NextPosition()).AddComponent<InputControlMgr>();
+        typeof(InputControlMgr).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(manager, null);
+        Check(manager.Player == null, "创建玩家不主动抢控制权");
+        manager.BindPlayer(body);
+        PlayerInputData input = manager.PlayerInputData;
+        input.moveInput = 1f;
+        input.jumpPressed = input.jumpRelease = input.interactTapped = input.interactLongPressed = input.sprintReleased = true;
+        typeof(Player).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(body, null);
+        CharacterPhysics physics = body.GetComponent<CharacterPhysics>();
+        typeof(CharacterPhysics).GetMethod("Jump", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(physics, null);
+        typeof(InputControlMgr).GetField("interactHolding", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(manager, true);
+        input.jumpPressed = input.jumpRelease = input.interactTapped = input.interactLongPressed = input.sprintReleased = true;
+        manager.BindPlayer(spirit);
+        Check(manager.Player == spirit, "外部选择目标不受创建顺序影响");
+        Near(body._ActionData.onMove, 0f, "切换立即清旧角色移动输出");
+        Check(!(bool)typeof(CharacterPhysics).GetField("jump", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics), "切换清物理待消费跳跃");
+        Check(!input.jumpPressed && !input.jumpRelease && !input.interactTapped && !input.interactLongPressed && !input.sprintReleased, "新目标不继承旧点按和释放历史");
+        Check(!(bool)typeof(InputControlMgr).GetField("interactHolding", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(manager), "切换中止交互长按计时");
+        manager.UnbindPlayer(body);
+        Check(manager.Player == spirit, "旧目标不能误解绑新目标");
+        Disable(spirit);
+        Check(manager.Player == null, "禁用当前目标安全解除绑定");
+        Vector3 position = body.transform.position;
+        Check(position.x > 10000f, "角色初始化保留外部出生位置");
+        body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        Check(!body.GetComponent<Rigidbody2D>().simulated && !body._ActionData.motionUpdates, "待机角色暂停原生及自研运动");
+        body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+        Check(body.GetComponent<Rigidbody2D>().simulated, "运动许可重新开启恢复参与");
+    }
+
+    private static bool SetFlightForm(PlayerCapabilityContext context, bool flying) =>
+        (bool)typeof(PlayerCapabilityContext).GetMethod("SetFlightForm", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(context, new object[] { flying });
+
+    private static void CheckWaterRegions()
+    {
+        Vector3 position = NextPosition();
+        WaterRegion water = Prefab<WaterRegion>("WaterPool.prefab", position);
+        Collider2D region = water.GetComponent<Collider2D>();
+        EnvironmentCheckBody body = Body(position);
+        var regions = new List<Collider2D> { region, region };
+        Physics2D.SyncTransforms();
+        EntityEnvironmentContext context = body.EnvironmentContext;
+        Vector2 inside = position;
+        context.RefreshEnvironment(null, regions, inside);
+        Check(context.WaterFrame.submerged && context.WaterFrame.swimmingAvailable, "水预设提供淹没及游泳");
+        Check(context.DebugSourceCount == 0, "纯水采样不伪造持续效果绑定");
+        water.SetSwimmingEnabled(false);
+        context.RefreshEnvironment(null, regions, inside);
+        Check(context.WaterFrame.submerged && !context.WaterFrame.swimmingAvailable, "重叠内关游泳仍保留淹没");
+        water.SetSwimmingEnabled(true);
+        context.RefreshEnvironment(null, regions, inside);
+        Check(context.WaterFrame.swimmingAvailable, "重叠内重新开游泳立即生效");
+        context.RefreshEnvironment(null, regions, inside + Vector2.up * 3f);
+        Check(!context.WaterFrame.submerged && !context.WaterFrame.swimmingAvailable, "脚入水但上缘在水外不算淹没");
+        WaterRegion second = Prefab<WaterRegion>("WaterPool.prefab", position + Vector3.right * 12f);
+        Collider2D secondRegion = second.GetComponent<Collider2D>();
+        Physics2D.SyncTransforms();
+        regions.Add(secondRegion);
+        water.SetSwimmingEnabled(false);
+        context.RefreshEnvironment(null, regions, inside);
+        Check(context.WaterFrame.submerged && !context.WaterFrame.swimmingAvailable, "不同水源不得拼接淹没和游泳条件");
+        second.transform.position = position;
+        Physics2D.SyncTransforms();
+        context.RefreshEnvironment(null, regions, inside);
+        Check(context.WaterFrame.submerged && context.WaterFrame.swimmingAvailable, "多水源按任一满足完整条件汇总");
+        second.enabled = false;
+        context.RefreshEnvironment(null, regions, inside);
+        Check(context.WaterFrame.submerged && !context.WaterFrame.swimmingAvailable, "禁用一水源不清掉另一水源淹没");
+        water.enabled = false;
+        context.RefreshEnvironment(null, regions, inside);
+        Check(!context.WaterFrame.submerged, "全部水宿主禁用后撤销事实");
+        water.enabled = true;
+        region.isTrigger = false;
+        context.RefreshEnvironment(null, regions, inside);
+        Check(!context.WaterFrame.submerged, "实心几何不提供水区域事实");
+        region.isTrigger = true;
+        region.enabled = false;
+        context.RefreshEnvironment(null, regions, inside);
+        Check(!context.WaterFrame.submerged, "禁用水碰撞体不保留淹没");
+        region.enabled = true;
+        context.RefreshEnvironment(null, regions, inside);
+        context.ReleaseAll();
+        Check(!context.WaterFrame.submerged, "实体释放关系同时清水快照");
+        context.RefreshEnvironment(null, regions);
+        Check(!context.WaterFrame.submerged, "没有采样点不沿用旧水事实");
+        ForceField field = NewObject("pure force", position).AddComponent<ForceField>();
+        Collider2D fieldRegion = field.gameObject.AddComponent<BoxCollider2D>();
+        fieldRegion.isTrigger = true;
+        context.RefreshEnvironment(null, new List<Collider2D> { fieldRegion }, inside);
+        Check(!context.WaterFrame.submerged, "纯力场不自动成为水");
+        ForceField oldPond = Prefab<ForceField>("Pond.prefab", position);
+        context.RefreshEnvironment(null, new List<Collider2D> { oldPond.GetComponent<Collider2D>() }, inside);
+        Check(!context.WaterFrame.submerged, "旧 Pond 保持力场身份");
+        Object.DestroyImmediate(water.gameObject);
+        context.RefreshEnvironment(null, regions, inside);
+        Check(!context.WaterFrame.submerged, "销毁水源后安全撤销事实");
     }
 
     private static void CheckGroundLifecycle()
