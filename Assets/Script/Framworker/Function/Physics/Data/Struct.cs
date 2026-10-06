@@ -331,6 +331,20 @@ namespace PhyData
                 effector.isActiveAndEnabled && effector.useOneWay)
                 oneWayEffectors[hit] = effector;
         }
+
+        /// <summary>
+        /// 这块碰撞体当前是不是单向平台的实心顶面。侧面和底面不算。
+        /// 职能：识别相位 1 脚下可落下的单向支撑，不建立碰撞忽略关系。
+        /// </summary>
+        internal static bool IsSolidOneWayTop(Collider2D collider, Vector2 normal)
+        {
+            // 安全：没有碰撞体，或没挂启用中的单向效应器，就不是可落下的顶面。
+            if (collider == null || !collider.usedByEffector) return false;
+            if (!collider.TryGetComponent(out PlatformEffector2D effector) ||
+                !effector.isActiveAndEnabled || !effector.useOneWay) return false;
+            // 实际逻辑：法线落在效应器表面弧内，才是站上去的那一面。
+            return Vector2.Angle(effector.transform.up, normal) <= effector.surfaceArc * 0.5f;
+        }
     }
 
     /// <summary>

@@ -30,5 +30,8 @@ public sealed class UnityPhysicsWorldAccess2D : IPhysicsWorldAccess2D
     public bool GetIgnoreCollision(Collider2D first, Collider2D second) =>
         Physics2D.GetIgnoreCollision(first, second);
 
+    public void SetIgnoreCollision(Collider2D first, Collider2D second, bool ignore) =>
+        Physics2D.IgnoreCollision(first, second, ignore);
+
     public void SubmitPosition(Rigidbody2D body, Vector2 target) => body.MovePosition(target);
 }

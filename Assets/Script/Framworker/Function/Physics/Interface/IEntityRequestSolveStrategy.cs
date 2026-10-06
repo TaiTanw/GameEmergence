@@ -1,4 +1,5 @@
 using PhyData;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>当前实体环境判定所需的当帧快照；仍使用 Unity 2D 类型。</summary>
@@ -14,10 +15,12 @@ internal readonly struct EntityEnvironmentSolveInput
     internal readonly float verticalSpeed;
     internal readonly float fixedDeltaTime;
     internal readonly EntityMotionFrame motionFrame;
+    internal readonly IReadOnlyList<Collider2D> oneWayDropColliders;
 
     internal EntityEnvironmentSolveInput(Bounds bounds, Rigidbody2D body, LayerMask groundLayer,
         LayerMask wallLayer, float maxClimbAngle, Collider2D groundCollider, bool isGrounded,
-        float verticalSpeed, float fixedDeltaTime, EntityMotionFrame motionFrame)
+        float verticalSpeed, float fixedDeltaTime, EntityMotionFrame motionFrame,
+        IReadOnlyList<Collider2D> oneWayDropColliders)
     {
         this.bounds = bounds;
         this.body = body;
@@ -29,6 +32,7 @@ internal readonly struct EntityEnvironmentSolveInput
         this.verticalSpeed = verticalSpeed;
         this.fixedDeltaTime = fixedDeltaTime;
         this.motionFrame = motionFrame;
+        this.oneWayDropColliders = oneWayDropColliders;
     }
 }
 

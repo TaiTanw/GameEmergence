@@ -87,6 +87,18 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
         fsmEventSystem.AddEventListener(PlayerStateMachine.E_playEvent.wallJump, WallJump);
     }
 
+    /// <summary>
+    /// 按住向下时，放开脚下或本步下落路径中命中的单向平台顶面。
+    /// </summary>
+    protected override bool WantsDropThroughCurrentOneWay(Collider2D support, Vector2 normal)
+    {
+        // 安全：动作数据还没注入时不能读上下输入。
+        if (playActionData == null) return false;
+        // 实际逻辑：负向超过一半才算按下。侧面和普通地面不放开。
+        return playActionData.verticalInput < -0.5f
+            && EntityCandidateGeometry.IsSolidOneWayTop(support, normal);
+    }
+
     protected override float HorizontalSpeedCalculation()
     {
         return playActionData.onMove * speed;

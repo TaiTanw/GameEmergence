@@ -21,6 +21,9 @@ public abstract class BasePhysicsEntity : BasicEntity
 
     ReadOnly_PlayerPhysicsData readOnly_PlayerPhysicsData;
     public ReadOnly_PlayerPhysicsData ReadOnly_PlayersPhysicsData => readOnly_PlayerPhysicsData;
+    // 跨帧分别保留尚未穿完的平台；相位 1 维护，脚下查询与相位 4 共用只读视图。
+    readonly List<Collider2D> passingOneWays = new List<Collider2D>();
+    readonly List<RaycastHit2D> oneWayDropHits = new List<RaycastHit2D>();
 
 
 
@@ -43,7 +46,10 @@ public abstract class BasePhysicsEntity : BasicEntity
         // 接触查询在命中选择前排除 Trigger，避免区域遮住实心表面；不改全局查询开关。
         ContactFilter2D contactFilter = new ContactFilter2D { useTriggers = false };
         contactFilter.SetLayerMask(cPhysics.groundLayer);
-        // 地面检测（只做检测，不做响应）
+        // 先维护下平台的临时碰撞对，再形成本帧支撑事实。
+        ReleaseOneWayDropsIfClear();
+        oneWayDropColliders = passingOneWays;
+        PrepareOneWayDrops(contactFilter);
         RaycastHit2D hit = FindGroundHit(groundV.position, cPhysics.boxCastH, 0f,
             Vector2.down, contactFilter);
         //缓存贴地法线
@@ -83,6 +89,84 @@ public abstract class BasePhysicsEntity : BasicEntity
             nowGemetry.rightWallCollider = hit2.collider;
         }
 
+    }
+
+    /// <summary>
+    /// 这一帧是否要放开查询命中的单向顶面。默认不放开，由具体角色提供意图。
+    /// 职能：行为意图进入相位 1；不在这里改速度。
+    /// </summary>
+    protected virtual bool WantsDropThroughCurrentOneWay(Collider2D support, Vector2 normal) => false;
+
+    void PrepareOneWayDrops(ContactFilter2D filter)
+    {
+        // 安全：没有实体碰撞框时不能查询下落路径。
+        if (boxCollider == null || !boxCollider.enabled) return;
+        Vector2 probeSize = cPhysics.boxCastH;
+        probeSize.x = Mathf.Max(probeSize.x, PhysicsWorld.ReadAabb(boxCollider).size.x);
+        // 实际逻辑：覆盖下一相位可能产生的向下位移，避免先碰撞、下一帧才放开。
+        // 这里只估查询范围，不写速度；真正的着地查询仍使用 GroundProbeDistance。
+        float dt = Time.fixedDeltaTime;
+        float fallingSpeed = playerPhysicsData.verticalSpeed + playerPhysicsData.phyVSpeed + gravity * dt;
+        float distance = GroundProbeDistance + Mathf.Max(0f, -fallingSpeed * dt);
+        oneWayDropHits.Clear();
+        PhysicsWorld.BoxCast(groundV.position, probeSize, 0f, Vector2.down, distance, filter, oneWayDropHits);
+        foreach (RaycastHit2D hit in oneWayDropHits)
+        {
+            // 安全：自身与无效命中不是环境支撑。
+            if (hit.collider == null || hit.collider.attachedRigidbody == rb) continue;
+            if (WantsDropThroughCurrentOneWay(hit.collider, hit.normal))
+                BeginOneWayDrop(hit.collider);
+        }
+    }
+
+    void BeginOneWayDrop(Collider2D platform)
+    {
+        // 实际逻辑：新支撑另建忽略对，旧平台只有自己清离后才恢复。
+        if (passingOneWays.Contains(platform)) return;
+        passingOneWays.Add(platform);
+        // 安全：没有自身碰撞体时不能建立忽略对。
+        if (boxCollider == null || platform == null) return;
+        PhysicsWorld.SetIgnoreCollision(boxCollider, platform, true);
+    }
+
+    void ReleaseOneWayDropsIfClear()
+    {
+        for (int i = passingOneWays.Count - 1; i >= 0; i--)
+        {
+            Collider2D platform = passingOneWays[i];
+            // 安全：销毁或禁用的碰撞体不再保留关系。
+            bool active = platform != null && platform.enabled && platform.gameObject.activeInHierarchy;
+            // 实际逻辑：每块平台单独等身体清离，松键不提前恢复。
+            if (active && boxCollider != null && boxCollider.enabled && !HasClearedOneWay(platform)) continue;
+            if (active && boxCollider != null && boxCollider.enabled)
+                PhysicsWorld.SetIgnoreCollision(boxCollider, platform, false);
+            passingOneWays.RemoveAt(i);
+        }
+    }
+
+    bool HasClearedOneWay(Collider2D platform)
+    {
+        Bounds body = PhysicsWorld.ReadAabb(boxCollider);
+        Bounds surface = platform.bounds;
+        // 实际逻辑：下方、侧方完全分离，或跳回顶面探测范围以上，都已离开这块平台。
+        // 顶面保留脚下探测的间隙，避免刚开始落下时尚未进入平台就恢复碰撞。
+        return body.max.y < surface.min.y || body.max.x < surface.min.x ||
+            body.min.x > surface.max.x || body.min.y > surface.max.y + GroundProbeDistance;
+    }
+
+    void EndOneWayDrops()
+    {
+        foreach (Collider2D platform in passingOneWays)
+            if (platform != null && boxCollider != null)
+                PhysicsWorld.SetIgnoreCollision(boxCollider, platform, false);
+        passingOneWays.Clear();
+        oneWayDropColliders = null;
+    }
+
+    protected override void OnDisable()
+    {
+        EndOneWayDrops();
+        base.OnDisable();
     }
 
     protected override void PhyFunUpdate()

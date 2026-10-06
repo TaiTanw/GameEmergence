@@ -37,6 +37,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     #region 动作图
     InputActionMap player1;
     InputAction moveAction;
+    InputAction verticalAction;
     InputAction jumpAction;
     InputAction interactAction;
     bool gameplayActionsBound;
@@ -58,11 +59,14 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
 
         player1 = input.actions.FindActionMap("player");
         moveAction = player1["Move"];
+        verticalAction = player1["Vertical"];
         jumpAction = player1["Jump"];
         interactAction = player1["Interact"];
 
         moveAction.performed += OnMovePerformed;
         moveAction.canceled += OnMoveCanceled;
+        verticalAction.performed += OnVerticalPerformed;
+        verticalAction.canceled += OnVerticalCanceled;
         jumpAction.started += OnJumpStarted;
         jumpAction.canceled += OnJumpCanceled;
         interactAction.started += OnInteractStarted;
@@ -148,6 +152,11 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
             moveAction.performed -= OnMovePerformed;
             moveAction.canceled -= OnMoveCanceled;
         }
+        if (verticalAction != null)
+        {
+            verticalAction.performed -= OnVerticalPerformed;
+            verticalAction.canceled -= OnVerticalCanceled;
+        }
         if (jumpAction != null)
         {
             jumpAction.started -= OnJumpStarted;
@@ -171,6 +180,16 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     void OnMoveCanceled(InputAction.CallbackContext ctx)
     {
         inputData.moveInput = 0;
+    }
+
+    void OnVerticalPerformed(InputAction.CallbackContext ctx)
+    {
+        inputData.verticalInput = ctx.ReadValue<float>();
+    }
+
+    void OnVerticalCanceled(InputAction.CallbackContext ctx)
+    {
+        inputData.verticalInput = 0;
     }
 
     void OnJumpStarted(InputAction.CallbackContext ctx)

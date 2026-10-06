@@ -1,19 +1,19 @@
-<mxfile host="Electron" compressed="false" pages="2">
+<mxfile host="Electron" compressed="false" pages="3">
   <diagram id="phase4-dispatch" name="01 · 管理器调度与实体纠偏链路">
-    <mxGraphModel dx="2500" dy="3580" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2500" pageHeight="3580" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="2500" dy="3580" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2500" pageHeight="3585" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:30px&quot;&gt;01 · 管理器调度与实体纠偏链路&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;2026-10-03 · K9 边界与 V4 阻挡传播现码 · 箱链请求仍待收束&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+        <mxCell id="title" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:30px&quot;&gt;01 · 管理器调度与实体纠偏链路&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;2026-10-05 · K9 边界、V4 阻挡传播及 P5.1 / V5 平台下落现码；相位 1 细节见第 3 页。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
           <mxGeometry x="40" y="25" width="2420" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="legend" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;阅读标记&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;蓝色：管理器调度与应用；紫色：接触策略决定；绿色：实体查询与请求策略；青色：Unity 查询/提交入口。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;橙色反馈箭头：重新求环境请求；虚线：策略调用或跨帧观测。当前两套策略仍只覆盖现行 AABB / 坡面规则。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+        <mxCell id="legend" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;阅读标记&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;蓝色：管理器调度与应用；紫色：接触策略决定；绿色：实体查询与请求策略；青色：Unity 查询、碰撞对设置与请求提交口。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;橙色反馈箭头：重新求环境请求；虚线：策略调用或跨帧观测。当前两套策略仍只覆盖现行 AABB / 坡面规则。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
           <mxGeometry x="40" y="160" width="2420" height="135" as="geometry" />
         </mxCell>
         <mxCell id="phase0" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:22px&quot;&gt;0 · 平台&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;Taijie.FixFun 更新平台位置与 Delta&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
           <mxGeometry x="40" y="325" width="370" height="135" as="geometry" />
         </mxCell>
-        <mxCell id="phase1" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:22px&quot;&gt;1 · 实测 / 几何&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;先读上次落点，再经 PhysicsWorld 查询接触&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+        <mxCell id="phase1" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:22px&quot;&gt;1 · 实测 / 几何&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;观测上次落点；角色维护下平台忽略对后查询支撑（见第 3 页）。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
           <mxGeometry x="450" y="325" width="370" height="135" as="geometry" />
         </mxCell>
         <mxCell id="edge-1" value="" edge="1" parent="1" source="phase0" target="phase1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
@@ -43,7 +43,7 @@
         <mxCell id="edge-5" value="" edge="1" parent="1" source="phase4" target="phase5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="scheduler" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;谁真正驱动相位？&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;MonoPublicMgr.FixedUpdate：先执行 FixedUpdateEvent，再按 actionsLen 的索引顺序调用。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;实体启用时登记相位 1 / 2 / 3 / 5；Solver.Init 登记相位 4；平台登记相位 0。槽 6 保留。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+        <mxCell id="scheduler" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;谁真正驱动相位？&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;MonoPublicMgr.FixedUpdate：先执行 FixedUpdateEvent，再按 actionsLen 的索引顺序调用。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;实体登记相位 1 / 2 / 3 / 5；Solver.Init 登记相位 4；平台登记相位 0。P5.1 沿用相位 1 和 4，没有新增时序槽。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
           <mxGeometry x="40" y="490" width="2420" height="145" as="geometry" />
         </mxCell>
         <mxCell id="lane-mgr" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;管理器主干&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;ContactForSolution 按下列顺序执行&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
@@ -90,7 +90,7 @@
             <mxGeometry x="40" y="1320" width="500" height="215" as="geometry" />
           </mxCell>
         </object>
-        <object id="probe" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;ProbeCandidateEnvironment · 管理器直接调用&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity 用基础预测＋累计偏置确定候选终点。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;经 PhysicsWorld 读 AABB、扫路径/终点/脚下，过滤自身和其他实体。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;重填 EntityCandidateGeometry 后调用 RequestSolveStrategy.ResolveCandidate。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs · ProbeCandidateEnvironment">
+        <object id="probe" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;ProbeCandidateEnvironment · 管理器直接调用&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity 用基础预测＋累计偏置确定候选终点；经 PhysicsWorld 查询环境。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;重填 EntityCandidateGeometry；BuildEnvironmentSolveInput 同时带入相位 1 的平台只读视图。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;RequestSolveStrategy.ResolveCandidate 消费查询与输入，管理器仍只负责调用时序。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs · ProbeCandidateEnvironment">
           <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
             <mxGeometry x="1400" y="1300" width="1060" height="205" as="geometry" />
           </mxCell>
@@ -105,9 +105,9 @@
             <mxGeometry x="1960" y="1560" width="500" height="225" as="geometry" />
           </mxCell>
         </object>
-        <object id="lift" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:19px&quot;&gt;CurrentEntityRequestSolver.HasLiftObstacle&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;有支撑时经 world 检查抬升净空；复用 IsOneWayPassThrough。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;单向通行判断也用于路径与顶面筛选，仍属当前策略。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · HasLiftObstacle">
+        <object id="lift" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;HasLiftObstacle · 抬升净空&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;有支撑时经 world 检查抬升净空；复用 IsOneWayPassThrough。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;路径、坡面与顶面筛选同样放行忽略列表中的全部平台，再按原单向规则判断。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · HasLiftObstacle">
           <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
-            <mxGeometry x="1960" y="1840" width="500" height="155" as="geometry" />
+            <mxGeometry x="1960" y="1840" width="500" height="180" as="geometry" />
           </mxCell>
         </object>
         <object id="final" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;BasicEntity.FinalizeRequestedDisplacement → 策略 FinalizeRequest&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;CurrentEntityRequestSolver 合成允许 X、坡面 Y、独立垂直、平台及接触 Y。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;现行规则按原自身 X 保留率缩短沿坡 Y，复用路径命中裁剪顶面。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;写 requestedWorldDelta 与本实体直接 blockedHorizontalDirection；不提交刚体。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · FinalizeRequest">
@@ -166,7 +166,7 @@
         </mxCell>
         <object id="block" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;4.4 · 传播水平阻挡方向&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;PlanPropagatedHorizontalBlocks → ApplyPropagatedHorizontalBlocks。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;写回方向供施力与清速读取；不重算本帧请求。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Mgr/PhysicsSolverMgr.cs" tooltip="Assets/Script/Framworker/Function/Physics/Mgr/PhysicsSolverMgr.cs · ApplyPropagatedHorizontalBlocks">
           <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
-            <mxGeometry x="40" y="1945" width="500" height="140" as="geometry" />
+            <mxGeometry x="40" y="1945" width="500" height="150" as="geometry" />
           </mxCell>
         </object>
         <object id="block-calc" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;CurrentAabbContactSolver.PlanPropagatedHorizontalBlocks&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;以本帧静墙裁剪方向播种；沿预测 AABB 的水平重叠向墙反侧逐跳传播。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;输出 HorizontalBlockDecision；已有直接阻挡优先。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;管理器调用实体 AdoptPropagatedHorizontalBlock 写回。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;残余偏置已完成；已复现箱链请求交叠超过 ContactSlop。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Mgr/CurrentAabbContactSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Mgr/CurrentAabbContactSolver.cs · PlanPropagatedHorizontalBlocks">
@@ -258,17 +258,17 @@
         </object>
         <object id="submit" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;5 · 实体提交一次位置请求&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;MonoPublicMgr → DisplacementCorrection。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;PhysicsWorld.ReadBodyPosition 取 origin，SubmitPosition 提交目标。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;缓存请求步、origin、delta；本相位尚无实际落点。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs · DisplacementCorrection">
           <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
-            <mxGeometry x="40" y="3300" width="500" height="175" as="geometry" />
+            <mxGeometry x="40" y="3300" width="500" height="185" as="geometry" />
           </mxCell>
         </object>
-        <object id="world-access" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;K9.4 · IPhysicsWorldAccess2D&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.PhysicsWorld 的 Unity 查询与提交口。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 1/4：AABB、BoxCast、OverlapBox、OverlapCollider 等查询。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 5：ReadBodyPosition、SubmitPosition；仍使用 Unity 命中、碰撞体和刚体类型。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;与相位 4 的解算策略入口分开，不是跨引擎数据契约。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs" tooltip="Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs · IPhysicsWorldAccess2D">
+        <object id="world-access" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;Unity 世界入口 · IPhysicsWorldAccess2D&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.PhysicsWorld 的查询、碰撞对设置与请求提交口。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 1 / 4 查询 AABB、BoxCast、Overlap；角色相位 1 经 SetIgnoreCollision 维护下平台碰撞对。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 5：ReadBodyPosition、SubmitPosition；碰撞对设置不会替代最终的位置请求。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;仍使用 Unity 类型；环境请求策略独立，具体下平台关系见第 3 页。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs" tooltip="Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs · IPhysicsWorldAccess2D">
           <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E6F5F4;strokeColor=#4B9292;strokeWidth=1.5;">
-            <mxGeometry x="620" y="3300" width="880" height="185" as="geometry" />
+            <mxGeometry x="620" y="3300" width="880" height="235" as="geometry" />
           </mxCell>
         </object>
         <object id="engine" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;默认后端 · UnityPhysicsWorldAccess2D&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;defaultPhysicsScene 查命中；SubmitPosition 调用 MovePosition。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;Dynamic 模式下提交只是请求；T+1 相位 1 读位置，形成运行时观测。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;差值可含外部写入；观测不反写解算。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;现有相位 4 最多首轮加两轮环境请求，接触对扫描随实体数平方增长。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/UnityPhysicsWorldAccess2D.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/UnityPhysicsWorldAccess2D.cs · UnityPhysicsWorldAccess2D">
           <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
-            <mxGeometry x="1560" y="3300" width="900" height="185" as="geometry" />
+            <mxGeometry x="1560" y="3300" width="900" height="195" as="geometry" />
           </mxCell>
         </object>
         <mxCell id="edge-30" value="提交" edge="1" parent="1" source="submit" target="world-access" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4B9292;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
@@ -311,19 +311,19 @@
     </mxGraphModel>
   </diagram>
   <diagram id="phase4-data" name="02 · 数据流、读写阶段与结构语义">
-    <mxGraphModel dx="2389" dy="1231" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2500" pageHeight="3290" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="2389" dy="1231" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2500" pageHeight="3340" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:30px&quot;&gt;02 · 数据流、读写阶段与结构语义&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;2026-10-03 · K9 数据边界与 V4 阻挡方向读写时序 · 以当前代码为准&lt;/div&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="title" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:30px&quot;&gt;02 · 数据流、读写阶段与结构语义&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;2026-10-05 · K9 解算数据、V4 阻挡方向与 P5.1 平台只读视图；关系生命周期见第 3 页。&lt;/div&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="110" width="2420" x="40" y="25" as="geometry" />
         </mxCell>
-        <mxCell id="legend" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;读图约定&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;箭头表示数据被谁读取或写入；不是又一条物理调度顺序。方法调用顺序见第一页。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;四类核心数据仍分基础运动、预测、候选查询与请求；接触策略、请求策略和青色 Unity 读写端是三处不同入口。&lt;/div&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="legend" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;读图约定&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;箭头表示数据被谁读取或写入；方法调用顺序见第 1 页，平台下落意图与忽略关系见第 3 页。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;四类核心数据仍分基础运动、预测、候选查询与请求；碰撞对关系由角色实体另行持有。&lt;/div&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="135" width="2420" x="40" y="160" as="geometry" />
         </mxCell>
-        <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 1 · GeometryPhysicsData&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;子类接触查询经 PhysicsWorld；区域 Trigger 经 OverlapCollider。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;当前支撑、左右墙、顶面、法线、区域 Trigger。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;读：相位 2 能力解析、相位 3 支撑处理、相位 4 筛选。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;语义：帧初几何事实；相位 4 候选查询不回写它。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Data/Struct.cs" tooltip="Assets/Script/Framworker/Function/Physics/Data/Struct.cs · GeometryPhysicsData" id="geometry">
+        <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 1 · GeometryPhysicsData&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;子类接触查询经 PhysicsWorld；区域 Trigger 经 OverlapCollider。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;当前支撑、左右墙、顶面、法线、区域 Trigger；角色支撑排除正在穿过的全部平台。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;读：相位 2 能力解析、相位 3 支撑处理、相位 4 筛选。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;语义：帧初几何事实；相位 4 候选查询不回写它。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Data/Struct.cs" tooltip="Assets/Script/Framworker/Function/Physics/Data/Struct.cs · GeometryPhysicsData" id="geometry">
           <mxCell parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#B99142;strokeWidth=1.5;" vertex="1">
-            <mxGeometry height="245" width="740" x="40" y="350" as="geometry" />
+            <mxGeometry height="265" width="740" x="40" y="350" as="geometry" />
           </mxCell>
         </object>
         <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 2 · Context / EnvironmentFrame&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;PhyFunUpdate → RefreshEnvironment：维护来源关系并采样脚下参数。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;EntityEnvironmentFrame：阻力倍率、跳跃加成、平台 Delta。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;平台 Delta 来自相位 0；相位 3 接地时并入 motionFrame。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;关系归 Context；参数快照不保存累计速度。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Data/EntityEnvironmentFrame.cs" tooltip="Assets/Script/Framworker/Function/Physics/Data/EntityEnvironmentFrame.cs · EntityEnvironmentFrame" id="environment">
@@ -378,7 +378,7 @@
             <mxGeometry height="240" width="820" x="1640" y="1150" as="geometry" />
           </mxCell>
         </object>
-        <object id="world-access" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;K9.4 · IPhysicsWorldAccess2D&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.PhysicsWorld 默认取 UnityPhysicsWorldAccess2D.Instance。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity、BasePhysicsEntity、PhysicalBox 的环境查询使用此 Unity 端口。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;ReadAabb / BoxCast / OverlapBox / OverlapCollider 等查询；ReadBodyPosition / SubmitPosition 管位置。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;Collider2D、Rigidbody2D、RaycastHit2D、Bounds 仍是 Unity 类型。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;这里不决定接触纠偏或效果；相位 4 的解算策略入口独立。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs" tooltip="Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs · IPhysicsWorldAccess2D">
+        <object id="world-access" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;Unity 世界入口 · IPhysicsWorldAccess2D&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.PhysicsWorld 默认取 UnityPhysicsWorldAccess2D.Instance。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;实体经此端口查询 AABB / 命中，读位置、提交请求；角色设置或恢复临时碰撞对。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;SetIgnoreCollision → Physics2D.IgnoreCollision；SubmitPosition → MovePosition。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;仍使用 Unity 类型；解算策略独立，不由后端决定下平台意图。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs" tooltip="Assets/Script/Framworker/Function/Physics/Interface/IPhysicsWorldAccess2D.cs · IPhysicsWorldAccess2D">
           <mxCell parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E6F5F4;strokeColor=#4B9292;strokeWidth=1.5;" vertex="1">
             <mxGeometry height="240" width="740" x="840" y="1150" as="geometry" />
           </mxCell>
@@ -412,9 +412,9 @@
             <mxGeometry height="360" width="740" x="840" y="1480" as="geometry" />
           </mxCell>
         </object>
-        <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;结果变化② · 环境约束&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.Probe 重置 environmentOffset，初始化 allowedHorizontalDelta。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;CurrentEntityRequestSolver.ResolveCandidate 读 EntityEnvironmentSolveInput 与候选命中。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;策略写允许 X、额外坡面 Y；X 受限后可经 world 重新查询脚下。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;FindSlopeRise、HasLiftObstacle、单向通行是该策略私有算法。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;不会改 displacementOffset；候选命中不等于最终环境约束。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · ResolveCandidate" id="constraints">
+        <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;结果变化② · 环境约束&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.Probe 重置 environmentOffset，初始化 allowedHorizontalDelta。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;EntityEnvironmentSolveInput 带入实体当帧输入与 oneWayDropColliders 只读视图。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;CurrentEntityRequestSolver 读候选命中，放行忽略列表，写允许 X、额外坡面 Y。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;X 受限后可重查脚下；FindSlopeRise、HasLiftObstacle、单向通行仍属当前策略。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;不修改平台列表或 displacementOffset；具体平台所有权见第 3 页。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · ResolveCandidate" id="constraints">
           <mxCell parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF0E9;strokeColor=#C47B57;strokeWidth=1.5;" vertex="1">
-            <mxGeometry height="285" width="820" x="1640" y="1510" as="geometry" />
+            <mxGeometry height="315" width="820" x="1640" y="1510" as="geometry" />
           </mxCell>
         </object>
         <mxCell id="edge-7" edge="1" parent="1" source="probe-stage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#AE8739;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="candidate" value="实体更新工作区">
@@ -447,7 +447,7 @@
             <mxGeometry height="245" width="740" x="40" y="1930" as="geometry" />
           </mxCell>
         </object>
-        <mxCell id="cache-lifetime" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;重复求解时哪些变化？&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;保持：motionFrame 与 PhysicalBoundingBox 的基础快照。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;累计：displacementOffset，只在下帧相位 3 重置。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;重建：CandidateGeometry 命中列表与候选位置。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;反馈轮重算：环境允许 X、额外 Y、请求位移与直接阻挡方向。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;不变：Unity 世界位置和帧初几何事实。&lt;/div&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="cache-lifetime" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;重复求解时哪些变化？&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;保持：motionFrame 与 PhysicalBoundingBox 的基础快照。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;累计：displacementOffset，只在下帧相位 3 重置。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;重建：CandidateGeometry 命中列表与候选位置。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;反馈轮重算：环境允许 X、额外 Y、请求位移与直接阻挡方向。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;平台忽略列表由相位 1 维护；反馈轮只读，帧初几何事实保持。&lt;/div&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="270" width="740" x="840" y="1930" as="geometry" />
         </mxCell>
         <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;结果变化③ · 最终请求与直接阻挡&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;BasicEntity.FinalizeRequestedDisplacement 调策略 FinalizeRequest。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;CurrentEntityRequestSolver 合成允许 X、坡面 Y、独立垂直、平台与接触 Y。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;请求 X 短于候选时写本实体直接 blockedHorizontalDirection。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;反馈轮可重写；后续传播只加方向，不重算 requestedWorldDelta。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;请求不是 Unity 实际落点，阻挡也不是引擎碰撞反馈。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · FinalizeRequest" id="request">
@@ -476,7 +476,7 @@
         </mxCell>
         <object id="v4-block-data" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;V4 · 残余反馈后传播方向，先于接触效果&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;预测 AABB ＋直接静墙方向 → pendingHorizontalBlocks → AdoptPropagatedHorizontalBlock；只改方向，不回写偏置或请求。&lt;/div&gt;&lt;/div&gt;" link="V_4-P_2-推箱方向约束与停止滑动.md" tooltip="V4 当前状态、定向验证与人工核对入口">
           <mxCell parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#B99142;strokeWidth=1.5;" vertex="1">
-            <mxGeometry height="90" width="2420" x="40" y="2245" as="geometry" />
+            <mxGeometry height="95" width="2420" x="40" y="2245" as="geometry" />
           </mxCell>
         </object>
         <object label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;4.5–4.8 · 当帧接触效果决定&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;ContactForceLink 是有向来源键，A→B 与 B→A 不同。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;previous 跨帧保存；current 本帧重建，应用退出后交换。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;pendingContactForces：来源关系＋力参数；不持有接收者累计速度。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;pendingAttenuations：实体＋方向 → 最小保留率，仅新关系汇总。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;pendingExitedContactLinks：失效旧来源；同相位 4 决定并应用，下帧相位 3 积分。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Mgr/PhysicsSolverMgr.cs" tooltip="Assets/Script/Framworker/Function/Physics/Mgr/PhysicsSolverMgr.cs · ContactForceLink" id="relations">
@@ -525,8 +525,136 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="footer" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:18px&quot;&gt;代码定位&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;主干：PhysicsSolverMgr.cs；实体与观测：BasicEntity.cs；数据结构：Struct.cs；效果：EntityEffectState.cs。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;Unity 端口：IPhysicsWorldAccess2D.cs → UnityPhysicsWorldAccess2D.cs。节点附相对源码链接；本图按 K_9.4 实现后的现码绘制。&lt;/div&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="110" width="2420" x="40" y="3160" as="geometry" />
+        <mxCell id="footer" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:18px&quot;&gt;代码定位&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;调度：PhysicsSolverMgr；实体：BasicEntity / BasePhysicsEntity；数据：Struct / EntityEnvironmentSolveInput；效果：EntityEffectState。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;Unity 端口：IPhysicsWorldAccess2D → UnityPhysicsWorldAccess2D；节点附相对源码链接。第 3 页展开 P5.1 / V5 的新增关系。&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="130" width="2420" x="40" y="3160" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="one-way-drop" name="03 · 角色下平台与临时碰撞对">
+    <mxGraphModel dx="2500" dy="1880" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2500" pageHeight="1880" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:30px&quot;&gt;03 · 角色下平台与临时碰撞对&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;2026-10-05 · P5.1 / V5 现码：沿用相位 1 与 4，补充意图入口、实体关系所有权和 Unity 碰撞对设置口。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+          <mxGeometry x="40" y="25" width="2420" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;先看关系，再看消费时机&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;蓝色：已有输入输出；绿色：实体与请求策略；橙色：实体跨帧关系；青色：Unity 后端。实线为调用/写入，虚线为只读消费。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 1 顺序：①独立清理 → 绑定列表只读视图 → ②扫描本步下落范围并追加关系 → ③近距离着地查询。关系不放入效果容器或候选命中缓存。&lt;/div&gt;&lt;/div&gt;" vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+          <mxGeometry x="40" y="160" width="2420" height="135" as="geometry" />
+        </mxCell>
+        <object id="input" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;已有输入 → Player / FSM 只读动作&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;Vertical 动作经 InputControlMgr 接入，Player / FSM 输出 ReadOnly_ActionData.verticalInput。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;上下输入只提供意图，平台关系由执行实体维护。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Player/Player.cs" tooltip="Assets/Script/Framworker/Function/Player/Player.cs · ReadOnly_ActionData">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="40" y="350" width="740" height="195" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="intent" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;CharacterPhysics · 具体角色意图&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;WantsDropThroughCurrentOneWay：负向输入超过一半，且命中启用中的单向实心顶面。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;EntityCandidateGeometry.IsSolidOneWayTop 识别顶面；普通地面不放开。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs · WantsDropThroughCurrentOneWay">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="840" y="350" width="740" height="195" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="backend" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;IPhysicsWorldAccess2D · 碰撞对设置口&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;SetIgnoreCollision → UnityPhysicsWorldAccess2D → Physics2D.IgnoreCollision。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;true 建立角色与平台的忽略对；false 用于清离/禁用恢复。位置请求仍在相位 5 提交。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/UnityPhysicsWorldAccess2D.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/UnityPhysicsWorldAccess2D.cs · SetIgnoreCollision">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E7F6F8;strokeColor=#4A9BA5;strokeWidth=1.5;">
+            <mxGeometry x="1640" y="350" width="820" height="195" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="release" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 1① · 每块平台独立退出&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;ReleaseOneWayDropsIfClear 逐项检查 HasClearedOneWay。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;身体完全到下方/侧方，或回到顶面探针范围以上才恢复对应碰撞；失效平台移除。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;松键但仍在平台内时继续忽略。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs · ReleaseOneWayDropsIfClear / HasClearedOneWay">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="40" y="680" width="740" height="235" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="prepare" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 1② · 查询本步下落范围&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;PrepareOneWayDrops 经 PhysicsWorld.BoxCast 缓存全部有效命中。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;范围按当前垂直速度、被动垂直速度与重力估算；只用于提前放开平台，不写速度。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;对每个命中调用角色意图判断；实际着地探针仍保持近距离。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs · PrepareOneWayDrops">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="840" y="680" width="740" height="235" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="begin" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;BeginOneWayDrop · 追加忽略对&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;新平台加入 passingOneWays，并设置 ignore = true；已在列表中则跳过。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;切到下一块平台不恢复旧平台；每一项等自己清离，避免身体仍重叠时被上推。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;自己的碰撞体与每块平台形成独立碰撞对。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs · BeginOneWayDrop">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="1640" y="680" width="820" height="235" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="owner" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;BasePhysicsEntity · 跨帧关系所有者&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;passingOneWays：实体私有、复用的 Collider2D 列表。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 1 清理/追加；相位 4 期间只读。oneWayDropHits 是另一个查询缓存，不持有关系。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;EndOneWayDrops 在 OnDisable 恢复全部忽略对，并清空列表及只读视图。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs · passingOneWays / EndOneWayDrops">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF5E7;strokeColor=#C89A53;strokeWidth=1.5;">
+            <mxGeometry x="40" y="1055" width="740" height="225" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="view" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;BasicEntity · 同一份只读视图&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;oneWayDropColliders：IReadOnlyList&amp;lt;Collider2D&amp;gt;，引用实体列表，不另存单个平台。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;FindGroundHit 与 BuildEnvironmentSolveInput 读取同一视图。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;箱子保持为空；这是临时碰撞关系，不是跨帧速度或环境效果。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs · oneWayDropColliders / BuildEnvironmentSolveInput">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="840" y="1055" width="740" height="225" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="strategy" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 4 · 环境请求策略只读消费&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;EntityEnvironmentSolveInput 携带 oneWayDropColliders。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;CurrentEntityRequestSolver.IsOneWayPassThrough 先放行列表中的全部平台，再按原单向规则判断。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;路径、坡面、抬升净空与顶面裁剪共用；反馈轮不修改列表。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs" tooltip="Assets/Script/Framworker/Function/Physics/Base/CurrentEntityRequestSolver.cs · IsOneWayPassThrough">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="1640" y="1055" width="820" height="225" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="ground" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;相位 1③ · FindGroundHit&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;近距离支撑选择排除所有尚未穿完的平台。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;避免重新选中旧平台或其它密集平台，把下落判回着地。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs · FindGroundHit">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="40" y="1430" width="740" height="195" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="geometry" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;GeometryPhysicsData · 支撑事实&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;GeometricQuery 更新 groundCollider、isGrounded 与法线；相位 2 继续解析脚下能力。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;不会用下落路径的远距离命中扩大着地范围。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs · GeometricQuery">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="840" y="1430" width="740" height="195" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="motion" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:21px&quot;&gt;后续相位沿用原有主干&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 3：按支撑事实计算速度和运动快照。相位 4：生成最终环境请求。&lt;/div&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;相位 5：一次 SubmitPosition；Unity 响应后，下一帧相位 1 观察实际落点。&lt;/div&gt;&lt;/div&gt;" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs" tooltip="Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs · SpeedCalculation / DisplacementCorrection">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F5EE;strokeColor=#559A79;strokeWidth=1.5;">
+            <mxGeometry x="1640" y="1430" width="820" height="195" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="footer" label="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:18px&quot;&gt;框架阅读边界&lt;/b&gt;&lt;div style=&quot;margin-top:8px&quot;&gt;新增关系由角色实体持有，策略只读，后端只设置碰撞对；没有新增类型、层级或调度槽。当前验证状态与原场景人工复验范围见 P_5 专题。&lt;/div&gt;&lt;/div&gt;" link="../../Docs/待办具体事务文档集中/P_5-玩家逻辑行为扩展.md" tooltip="Docs/待办具体事务文档集中/P_5-玩家逻辑行为扩展.md · 框架阅读边界">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=18;fontSize=18;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#B5BFCD;strokeWidth=1.5;">
+            <mxGeometry x="40" y="1710" width="2420" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="edge-input" value="动作" edge="1" parent="1" source="input" target="intent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#6086B9;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-intent" value="逐命中判断" edge="1" parent="1" source="intent" target="prepare" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-order" value="先清理" edge="1" parent="1" source="release" target="prepare" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-prepare" value="放开" edge="1" parent="1" source="prepare" target="begin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-set-ignore" value="设置碰撞对" edge="1" parent="1" source="begin" target="backend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A9BA5;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-remove" value="移除清离项" edge="1" parent="1" source="release" target="owner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-add" value="追加新项，保留旧关系" edge="1" parent="1" source="begin" target="owner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2050" y="980" />
+              <mxPoint x="595" y="980" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-view" value="只读" edge="1" parent="1" source="owner" target="view" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-solve-input" value="输入" edge="1" parent="1" source="view" target="strategy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-ground-read" value="同一列表筛选支撑" edge="1" parent="1" source="view" target="ground" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1099" y="1350" />
+              <mxPoint x="410" y="1350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-ground-result" value="支撑" edge="1" parent="1" source="ground" target="geometry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-geometry-read" value="消费" edge="1" parent="1" source="geometry" target="motion" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-strategy-request" value="环境请求放行" edge="1" parent="1" source="strategy" target="motion" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#559A79;fontColor=#344155;fontSize=16;fontFamily=Microsoft YaHei;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

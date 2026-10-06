@@ -104,7 +104,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     // 相位 1 overlap 工作缓存；有效 Trigger 再写入 nowGemetry.regionOverlaps。
     private readonly List<Collider2D> regionOverlapHits = new List<Collider2D>();
     private readonly List<RaycastHit2D> groundProbeHits = new List<RaycastHit2D>(); // 脚下查询命中缓存
-    private const float GroundProbeDistance = 0.02f; // 脚下允许的微小间隙
+    protected const float GroundProbeDistance = 0.02f; // 脚下允许的微小间隙
 
 #if UNITY_EDITOR
     // [EditorOnly] 只读输出口；编辑器侧负责采样、缓存、快照组装与跨帧差值计算。
@@ -293,7 +293,12 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             cPhysics != null ? cPhysics.wallLayer : default,
             cPhysics != null ? cPhysics.maxClimbAngle : 0f,
             nowGemetry.groundCollider, nowGemetry.isGrounded,
-            playerPhysicsData.verticalSpeed, Time.fixedDeltaTime, motionFrame);
+            playerPhysicsData.verticalSpeed, Time.fixedDeltaTime, motionFrame, oneWayDropColliders);
+
+    /// <summary>
+    /// 正在穿过的单向平台只读视图。角色在相位 1 维护，相位 4 只读；箱子保持为空。
+    /// </summary>
+    internal IReadOnlyList<Collider2D> oneWayDropColliders;
 
     /// <summary>
     /// 相位 1 共用脚下查询：覆盖实体碰撞框前缘，在多个命中中选法线最朝上的有效支撑。
@@ -314,12 +319,23 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         foreach (RaycastHit2D hit in groundProbeHits)
         {
             if (hit.collider == null || hit.collider.attachedRigidbody == rb) continue;
+            // 实际逻辑：所有尚未穿完的平台都不参加着地选择，避免重选旧平台或截停重力。
+            if (IsDroppingThrough(hit.collider)) continue;
             float up = Vector2.Dot(hit.normal, Vector2.up);
             if (up <= bestUp) continue;
             support = hit;
             bestUp = up;
         }
         return support;
+    }
+
+    private bool IsDroppingThrough(Collider2D collider)
+    {
+        // 安全：箱子或尚未形成忽略视图的角色没有要排除的平台。
+        if (oneWayDropColliders == null) return false;
+        for (int i = 0; i < oneWayDropColliders.Count; i++)
+            if (oneWayDropColliders[i] == collider) return true;
+        return false;
     }
 
     /// <summary>把本帧运动与候选环境工作区交给当前策略，生成最终位移请求。</summary>

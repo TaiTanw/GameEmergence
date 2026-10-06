@@ -11,6 +11,7 @@ using UnityEngine;
 public class PlayerInputData
 {
     public float moveInput;     //水平输入
+    public float verticalInput; // 上下，负数为下
     public bool jumpPressed;     // 这一帧是否按下
     public bool jumpRelease;       //跳跃是否长按中
     public bool interactTapped;    // 交互短按，与长按互斥
@@ -26,6 +27,10 @@ public class MovementData
     /// </summary>
     public float onMove;
     /// <summary>
+    /// 上下输入。负数为下，由状态机每帧写入，物理只读。
+    /// </summary>
+    public float verticalInput;
+    /// <summary>
     /// 当前状态
     /// </summary>
     public PlayerStateMachine.E_playerState nowState; 
@@ -40,6 +45,7 @@ public class ReadOnly_ActionData
     public ReadOnly_ActionData(MovementData data) => _data = data;
     //只读属性
     public float onMove => _data.onMove;
+    public float verticalInput => _data.verticalInput;
     public PlayerStateMachine.E_playerState NowState =>_data.nowState;
 
 }

@@ -103,6 +103,10 @@ internal sealed class CurrentEntityRequestSolver : IEntityRequestSolveStrategy
     private static bool IsOneWayPassThrough(in EntityEnvironmentSolveInput input,
         EntityCandidateGeometry geometry, RaycastHit2D hit, float currentBottom)
     {
+        // 实际逻辑：仍在穿过的每一块平台都放行，与相位 1 的支撑过滤保持一致。
+        if (input.oneWayDropColliders != null)
+            for (int i = 0; i < input.oneWayDropColliders.Count; i++)
+                if (input.oneWayDropColliders[i] == hit.collider) return true;
         if (!geometry.oneWayEffectors.TryGetValue(hit.collider, out PlatformEffector2D effector))
             return false;
         if (Vector2.Angle(effector.transform.up, hit.normal) > effector.surfaceArc * 0.5f)

@@ -144,9 +144,15 @@ public class PlayerStateMachine
         if (input == null)
         {
             if (nowMovement != null)
+            {
                 nowMovement.onMove = 0f;
+                nowMovement.verticalInput = 0f;
+            }
             return;
         }
+        // 实际逻辑：上下是持续输入，各状态共用，不在单个状态里再写一遍。
+        if (nowMovement != null)
+            nowMovement.verticalInput = input.verticalInput;
         onGround.SetFrameInput(input);
         inAir.SetFrameInput(input);
         onWallSliding.SetFrameInput(input);
