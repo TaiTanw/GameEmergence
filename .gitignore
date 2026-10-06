@@ -81,3 +81,6 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# 工程外的绘图产出：提示词、封面试稿，不进版本库
+/output/
