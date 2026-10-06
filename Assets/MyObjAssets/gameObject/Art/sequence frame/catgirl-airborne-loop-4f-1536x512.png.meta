@@ -72,7 +72,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -85,7 +85,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -98,7 +98,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -111,7 +111,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -124,7 +124,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -139,12 +139,12 @@ TextureImporter:
       name: catgirl-airborne-loop-4f-1536x512_0
       rect:
         serializedVersion: 2
-        x: 74
-        y: 104
-        width: 212
-        height: 285
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 0
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -153,19 +153,19 @@ TextureImporter:
       spriteID: 45694df7ac4067742b78b6500753b247
       internalID: -1161223484
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
       name: catgirl-airborne-loop-4f-1536x512_1
       rect:
         serializedVersion: 2
-        x: 446
-        y: 119
-        width: 218
-        height: 285
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 384
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -174,19 +174,19 @@ TextureImporter:
       spriteID: b12b481705d3c8b46adf6eb36c716c5a
       internalID: 1960912231
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
       name: catgirl-airborne-loop-4f-1536x512_2
       rect:
         serializedVersion: 2
-        x: 827
-        y: 132
-        width: 218
-        height: 274
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 768
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -195,19 +195,19 @@ TextureImporter:
       spriteID: b69a2b956f2098f40879856354ec6ed7
       internalID: -1380118972
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
       name: catgirl-airborne-loop-4f-1536x512_3
       rect:
         serializedVersion: 2
-        x: 1211
-        y: 104
-        width: 212
-        height: 285
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 1152
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -216,7 +216,91 @@ TextureImporter:
       spriteID: c26ab8b8e573489479209567a037d515
       internalID: 784123907
       vertices: []
-      indices: 
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-airborne-loop-4f-1536x512_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fc011e3fec1c4c6f84afab9425ac84ba
+      internalID: 943054832
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-airborne-loop-4f-1536x512_5
+      rect:
+        serializedVersion: 2
+        x: 384
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 33df5b2d888c4fdeb214076e41ce1465
+      internalID: 1749676726
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-airborne-loop-4f-1536x512_6
+      rect:
+        serializedVersion: 2
+        x: 768
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9cd4ef6112c4480ab9feffc9fba042a3
+      internalID: 802420626
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-airborne-loop-4f-1536x512_7
+      rect:
+        serializedVersion: 2
+        x: 1152
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc00c8f361f44b099b861674914a7786
+      internalID: 1767463569
+      vertices: []
+      indices:
       edges: []
       weights: []
     outline: []
@@ -234,6 +318,10 @@ TextureImporter:
       catgirl-airborne-loop-4f-1536x512_1: 1960912231
       catgirl-airborne-loop-4f-1536x512_2: -1380118972
       catgirl-airborne-loop-4f-1536x512_3: 784123907
+      catgirl-airborne-loop-4f-1536x512_4: 943054832
+      catgirl-airborne-loop-4f-1536x512_5: 1749676726
+      catgirl-airborne-loop-4f-1536x512_6: 802420626
+      catgirl-airborne-loop-4f-1536x512_7: 1767463569
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

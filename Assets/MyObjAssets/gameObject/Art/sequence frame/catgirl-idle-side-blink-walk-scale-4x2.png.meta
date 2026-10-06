@@ -139,10 +139,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_0
       rect:
         serializedVersion: 2
-        x: 102
-        y: 610
-        width: 181
-        height: 293
+        x: 56
+        y: 1118
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -160,10 +160,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_1
       rect:
         serializedVersion: 2
-        x: 486
-        y: 610
-        width: 179
-        height: 295
+        x: 440
+        y: 1118
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -181,10 +181,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_2
       rect:
         serializedVersion: 2
-        x: 868
-        y: 610
-        width: 182
-        height: 293
+        x: 824
+        y: 1118
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -202,10 +202,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_3
       rect:
         serializedVersion: 2
-        x: 1251
-        y: 610
-        width: 188
-        height: 293
+        x: 1208
+        y: 1118
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -223,10 +223,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_4
       rect:
         serializedVersion: 2
-        x: 102
-        y: 97
-        width: 181
-        height: 294
+        x: 56
+        y: 606
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -244,10 +244,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_5
       rect:
         serializedVersion: 2
-        x: 483
-        y: 96
-        width: 187
-        height: 297
+        x: 440
+        y: 606
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -265,10 +265,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_6
       rect:
         serializedVersion: 2
-        x: 866
-        y: 98
-        width: 186
-        height: 295
+        x: 824
+        y: 606
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -286,10 +286,10 @@ TextureImporter:
       name: catgirl-idle-side-blink-walk-scale-4x2_7
       rect:
         serializedVersion: 2
-        x: 1250
-        y: 98
-        width: 185
-        height: 296
+        x: 1208
+        y: 606
+        width: 273
+        height: 301
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -301,6 +301,90 @@ TextureImporter:
       internalID: -1767477884
       vertices: []
       indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-idle-side-blink-walk-scale-4x2_8
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 94
+        width: 273
+        height: 301
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0ec521ffdedf4c518fb472508b02ebc7
+      internalID: 200465073
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-idle-side-blink-walk-scale-4x2_9
+      rect:
+        serializedVersion: 2
+        x: 440
+        y: 94
+        width: 273
+        height: 301
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e240ab116cbe41dab3f988b74fb17aa9
+      internalID: 657375640
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-idle-side-blink-walk-scale-4x2_10
+      rect:
+        serializedVersion: 2
+        x: 824
+        y: 94
+        width: 273
+        height: 301
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 46d64a972f074cdfb37dde32aa0393a9
+      internalID: 390130939
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: catgirl-idle-side-blink-walk-scale-4x2_11
+      rect:
+        serializedVersion: 2
+        x: 1208
+        y: 94
+        width: 273
+        height: 301
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 45053992e4b242bcb42ed901706f1f4b
+      internalID: 1683729106
+      vertices: []
+      indices:
       edges: []
       weights: []
     outline: []
@@ -322,6 +406,10 @@ TextureImporter:
       catgirl-idle-side-blink-walk-scale-4x2_5: -320638374
       catgirl-idle-side-blink-walk-scale-4x2_6: -798382048
       catgirl-idle-side-blink-walk-scale-4x2_7: -1767477884
+      catgirl-idle-side-blink-walk-scale-4x2_8: 200465073
+      catgirl-idle-side-blink-walk-scale-4x2_9: 657375640
+      catgirl-idle-side-blink-walk-scale-4x2_10: 390130939
+      catgirl-idle-side-blink-walk-scale-4x2_11: 1683729106
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: ab03b80b15c076e47bbfa11ca3f7b045
+guid: 23b2d8cd0b3d46fca2579d42ec77ab9a
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -72,7 +72,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -85,7 +85,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -98,7 +98,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -111,7 +111,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -124,7 +124,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -136,177 +136,177 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_0
+      name: catgirl-jump-takeoff-4x2_0
       rect:
         serializedVersion: 2
-        x: 122
-        y: 607
-        width: 188
-        height: 282
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 0
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: c55002c7a199c8042a2605873c868a27
-      internalID: 574073647
+      spriteID: 77ff6be9066a45d29fdf7f3e5dc82af4
+      internalID: 114330673
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_1
+      name: catgirl-jump-takeoff-4x2_1
       rect:
         serializedVersion: 2
-        x: 467
-        y: 607
-        width: 215
-        height: 234
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 384
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 2df532d0b1016d540830365a5249833d
-      internalID: -1943127684
+      spriteID: e79c92311d80442cbc94a887a56f66e1
+      internalID: 793165138
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_2
+      name: catgirl-jump-takeoff-4x2_2
       rect:
         serializedVersion: 2
-        x: 800
-        y: 635
-        width: 197
-        height: 264
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 768
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f4bfd1c3437638043b83cdf569f13a31
-      internalID: 746823822
+      spriteID: 3ce1a530ffa0411cb0a4291e562fb0dc
+      internalID: 1096363312
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_3
+      name: catgirl-jump-takeoff-4x2_3
       rect:
         serializedVersion: 2
-        x: 1157
-        y: 667
-        width: 203
-        height: 256
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 1152
+        y: 512
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 41b32df2b635f5243a68e7ff15cb0c0b
-      internalID: 1899266513
+      spriteID: 036e5e81bae54440bb6ecdc58ee269cd
+      internalID: 228043537
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_4
+      name: catgirl-jump-takeoff-4x2_4
       rect:
         serializedVersion: 2
-        x: 125
-        y: 219
-        width: 191
-        height: 260
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 0
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 6f041bcea3d642345ab102afa266f503
-      internalID: -29763529
+      spriteID: 96d15be423b448ca9767011af4ca2f63
+      internalID: 2010743303
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_5
+      name: catgirl-jump-takeoff-4x2_5
       rect:
         serializedVersion: 2
-        x: 479
-        y: 143
-        width: 197
-        height: 260
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 384
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: dcd481d79de1c3246aaf83f0e2aa9ba0
-      internalID: -575706640
+      spriteID: 023a88ae638f46d59deb434b4e167f2e
+      internalID: 300397858
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_6
+      name: catgirl-jump-takeoff-4x2_6
       rect:
         serializedVersion: 2
-        x: 818
-        y: 134
-        width: 206
-        height: 227
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 768
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0ed3aa4a36d8bc44dac92d1f3d91ddd0
-      internalID: -991405743
+      spriteID: b1e3937ea3ea40ac984b2c29ad3f4fc8
+      internalID: 294315315
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: catgirl-jump-right-4x2_7
+      name: catgirl-jump-takeoff-4x2_7
       rect:
         serializedVersion: 2
-        x: 1154
-        y: 117
-        width: 185
-        height: 280
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 1152
+        y: 0
+        width: 384
+        height: 512
+      alignment: 9
+      pivot: {x: 0.5013020833, y: 0.4775390625}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f8f7202b4494a014a8a1d481527cd886
-      internalID: 189802296
+      spriteID: 919bbc6767094ad6804ca7373fbcaf26
+      internalID: 753656939
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     outline: []
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 66da1909026e431581424b7656b987ef
     internalID: 0
     vertices: []
     indices: 
@@ -314,14 +314,14 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      catgirl-jump-right-4x2_0: 574073647
-      catgirl-jump-right-4x2_1: -1943127684
-      catgirl-jump-right-4x2_2: 746823822
-      catgirl-jump-right-4x2_3: 1899266513
-      catgirl-jump-right-4x2_4: -29763529
-      catgirl-jump-right-4x2_5: -575706640
-      catgirl-jump-right-4x2_6: -991405743
-      catgirl-jump-right-4x2_7: 189802296
+      catgirl-jump-takeoff-4x2_0: 114330673
+      catgirl-jump-takeoff-4x2_1: 793165138
+      catgirl-jump-takeoff-4x2_2: 1096363312
+      catgirl-jump-takeoff-4x2_3: 228043537
+      catgirl-jump-takeoff-4x2_4: 2010743303
+      catgirl-jump-takeoff-4x2_5: 300397858
+      catgirl-jump-takeoff-4x2_6: 294315315
+      catgirl-jump-takeoff-4x2_7: 753656939
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
