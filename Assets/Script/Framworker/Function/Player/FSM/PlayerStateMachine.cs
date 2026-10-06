@@ -65,6 +65,14 @@ public class PlayerStateMachine
     /// 最小起跳时间
     /// </summary>
     public float jumpUpTime = 0.1f;
+    /// <summary>疾跑时相对行走的速率倍率。以后定标，不写入环境移速。</summary>
+    public float sprintSpeedScale = 1.5f;
+    /// <summary>体力上限。以后定标。</summary>
+    public float staminaMax = 100f;
+    /// <summary>疾跑开启时每秒扣除的体力。</summary>
+    public float staminaDrainPerSecond = 25f;
+    /// <summary>疾跑关闭后每秒恢复的体力。</summary>
+    public float staminaRecoverPerSecond = 20f;
 
     #endregion
 
@@ -81,6 +89,12 @@ public class PlayerStateMachine
     /// 是否可使用地面跳跃
     /// </summary>
     public bool groundJump;
+    /// <summary>当前体力。</summary>
+    public float stamina = 100f;
+    /// <summary>因体力归零而关闭。玩家松开时不置位。摔倒以后接在这个结果上。</summary>
+    public bool closedBecauseEmpty;
+    /// <summary>耗尽后必须先松开。不改写玩家是否仍按着。</summary>
+    bool sprintMustRelease;
     #endregion
 
     public PlayerStateMachine()
@@ -147,21 +161,68 @@ public class PlayerStateMachine
             {
                 nowMovement.onMove = 0f;
                 nowMovement.verticalInput = 0f;
+                nowMovement.speedScale = 1f;
             }
             return;
         }
         // 实际逻辑：上下是持续输入，各状态共用，不在单个状态里再写一遍。
         if (nowMovement != null)
             nowMovement.verticalInput = input.verticalInput;
+        // 实际逻辑：更新之间松开再按下时，帧末仍是按住。用松开事实解除禁跑，不改 sprintHeld。
+        if (input.sprintReleased || !input.sprintHeld)
+            sprintMustRelease = false;
         onGround.SetFrameInput(input);
         inAir.SetFrameInput(input);
         onWallSliding.SetFrameInput(input);
         onState.Update();
+        bool boosting = SprintBoostActive(input);
+        if (nowMovement != null)
+            nowMovement.speedScale = boosting ? sprintSpeedScale : 1f;
+        TickStamina(Time.deltaTime, boosting);
+        if (boosting && stamina > 0f)
+            closedBecauseEmpty = false;
         //效果已经触发，则关闭，防止持续响应
         input.jumpPressed = false;//触发类型按键全部统一由状态机复原
         input.jumpRelease = false;
         input.interactTapped = false;
         input.interactLongPressed = false;
+        input.sprintReleased = false;
+    }
+
+    const float WalkInputDeadZone = 0.01f;
+
+    /// <summary>状态机这一侧是否允许疾跑。不看玩家有没有按住。</summary>
+    public bool CanSprintNow()
+    {
+        // 实际逻辑：耗尽后须先松开。有体力、着地，且本帧有行走输入。站立、空中、贴墙都不可。
+        if (sprintMustRelease || stamina <= 0f || nowMovement == null) return false;
+        if (nowMovement.nowState != E_playerState.isOnGround) return false;
+        return Mathf.Abs(nowMovement.onMove) > WalkInputDeadZone;
+    }
+
+    bool SprintBoostActive(PlayerInputData input)
+    {
+        // 实际逻辑：玩家按住，并且状态机当前允许，两则才是疾跑。
+        return input.sprintHeld && CanSprintNow();
+    }
+
+    void TickStamina(float deltaTime, bool boosting)
+    {
+        // 实际逻辑：只在疾跑事实成立时扣体力。松开、停步或离地都改为恢复。
+        if (boosting)
+        {
+            stamina -= staminaDrainPerSecond * deltaTime;
+            // 实际逻辑：归零只关掉状态机这一侧，并留下摔倒用的结果。不改玩家是否仍按着。
+            if (stamina > 0f) return;
+            stamina = 0f;
+            closedBecauseEmpty = true;
+            sprintMustRelease = true;
+            if (nowMovement != null)
+                nowMovement.speedScale = 1f;
+            return;
+        }
+        if (stamina < staminaMax)
+            stamina = Mathf.Min(staminaMax, stamina + staminaRecoverPerSecond * deltaTime);
     }
     /// <summary>
     /// 重置可跳次数

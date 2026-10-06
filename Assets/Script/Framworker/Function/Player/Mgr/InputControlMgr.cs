@@ -1,9 +1,11 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
+using UnityEngine.InputSystem.LowLevel;
 
 public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
 {
@@ -40,8 +42,10 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     InputAction verticalAction;
     InputAction jumpAction;
     InputAction interactAction;
+    InputAction sprintAction;
     bool gameplayActionsBound;
     InputActionRebindingExtensions.RebindingOperation rebindOperation;
+    bool rebindMapWasEnabled;
     bool interactHolding;
     bool interactLongFired;
     float interactHoldStart;
@@ -62,6 +66,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         verticalAction = player1["Vertical"];
         jumpAction = player1["Jump"];
         interactAction = player1["Interact"];
+        sprintAction = player1["Sprint"];
 
         moveAction.performed += OnMovePerformed;
         moveAction.canceled += OnMoveCanceled;
@@ -71,6 +76,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         jumpAction.canceled += OnJumpCanceled;
         interactAction.started += OnInteractStarted;
         interactAction.canceled += OnInteractCanceled;
+        sprintAction.started += OnSprintStarted;
+        sprintAction.canceled += OnSprintCanceled;
         gameplayActionsBound = true;
 
         input.SwitchCurrentActionMap("player");
@@ -86,34 +93,65 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     {
         // 安全：上一轮还在听按键时不再开一轮。
         if (rebindOperation != null || player1 == null) return;
-        bool mapWasEnabled = input.currentActionMap != null && input.currentActionMap.enabled;
+        // 实际逻辑：有冲突时暂不恢复动作图，下一次改键仍保留原来的开启意图。
+        rebindMapWasEnabled |= input.currentActionMap != null && input.currentActionMap.enabled;
         InputAction action = player1[actionName];
-        bool actionWasEnabled = action.enabled;
-        // 实际逻辑：Input System 1.11.2 在动作仍启用时启动交互改键会抛异常。先停用该动作。
-        // 改键过程可能关掉动作图，按住的交互会收到 canceled，所以这里先中止计时。
+        // 实际逻辑：等待改键时暂停玩家动作。停用会触发 canceled，先中止交互计时。
         AbortInteractHold();
-        action.Disable();
+        player1.Disable();
+        InputSystem.onEvent += OnRebindInputEvent;
         rebindOperation = action.PerformInteractiveRebinding(bindingIndex)
             .WithControlsHavingToMatchPath("<Keyboard>")
             .WithCancelingThrough("<Keyboard>/escape")
-            .OnComplete(operation => FinishRebind(operation, action, actionWasEnabled, mapWasEnabled, onComplete))
-            .OnCancel(operation => FinishRebind(operation, action, actionWasEnabled, mapWasEnabled, null))
+            // 实际逻辑：玩家动作已暂停，保留设备状态更新，结束时才能读到当前按键。
+            .WithMatchingEventsBeingSuppressed(false)
+            .OnComplete(operation => FinishRebind(operation, onComplete))
+            .OnCancel(operation => FinishRebind(operation, null))
             .Start();
     }
 
-    void FinishRebind(InputActionRebindingExtensions.RebindingOperation operation, InputAction action,
-        bool actionWasEnabled, bool mapWasEnabled, Action onComplete)
+    void FinishRebind(InputActionRebindingExtensions.RebindingOperation operation, Action onComplete)
     {
         operation.Dispose();
         rebindOperation = null;
         // 实际逻辑：取消不写入新键，完成才保存覆盖。两种结束都恢复改键前的开关。
         if (onComplete != null)
             DataAndInitMgr.Instance.SaveBindingOverrides();
-        if (actionWasEnabled)
-            action.Enable();
-        if (mapWasEnabled && input.currentActionMap != null && !input.currentActionMap.enabled)
-            InputOpenOrClose(true);
-        onComplete?.Invoke();
+        // 实际逻辑：等本次按键状态写入后再恢复，避免用旧状态覆盖按住事实。
+        Action restoreInput = null;
+        restoreInput = () =>
+        {
+            InputSystem.onAfterUpdate -= restoreInput;
+            InputSystem.onEvent -= OnRebindInputEvent;
+            // 实际逻辑：重复键仍留在改键面板，也继续暂停玩家动作。改开后恢复原输入开关。
+            if (rebindMapWasEnabled && !HasPlayerBindingConflict(out _))
+            {
+                rebindMapWasEnabled = false;
+                InputOpenOrClose(true);
+            }
+            else
+                SyncHeldInputs();
+            onComplete?.Invoke();
+        };
+        InputSystem.onAfterUpdate += restoreInput;
+    }
+
+    /// <summary>玩家动作暂停期间，仍记录疾跑键的真实按住和松开，不把停用当作释放。</summary>
+    void OnRebindInputEvent(InputEventPtr eventPtr, InputDevice device)
+    {
+        // 实际逻辑：只从设备状态事件读按键，忽略其它事件。
+        if (eventPtr.type != StateEvent.Type && eventPtr.type != DeltaStateEvent.Type) return;
+        foreach (InputControl control in sprintAction.controls)
+        {
+            if (control.device != device) continue;
+            ButtonControl button = (ButtonControl)control;
+            if (!button.ReadValueFromEvent(eventPtr, out float value)) continue;
+            bool pressed = button.IsValueConsideredPressed(value);
+            if (inputData.sprintHeld && !pressed)
+                inputData.sprintReleased = true;
+            inputData.sprintHeld = pressed;
+            return;
+        }
     }
 
     /// <summary>
@@ -167,6 +205,13 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
             interactAction.started -= OnInteractStarted;
             interactAction.canceled -= OnInteractCanceled;
         }
+        if (sprintAction != null)
+        {
+            sprintAction.started -= OnSprintStarted;
+            sprintAction.canceled -= OnSprintCanceled;
+        }
+        if (inputData != null)
+            inputData.sprintHeld = false;
         interactHolding = false;
         interactLongFired = false;
         gameplayActionsBound = false;
@@ -190,6 +235,54 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     void OnVerticalCanceled(InputAction.CallbackContext ctx)
     {
         inputData.verticalInput = 0;
+    }
+
+    void OnSprintStarted(InputAction.CallbackContext ctx)
+    {
+        inputData.sprintHeld = true;
+    }
+
+    void OnSprintCanceled(InputAction.CallbackContext ctx)
+    {
+        // 实际逻辑：改键会停用动作并触发 canceled。键还按着就不是玩家松开，不写 sprintReleased，也不改 sprintHeld。
+        if (ctx.control != null && ctx.control.IsPressed()) return;
+        inputData.sprintHeld = false;
+        // 实际逻辑：只有控件已经松开，才留下释放事实。同一段更新前再按下时，逻辑仍能解除耗尽禁跑。
+        inputData.sprintReleased = true;
+    }
+
+    /// <summary>
+    /// 动作重新启用后，按当前按键写回持续输入。不补发跳跃或交互这类点按。
+    /// </summary>
+    void SyncHeldInputs()
+    {
+        if (inputData == null) return;
+        if (moveAction != null && moveAction.enabled)
+            inputData.moveInput = moveAction.ReadValue<float>();
+        if (verticalAction != null && verticalAction.enabled)
+            inputData.verticalInput = verticalAction.ReadValue<float>();
+        if (TryBoundButtonPressed(sprintAction, out bool sprintPressed))
+            inputData.sprintHeld = sprintPressed;
+    }
+
+    /// <summary>
+    /// 读绑定控件自己的按下。动作停用后相位会被清空，不能用动作的 IsPressed 当作恢复结果。
+    /// </summary>
+    static bool TryBoundButtonPressed(InputAction action, out bool pressed)
+    {
+        pressed = false;
+        if (action == null || !action.enabled) return false;
+        var controls = action.controls;
+        if (controls.Count == 0) return false;
+        for (int i = 0; i < controls.Count; i++)
+        {
+            if (controls[i].IsPressed())
+            {
+                pressed = true;
+                return true;
+            }
+        }
+        return true;
     }
 
     void OnJumpStarted(InputAction.CallbackContext ctx)
@@ -292,9 +385,11 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         if (isOpen)
         {
             input.currentActionMap.Enable();
+            SyncHeldInputs();
             return;
         }
         // 实际逻辑：Disable 会对仍按住的动作发 canceled。先中止交互，避免被当成点按。
+        rebindMapWasEnabled = false;
         AbortInteractHold();
         input.currentActionMap.Disable();
     }

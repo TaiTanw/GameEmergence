@@ -101,7 +101,8 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
 
     protected override float HorizontalSpeedCalculation()
     {
-        return playActionData.onMove * speed;
+        // 实际逻辑：先乘行为给出的速率倍率，环境修饰仍在后面乘 nowPhyNum。
+        return playActionData.onMove * speed * playActionData.speedScale;
     }
 
     protected override void PhyEventUpdate()

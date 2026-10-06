@@ -16,6 +16,8 @@ public class PlayerInputData
     public bool jumpRelease;       //跳跃是否长按中
     public bool interactTapped;    // 交互短按，与长按互斥
     public bool interactLongPressed; // 交互长按，只成立一次
+    public bool sprintHeld; // 玩家按住疾跑。松开即为假，不表示角色此刻正在疾跑
+    public bool sprintReleased; // 两次逻辑更新之间出现过松开。状态机读过后清掉
 }
 /// <summary>
 /// 持续性动作执行数据（瞬时动作靠事件触发
@@ -30,6 +32,10 @@ public class MovementData
     /// 上下输入。负数为下，由状态机每帧写入，物理只读。
     /// </summary>
     public float verticalInput;
+    /// <summary>
+    /// 逻辑层速率倍率。1 为行走原速，疾跑时由状态机写成更大的数。物理只读。
+    /// </summary>
+    public float speedScale = 1f;
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -46,8 +52,31 @@ public class ReadOnly_ActionData
     //只读属性
     public float onMove => _data.onMove;
     public float verticalInput => _data.verticalInput;
+    public float speedScale => _data.speedScale;
     public PlayerStateMachine.E_playerState NowState =>_data.nowState;
 
+}
+
+/// <summary>
+/// 玩家身上持续资源的当前事实。表现和调试只读这些数，不回写开关或体力。
+/// 道具效果还没落地时，数值就是状态机上的原始值。
+/// </summary>
+public readonly struct PlayerResourceFacts
+{
+    public readonly float stamina;
+    public readonly float staminaMax;
+    public readonly bool sprintHeld;
+    public readonly bool canSprint;
+    public readonly bool closedBecauseEmpty;
+
+    public PlayerResourceFacts(float stamina, float staminaMax, bool sprintHeld, bool canSprint, bool closedBecauseEmpty)
+    {
+        this.stamina = stamina;
+        this.staminaMax = staminaMax;
+        this.sprintHeld = sprintHeld;
+        this.canSprint = canSprint;
+        this.closedBecauseEmpty = closedBecauseEmpty;
+    }
 }
 
 public class Player : MonoBehaviour
@@ -71,6 +100,15 @@ public class Player : MonoBehaviour
     /// </summary>
     MovementData actionData;
     public ReadOnly_ActionData _ActionData;
+
+    /// <summary>
+    /// 当前体力、玩家是否按住疾跑、状态机是否允许疾跑，以及归零结果。
+    /// 正在加速另看 <see cref="ReadOnly_ActionData.speedScale"/>。
+    /// </summary>
+    public PlayerResourceFacts ResourceFacts => fsm == null
+        ? default
+        : new PlayerResourceFacts(fsm.stamina, fsm.staminaMax,
+            inputData != null && inputData.sprintHeld, fsm.CanSprintNow(), fsm.closedBecauseEmpty);
 
     /// <summary>
     /// 玩家逻辑状态机对象
