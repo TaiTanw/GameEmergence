@@ -24,12 +24,18 @@ public class PresentationLayer : MonoBehaviour
     private static readonly int LandingTriggerStateHash = Animator.StringToHash("Base Layer.Jump_Down");
     private static readonly int AirDownStateHash = Animator.StringToHash("Base Layer.OnAir_Down");
     private static readonly int WallStateHash = Animator.StringToHash("Base Layer.Wall");
+    private static readonly int SwimStateHash = Animator.StringToHash("Base Layer.Swim");
+    private static readonly int FlightStateHash = Animator.StringToHash("Base Layer.Flight");
+    private static readonly int SurfaceSwimStateHash = Animator.StringToHash("Base Layer.SurfaceSwim");
 
     private enum MotionMode
     {
         Ground,
         Air,
-        Wall
+        Wall,
+        Swim,
+        Flight,
+        SurfaceSwim
     }
 
     private enum AirPhase
@@ -48,7 +54,10 @@ public class PresentationLayer : MonoBehaviour
         AirUp,
         LandingTrigger,
         AirDown,
-        Wall
+        Wall,
+        Swim,
+        Flight,
+        SurfaceSwim
     }
 
     /// <summary>
@@ -147,6 +156,16 @@ public class PresentationLayer : MonoBehaviour
 
         UpdateFacing();
 
+        MotionMode behavior = ResolveMotionMode();
+        // 行为事实优先：上浮不是跳跃，水底几何着地也不能选择行走动画。
+        if (behavior == MotionMode.Swim || behavior == MotionMode.Flight || behavior == MotionMode.SurfaceSwim)
+        {
+            ResetMotionHistory();
+            Play(behavior == MotionMode.Flight ? AnimationState.Flight
+                : behavior == MotionMode.SurfaceSwim ? AnimationState.SurfaceSwim : AnimationState.Swim);
+            return;
+        }
+
         // 物理层将环境竖直影响单独保存在 phyVSpeed；升降表现必须使用两者之和，
         // 否则移动平台或力场造成的实际升降会与画面方向不一致。
         float activeVerticalSpeed = playerPhysicsData.verticalSpeed;
@@ -159,7 +178,7 @@ public class PresentationLayer : MonoBehaviour
 
         MotionMode motionMode = ResolveMotionMode();
         bool justLanded = motionMode == MotionMode.Ground
-            && previousMotionMode != MotionMode.Ground;
+            && (previousMotionMode == MotionMode.Air || previousMotionMode == MotionMode.Wall);
 
         // 同一帧既着地又因跳跃缓冲重新起跳时，新的跳跃触发优先于落地触发。
         if (receivedJumpImpulse)
@@ -214,6 +233,11 @@ public class PresentationLayer : MonoBehaviour
     /// </summary>
     private MotionMode ResolveMotionMode()
     {
+        if (actionData.isFlying) return MotionMode.Flight;
+        if (actionData.isSurfaceSwimming) return MotionMode.SurfaceSwim;
+        if (actionData.isSwimming) return MotionMode.Swim;
+        // 水面跃出的首帧可能仍报告浅水池底，表现先按逻辑进入空中。
+        if (actionData.surfaceJumpInProgress) return MotionMode.Air;
         if (geometryPhysicsData.isGrounded
             || actionData.NowState == PlayerStateMachine.E_playerState.isOnGround)
         {
@@ -226,6 +250,15 @@ public class PresentationLayer : MonoBehaviour
         }
 
         return MotionMode.Air;
+    }
+
+    public void ResetMotionHistory()
+    {
+        activeTrigger = TriggerAction.None;
+        ResetAirState();
+        hasVerticalSpeedSample = false;
+        previousMotionMode = ResolveMotionMode();
+        previousActiveVerticalSpeed = playerPhysicsData.verticalSpeed;
     }
 
     private void UpdateGroundAnimation()
@@ -404,6 +437,12 @@ public class PresentationLayer : MonoBehaviour
                 return AirDownStateHash;
             case AnimationState.Wall:
                 return WallStateHash;
+            case AnimationState.Swim:
+                return SwimStateHash;
+            case AnimationState.Flight:
+                return FlightStateHash;
+            case AnimationState.SurfaceSwim:
+                return SurfaceSwimStateHash;
             default:
                 return IdleStateHash;
         }
@@ -419,7 +458,10 @@ public class PresentationLayer : MonoBehaviour
             AirUpStateHash,
             LandingTriggerStateHash,
             AirDownStateHash,
-            WallStateHash
+            WallStateHash,
+            SwimStateHash,
+            FlightStateHash,
+            SurfaceSwimStateHash
         };
 
         for (int i = 0; i < requiredStates.Length; i++)

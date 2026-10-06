@@ -36,6 +36,8 @@ public class MovementData
     /// 逻辑层速率倍率。1 为行走原速，疾跑时由状态机写成更大的数。物理只读。
     /// </summary>
     public float speedScale = 1f;
+    public bool motionUpdates = true;
+    public bool surfaceJumpInProgress; // 行为层拥有：跃出期间等待冲量消费和上升结束
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -53,7 +55,14 @@ public class ReadOnly_ActionData
     public float onMove => _data.onMove;
     public float verticalInput => _data.verticalInput;
     public float speedScale => _data.speedScale;
+    public bool motionUpdates => _data.motionUpdates;
     public PlayerStateMachine.E_playerState NowState =>_data.nowState;
+    public bool isSurfaceSwimming => NowState == PlayerStateMachine.E_playerState.surfaceSwimming;
+    public bool isSwimming => NowState == PlayerStateMachine.E_playerState.swimming || isSurfaceSwimming;
+    public bool surfaceJumpInProgress => _data.surfaceJumpInProgress;
+    public bool isFlying => NowState == PlayerStateMachine.E_playerState.flying;
+    public FourWayMode FourWay => isFlying ? FourWayMode.Flying : isSurfaceSwimming ? FourWayMode.SurfaceSwimming
+        : isSwimming ? FourWayMode.Swimming : FourWayMode.None;
 
 }
 
@@ -68,19 +77,134 @@ public readonly struct PlayerResourceFacts
     public readonly bool sprintHeld;
     public readonly bool canSprint;
     public readonly bool closedBecauseEmpty;
+    public readonly float oxygen;
+    public readonly float oxygenMax;
+    public readonly bool submerged;
+    public readonly bool oxygenDepleted;
 
-    public PlayerResourceFacts(float stamina, float staminaMax, bool sprintHeld, bool canSprint, bool closedBecauseEmpty)
+    public PlayerResourceFacts(float stamina, float staminaMax, bool sprintHeld, bool canSprint, bool closedBecauseEmpty,
+        float oxygen = 0f, float oxygenMax = 0f, bool submerged = false, bool oxygenDepleted = false)
     {
         this.stamina = stamina;
         this.staminaMax = staminaMax;
         this.sprintHeld = sprintHeld;
         this.canSprint = canSprint;
         this.closedBecauseEmpty = closedBecauseEmpty;
+        this.oxygen = oxygen;
+        this.oxygenMax = oxygenMax;
+        this.submerged = submerged;
+        this.oxygenDepleted = oxygenDepleted;
     }
 }
 
 public class Player : MonoBehaviour
 {
+    [SerializeField] private PlayerIdentity identity;
+    private PlayerCapabilityContext capabilities;
+    private IPlayerDeathReceiver deathReceiver;
+    private PlayerDeathRequest? pendingDeath;
+    private uint deathCycle;
+    private bool deathCycleClosed;
+    private IPlayerFormRules formRules;
+    private IPlayerFlightExecution flightExecution;
+    public PlayerDeathRequest? PendingDeath => pendingDeath;
+    public PlayerDeathStatus DeathStatus { get; private set; } = PlayerDeathStatus.Handled;
+    public PlayerIdentity Identity => identity;
+    public PlayerCapabilityPermissions Permissions => capabilities?.Permissions ?? PlayerCapabilityPermissions.Walking;
+    public FourWayMode ResolveFourWayAbility() => capabilities?.ResolveFourWay(WaterFacts) ?? FourWayMode.None;
+
+    public void BindDeathReceiver(IPlayerDeathReceiver receiver)
+    {
+        deathReceiver = receiver;
+        RetryPendingDeath();
+    }
+
+    public bool TryRequestDeath(PlayerDeathCause cause)
+    {
+        // 玩法约束：飞行免死；同周期的氧气和深渊请求只保留第一次。
+        if (ResolveFourWayAbility() == FourWayMode.Flying || deathCycleClosed
+            || (!Permissions.motionUpdates && !Permissions.resourceUpdates)) return false;
+        deathCycleClosed = true;
+        pendingDeath = new PlayerDeathRequest(this, cause, ++deathCycle);
+        DeathStatus = PlayerDeathStatus.Pending;
+        RetryPendingDeath();
+        return true;
+    }
+
+    public void RetryPendingDeath()
+    {
+        // 依赖缺席：保留请求，不能把无消费者或打印日志算作处理完成。
+        if (!pendingDeath.HasValue || deathReceiver == null) return;
+        DeathStatus = deathReceiver.ReceiveDeath(pendingDeath.Value);
+        if (DeathStatus == PlayerDeathStatus.Handled) pendingDeath = null;
+    }
+
+    public void BindFormRules(IPlayerFormRules rules, IPlayerFlightExecution execution)
+    { formRules = rules; flightExecution = execution; }
+
+    public bool RequestSpiritForm(bool flying, PlayerFormChangeReason reason)
+    {
+        // 玩法约束：所有主动、死亡和区域强制请求都交给同一个扣费/形态规则。
+        if (Identity != PlayerIdentity.Spirit || (flying && !Permissions.flight)) return false;
+        // 规则层确认与实际形态提交必须同时成立，避免依赖只返回 true 就确认死亡完成。
+        return formRules != null && formRules.TryChangeForm(this, flying, reason)
+            && capabilities.FlightForm == flying;
+    }
+
+    internal bool TryCommitSpiritForm(bool flying)
+    {
+        // 依赖约束：穿墙与安全落点执行未接入时不把普通四向移动冒充飞行。
+        if (Identity != PlayerIdentity.Spirit || (flying && !Permissions.flight)
+            || flightExecution == null || !flightExecution.TrySetFlying(flying)) return false;
+        if (!capabilities.SetFlightForm(flying)) return false;
+        fsm.ResetMotionActions();
+        playPDate.ClearPendingActions();
+        fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
+        if (!flying) ResetDeathCycle();
+        return true;
+    }
+
+    public void ResetDeathCycle()
+    {
+        pendingDeath = null;
+        deathCycleClosed = false;
+        DeathStatus = PlayerDeathStatus.Handled;
+        // 同步重开耗氧请求；形态切回行走时不补氧，也不重置体力或环境。
+        fsm?.ResetOxygenDeathRequest();
+    }
+
+    public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false)
+    {
+        inputOwner?.ClearPlayerInputEdges(this);
+        ClearActionOutput();
+        fsm.RefreshResources();
+        playPDate.RefreshMotionState(position, releaseEnvironmentEffects);
+        ResetDeathCycle();
+        // 刷新后按当前水/几何重选行为，但不扣资源、不补点按，也不迁移未指定的位置。
+        fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
+        animatorFSM?.ResetMotionHistory();
+    }
+
+    public void ApplyCapabilities(PlayerCapabilityPermissions permissions)
+    {
+        capabilities.ApplyPermissions(permissions);
+        actionData.motionUpdates = permissions.motionUpdates;
+        // 实际逻辑：暂停运动立即撤销操作输出，但不伪造玩家松键或撤销环境数值。
+        if (!permissions.movement || !permissions.motionUpdates) ClearActionOutput();
+        if (!permissions.movement || !permissions.motionUpdates)
+        {
+            // 先读取消费事实，再清物理请求；已执行的跃出由 FSM 保留。
+            fsm?.ClearPendingActions(playPDate != null && playPDate.HasPendingJump);
+            playPDate.ClearPendingActions();
+        }
+        playPDate.SetMotionParticipation(permissions.motionUpdates);
+    }
+
+    private void ClearActionOutput()
+    {
+        actionData.onMove = actionData.verticalInput = 0f;
+        actionData.speedScale = 1f;
+    }
     /// <summary>
     /// 物理组件
     /// </summary>
@@ -91,10 +215,12 @@ public class Player : MonoBehaviour
     public ReadOnly_GeometryPhysicsData NowPhyData => playPDate.ReadOnly_GeometryPhysicsData;
 
     public ReadOnly_PlayerPhysicsData NowSpeedData => playPDate.ReadOnly_PlayersPhysicsData;
+    public EntityWaterFrame WaterFacts => playPDate != null ? playPDate.EnvironmentContext.WaterFrame : default;
     /// <summary>
     /// 玩家当前输入数据,初始化交给外部
     /// </summary>
     PlayerInputData inputData;
+    private InputControlMgr inputOwner;
     /// <summary>
     /// 玩家当前所执行动作
     /// </summary>
@@ -108,7 +234,8 @@ public class Player : MonoBehaviour
     public PlayerResourceFacts ResourceFacts => fsm == null
         ? default
         : new PlayerResourceFacts(fsm.stamina, fsm.staminaMax,
-            inputData != null && inputData.sprintHeld, fsm.CanSprintNow(), fsm.closedBecauseEmpty);
+            inputData != null && inputData.sprintHeld, fsm.CanSprintNow(), fsm.closedBecauseEmpty,
+            fsm.oxygen, fsm.oxygenMax, WaterFacts.submerged, fsm.OxygenDepleted);
 
     /// <summary>
     /// 玩家逻辑状态机对象
@@ -122,8 +249,8 @@ public class Player : MonoBehaviour
     void Awake()
     {
 
-        //玩家主动拉取输入控制权限，调用方法保证唯一玩家控制权,且便于控制时序，保证先于状态机初始化
-        InputControlMgr.Instance.BindPlayer(this);
+        capabilities = new PlayerCapabilityContext(identity);
+
         //可执行动作数据初始化
         actionData = new MovementData();
         _ActionData = new ReadOnly_ActionData(actionData);
@@ -144,19 +271,47 @@ public class Player : MonoBehaviour
     /// 注入玩家按键数据行为
     /// </summary>
     /// <param name="data"></param>
-    public void ChangeInputAsset(PlayerInputData data)
+    public void ChangeInputAsset(PlayerInputData data, InputControlMgr owner = null)
     {
         inputData = data;
+        inputOwner = owner;
     }
     public void RemoveInput()
     {
+        fsm?.ObserveSprintRelease(inputData);
+        // 控制撤销清待执行操作，不能把已经执行的跃出当作旧按键取消。
+        fsm?.ClearPendingActions(playPDate != null && playPDate.HasPendingJump);
         inputData=null;
+        inputOwner = null;
+        ClearActionOutput();
+        playPDate?.ClearPendingActions();
+    }
+
+    private void OnDisable()
+    {
+        // 生命周期：只有仍控制自己的管理器才解除绑定，旧角色不能解绑新目标。
+        inputOwner?.UnbindPlayer(this);
+        if (actionData != null) RemoveInput();
     }
     //float time;
     void Update()
     {
+        TickLogic(Time.deltaTime);
+    }
+
+    public void TickLogic(float deltaTime)
+    {
         //逻辑状态机更新，接收输入信息发送动作数据
-        fsm.Update(inputData);
+        fsm.Update(inputData, ResolveFourWayAbility(), Permissions.movement && Permissions.motionUpdates,
+            Permissions.resourceUpdates, deltaTime, playPDate.HasPendingJump, playPDate.GetPlanarVelocity().y);
+        // 实际逻辑：逻辑入水后立即撤销先前等待物理消费的跳跃，避免入水又离水时补执行。
+        if (_ActionData.FourWay != FourWayMode.None) playPDate.ClearPendingActions();
+        // 资源只在逻辑更新扣一次；多个 FixedUpdate 和重叠池不会各扣一份。
+        if (fsm.TickOxygen(deltaTime, WaterFacts.submerged,
+            ResolveFourWayAbility() == FourWayMode.Flying, Permissions.resourceUpdates))
+            TryRequestDeath(PlayerDeathCause.OxygenDepleted);
+        if (fsm.oxygen > 0f && !pendingDeath.HasValue && DeathStatus == PlayerDeathStatus.Handled)
+            deathCycleClosed = false;
     }
 
 }

@@ -24,6 +24,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     private float jumpRelNum = 0.6f;
 
     public float speed = 15;    // 基础水平移速
+    [SerializeField, Min(0f)] private float fourWaySpeed = 6f; // 首版可调四向主动速度，后续定标。
 
     public float upSpeed = 15;//基础跳跃速度
     #endregion
@@ -41,18 +42,34 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     // 墙跳触发时的选侧：负数为左墙，正数为右墙。物理消费前不再跟随后续输入。
     float wallJumpSide;
     bool jump;
+    internal bool HasPendingJump => jump;
     //跳跃斩断按钮
     bool jumpReleaseSide;
     public float MovingDirection => playActionData.onMove;
 
     public float Mobility => speed;
+    protected override bool MotionUpdatesEnabled => playActionData != null && playActionData.motionUpdates;
+    protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
+
+    public void SetMotionParticipation(bool active)
+    {
+        // 组装可能先于本组件 Awake；只设置原生参与开关，不用启停组件冒充刷新。
+        Rigidbody2D body = rb != null ? rb : GetComponent<Rigidbody2D>();
+        if (body != null) body.simulated = active;
+    }
     #endregion
 
 
-    private void Start()
+    public void ClearPendingActions()
     {
-        //简单的位置设置，后续优化=======================================================================================================
-        transform.position = new Vector3(-3, -1, -1);
+        jump = wallJump = jumpReleaseSide = false;
+        wallJumpSide = 0f;
+    }
+
+    protected override void OnMotionRefresh(bool relocated)
+    {
+        base.OnMotionRefresh(relocated);
+        ClearPendingActions();
     }
 
     #region 瞬时触发事件
@@ -101,12 +118,21 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
 
     protected override float HorizontalSpeedCalculation()
     {
+        // 安全：角色尚未组装动作时没有主动操作。
+        if (playActionData == null) return 0f;
+        if (playActionData.FourWay != FourWayMode.None) return playActionData.onMove * fourWaySpeed;
         // 实际逻辑：先乘行为给出的速率倍率，环境修饰仍在后面乘 nowPhyNum。
         return playActionData.onMove * speed * playActionData.speedScale;
     }
 
     protected override void PhyEventUpdate()
     {
+        // 四向行为不叠普通跳跃或墙跳；仅清待消费操作，不清环境累计速度。
+        if (playActionData != null && playActionData.FourWay != FourWayMode.None)
+        {
+            ClearPendingActions();
+            return;
+        }
         //playActionData.onMove=1;
         //普通跳跃
         if (jump)
@@ -151,6 +177,29 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
 
     protected override void VerticalTransmission()
     {
+        // 水面悬浮：零输入和向上输入只稳定碰撞框中心；下潜仍用游泳速度，不靠按键改事实。
+        if (playActionData != null && (playActionData.isSurfaceSwimming || playActionData.FourWay == FourWayMode.Swimming)
+            && playActionData.verticalInput >= 0f && !EnvironmentContext.WaterFrame.submerged
+            && EnvironmentContext.WaterFrame.surfaceSwimmingAvailable)
+        {
+            float dt = Time.fixedDeltaTime;
+            // 安全：无有效步长时不能用高度差反推速度。
+            if (dt <= 0f) return;
+            float maxStep = Mathf.Max(0f, fourWaySpeed * (1f + playerPhysicsData.nowPhyNum)) * dt;
+            float heightDelta = EnvironmentContext.WaterFrame.surfaceY - PhysicsWorld.ReadAabb(boxCollider).center.y;
+            float targetDelta = Mathf.Clamp(heightDelta, -maxStep, maxStep);
+            float carriedY = nowGemetry.isGrounded ? EnvironmentFrame.platformDelta.y : 0f;
+            // 只在水面保持目标高度；水下仍完整保留被动水流，平台本步仍只合成一次。
+            playerPhysicsData.verticalSpeed = (targetDelta - carriedY) / dt - playerPhysicsData.phyVSpeed;
+            return;
+        }
+        // 四向行为覆盖本步主动竖直速度；被动水流仍由原 phyVSpeed 合入运动快照。
+        if (playActionData != null && playActionData.FourWay != FourWayMode.None)
+        {
+            playerPhysicsData.verticalSpeed = playActionData.verticalInput * fourWaySpeed * (1f + playerPhysicsData.nowPhyNum);
+            return;
+        }
+        if (playActionData == null) return;
         // 只有逻辑处于贴墙状态且正在下落时，才应用墙滑限速。
         if (playActionData.NowState != PlayerStateMachine.E_playerState.onWallSliding
             || playerPhysicsData.verticalSpeed >= 0) return;

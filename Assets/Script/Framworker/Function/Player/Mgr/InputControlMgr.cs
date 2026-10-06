@@ -394,18 +394,39 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         input.currentActionMap.Disable();
     }
     /// <summary>
-    /// 关联玩家,由玩家主动拉取(核心数据提前初始化完成，待到玩家创建时主动获取）
+    /// 外部组装选择唯一控制目标；切换不转交旧角色的点按或交互计时。
     /// </summary>
     /// <param name="player"></param>
     public void BindPlayer(Player player)
     {
+        // 安全：失效目标不替换现有控制，同目标重复绑定不清真实释放历史。
+        if (player != null && !player.isActiveAndEnabled) return;
+        if (this.player == player) return;
         // 实际逻辑：先解除已经在控制的角色。传入的新角色还没接上，不能对它清输入。
         if (this.player != null && this.player != player)
             this.player.RemoveInput();
+        AbortInteractHold();
+        inputData.jumpPressed = inputData.jumpRelease = inputData.sprintReleased = false;
+        inputData.moveInput = inputData.verticalInput = 0f;
         this.player = player;
         // 安全：空目标只表示当前无人受控。
         if (this.player == null) return;
-        this.player.ChangeInputAsset(inputData);
+        SyncHeldInputs();
+        this.player.ChangeInputAsset(inputData, this);
+    }
+
+    public void UnbindPlayer(Player expected)
+    {
+        // 生命周期：只允许当前目标解绑自己，不创建新管理器。
+        if (player == expected) BindPlayer(null);
+    }
+
+    public void ClearPlayerInputEdges(Player expected)
+    {
+        // 规则刷新只清当前目标的边沿，不影响另一角色，也不制造真实松键。
+        if (player != expected) return;
+        AbortInteractHold();
+        inputData.jumpPressed = inputData.jumpRelease = inputData.sprintReleased = false;
     }
 
     /// <summary>

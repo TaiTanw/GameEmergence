@@ -53,7 +53,9 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
             if (task == 2)
             {
 
-                GameObject.Instantiate(tobj);
+                GameObject created = GameObject.Instantiate(tobj);
+                // 现有单角色场景由加载组装显式选目标，预设体 Awake 不再抢控制。
+                InputControlMgr.Instance.BindPlayer(created.GetComponent<Player>());
                 
                 
                 UIMgr.Instance.HideOneUI<LoadingPanel>();

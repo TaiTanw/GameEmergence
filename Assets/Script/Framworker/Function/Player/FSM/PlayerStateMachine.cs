@@ -25,7 +25,10 @@ public class PlayerStateMachine
     {
         isOnGround,
         inAir,
-        onWallSliding
+        onWallSliding,
+        swimming,
+        flying,
+        surfaceSwimming
     }
 
     LocalEventSystem<E_playEvent> eventSystem;
@@ -47,6 +50,12 @@ public class PlayerStateMachine
      IsOnGround onGround;
      IsInAir inAir;
      OnWallSliding onWallSliding;
+    private readonly FourWayMovementState fourWay = new FourWayMovementState();
+    private readonly SurfaceSwimmingState surfaceSwimming = new SurfaceSwimmingState();
+    private readonly PlayerInputData neutralInput = new PlayerInputData();
+    private ReadOnly_GeometryPhysicsData geometry;
+    private bool surfaceJumpAwaitingImpulse;
+    internal float FrameDeltaTime { get; private set; }
     #region 配置数据
     /// <summary>
     /// 在空中可跳跃跳跃数
@@ -73,6 +82,10 @@ public class PlayerStateMachine
     public float staminaDrainPerSecond = 25f;
     /// <summary>疾跑关闭后每秒恢复的体力。</summary>
     public float staminaRecoverPerSecond = 20f;
+    /// <summary>首版氧气基础值，和体力同归当前角色资源，后续由效果出口定标。</summary>
+    public float oxygenMax = 100f;
+    public float oxygenDrainPerSecond = 10f;
+    public float oxygenRecoverPerSecond = 20f;
 
     #endregion
 
@@ -95,6 +108,9 @@ public class PlayerStateMachine
     public bool closedBecauseEmpty;
     /// <summary>耗尽后必须先松开。不改写玩家是否仍按着。</summary>
     bool sprintMustRelease;
+    public float oxygen = 100f;
+    private bool oxygenDeathRequested;
+    public bool OxygenDepleted => oxygen <= 0f;
     #endregion
 
     public PlayerStateMachine()
@@ -112,9 +128,12 @@ public class PlayerStateMachine
     public void InitData(ReadOnly_GeometryPhysicsData playData, PlayerInputData input, MovementData actionData)
     {
         nowMovement = actionData;
+        geometry = playData;
         onGround.Init(playData, input, this, actionData);
         inAir.Init(playData, input, this, actionData);
         onWallSliding.Init(playData, input, this, actionData);
+        fourWay.Init(playData, input, this, actionData);
+        surfaceSwimming.Init(playData, input, this, actionData);
         onState.Enter();
     }
 
@@ -136,6 +155,13 @@ public class PlayerStateMachine
             case E_playerState.onWallSliding:
                 nowState=onWallSliding;
                 break;
+            case E_playerState.swimming:
+            case E_playerState.flying:
+                nowState = fourWay;
+                break;
+            case E_playerState.surfaceSwimming:
+                nowState = surfaceSwimming;
+                break;
             default:
                 nowState=null;
                 Debug.LogError("有多余枚举未处理状态的逻辑分支");
@@ -152,35 +178,41 @@ public class PlayerStateMachine
     /// <param name="playData">玩家当前状态</param>
     /// <param name="input">当前输入信息</param>
     /// <param name="stateMachine">玩家自身状态机</param>
-    public void Update(PlayerInputData input)
+    public void Update(PlayerInputData input, FourWayMode mode = FourWayMode.None,
+        bool movementAllowed = true, bool resourceUpdates = true, float? deltaTime = null,
+        bool jumpPending = false, float totalVerticalSpeed = 0f)
     {
-        // 实际逻辑：没有控制权时停掉本角色的移动输出，不清理管理器那份共享边沿。
-        if (input == null)
+        FrameDeltaTime = Mathf.Max(0f, deltaTime ?? Time.deltaTime);
+        // 实际逻辑：输入缺席只替换为零操作，环境判断和获准更新的资源仍继续。
+        PlayerInputData frameInput = input != null && movementAllowed ? input : neutralInput;
+        ObserveSprintRelease(input);
+        nowMovement.verticalInput = frameInput.verticalInput;
+        onGround.SetFrameInput(frameInput);
+        inAir.SetFrameInput(frameInput);
+        onWallSliding.SetFrameInput(frameInput);
+        fourWay.SetFrameInput(frameInput);
+        surfaceSwimming.SetFrameInput(frameInput);
+        // 跃出边界：等待物理消费后，仅上升阶段抑制水面重捕获；飞行/完整淹没立即交回各自行为。
+        if (nowMovement.surfaceJumpInProgress)
         {
-            if (nowMovement != null)
+            // 先记录本次跃出已消费，本帧追加的空中跳跃不能重开这段等待。
+            if (!jumpPending) surfaceJumpAwaitingImpulse = false;
+            if (mode == FourWayMode.Flying || mode == FourWayMode.Swimming
+                || (!jumpPending && totalVerticalSpeed <= 0f))
             {
-                nowMovement.onMove = 0f;
-                nowMovement.verticalInput = 0f;
-                nowMovement.speedScale = 1f;
+                nowMovement.surfaceJumpInProgress = surfaceJumpAwaitingImpulse = false;
             }
-            return;
+            else if (mode == FourWayMode.SurfaceSwimming) mode = FourWayMode.None;
         }
-        // 实际逻辑：上下是持续输入，各状态共用，不在单个状态里再写一遍。
-        if (nowMovement != null)
-            nowMovement.verticalInput = input.verticalInput;
-        // 实际逻辑：更新之间松开再按下时，帧末仍是按住。用松开事实解除禁跑，不改 sprintHeld。
-        if (input.sprintReleased || !input.sprintHeld)
-            sprintMustRelease = false;
-        onGround.SetFrameInput(input);
-        inAir.SetFrameInput(input);
-        onWallSliding.SetFrameInput(input);
+        SelectFourWayState(mode);
         onState.Update();
-        bool boosting = SprintBoostActive(input);
-        if (nowMovement != null)
-            nowMovement.speedScale = boosting ? sprintSpeedScale : 1f;
-        TickStamina(Time.deltaTime, boosting);
+        bool boosting = SprintBoostActive(frameInput);
+        nowMovement.speedScale = boosting ? sprintSpeedScale : 1f;
+        if (resourceUpdates) TickStamina(Mathf.Max(0f, deltaTime ?? Time.deltaTime), boosting);
         if (boosting && stamina > 0f)
             closedBecauseEmpty = false;
+        // 实际逻辑：无控制权时不清其它角色持有的共享输入边沿。
+        if (input == null) return;
         //效果已经触发，则关闭，防止持续响应
         input.jumpPressed = false;//触发类型按键全部统一由状态机复原
         input.jumpRelease = false;
@@ -189,7 +221,69 @@ public class PlayerStateMachine
         input.sprintReleased = false;
     }
 
+    private void SelectFourWayState(FourWayMode mode)
+    {
+        E_playerState desired = mode == FourWayMode.Flying ? E_playerState.flying
+            : mode == FourWayMode.SurfaceSwimming ? E_playerState.surfaceSwimming : E_playerState.swimming;
+        // 行为优先级：已解析的四向原因高于着地和墙滑。
+        if (mode != FourWayMode.None)
+        {
+            if (nowMovement.nowState != desired) ChangeState(desired);
+            return;
+        }
+        // 离水或能力撤销：按当前几何恢复，不恢复进入水前的状态。
+        if (nowMovement.nowState == E_playerState.swimming || nowMovement.nowState == E_playerState.flying
+            || nowMovement.nowState == E_playerState.surfaceSwimming)
+            ChangeState(geometry.isGrounded ? E_playerState.isOnGround : E_playerState.inAir);
+    }
+
     const float WalkInputDeadZone = 0.01f;
+
+    public void ObserveSprintRelease(PlayerInputData input)
+    {
+        // 实际逻辑：只接收真实设备事实，不用控制权移除或缺席输入冒充松键。
+        if (input != null && (input.sprintReleased || !input.sprintHeld)) sprintMustRelease = false;
+    }
+
+    public void ClearPendingActions(bool cancelPendingSurfaceJump = false)
+    {
+        jbtB = false;
+        inAir.ClearPendingInput();
+        // 冲量已消费后，清输入不能终止仍在上升的跃出。
+        if (cancelPendingSurfaceJump && surfaceJumpAwaitingImpulse && nowMovement != null)
+            nowMovement.surfaceJumpInProgress = surfaceJumpAwaitingImpulse = false;
+    }
+
+    /// <summary>显式刷新、形态提交或重新进入水面行为时，重置请求及执行保护。</summary>
+    internal void ResetMotionActions()
+    {
+        ClearPendingActions();
+        surfaceJumpAwaitingImpulse = false;
+        if (nowMovement != null) nowMovement.surfaceJumpInProgress = false;
+    }
+
+    internal void BeginSurfaceJump(bool released)
+    {
+        // 行为先切空中再发原跳跃事件，执行层才能沿已有冲量和短跳规则消费。
+        ChangeState(E_playerState.inAir);
+        inAir.BeginJumpReleaseWindow(released);
+        nowMovement.surfaceJumpInProgress = true;
+        surfaceJumpAwaitingImpulse = true;
+        groundJump = jbtB = false;
+        eventSystem.EventTigger(E_playEvent.jump);
+    }
+
+    /// <summary>死亡周期重开时允许零氧气再次发请求；不改变资源数值或其它行为锁存。</summary>
+    internal void ResetOxygenDeathRequest() => oxygenDeathRequested = false;
+
+    public void RefreshResources()
+    {
+        stamina = Mathf.Max(0f, staminaMax);
+        oxygen = Mathf.Max(0f, oxygenMax);
+        closedBecauseEmpty = sprintMustRelease = oxygenDeathRequested = false;
+        ResetMotionActions();
+        JumpCountToNum();
+    }
 
     /// <summary>状态机这一侧是否允许疾跑。不看玩家有没有按住。</summary>
     public bool CanSprintNow()
@@ -223,6 +317,26 @@ public class PlayerStateMachine
         }
         if (stamina < staminaMax)
             stamina = Mathf.Min(staminaMax, stamina + staminaRecoverPerSecond * deltaTime);
+    }
+
+    /// <summary>每次逻辑更新调用一次；归零只返回一次请求信号，死亡结果由 Player 和规则层处理。</summary>
+    public bool TickOxygen(float deltaTime, bool submerged, bool flying, bool resourceUpdates)
+    {
+        // 许可：待机角色暂停资源，输入/改键开关不参与此判断。
+        if (!resourceUpdates) return false;
+        float dt = Mathf.Max(0f, deltaTime);
+        // 玩法：离水或飞行不耗氧，按同一可调恢复参数恢复。
+        if (!submerged || flying)
+        {
+            oxygen = Mathf.Min(oxygenMax, oxygen + oxygenRecoverPerSecond * dt);
+            if (oxygen > 0f) oxygenDeathRequested = false;
+            return false;
+        }
+        oxygen = Mathf.Max(0f, oxygen - oxygenDrainPerSecond * dt);
+        // 归零结果：同一耗尽周期不每帧重复发死亡；正值恢复或显式刷新后才能重开。
+        if (oxygen > 0f || oxygenDeathRequested) return false;
+        oxygenDeathRequested = true;
+        return true;
     }
     /// <summary>
     /// 重置可跳次数

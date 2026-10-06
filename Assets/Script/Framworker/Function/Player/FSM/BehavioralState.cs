@@ -132,6 +132,12 @@ public class IsOnGround : BasePlayerState
 
 public class IsInAir : BasePlayerState
 {
+    internal void BeginJumpReleaseWindow(bool released) => canJumpCut = released;
+    public void ClearPendingInput()
+    {
+        jbt = 0f;
+        canJumpCut = false;
+    }
     /// <summary>
     /// 当前此状态时间
     /// </summary>
@@ -155,6 +161,8 @@ public class IsInAir : BasePlayerState
         nowTime = 0;
         jbt = 0;
         jumpWtime = 0;
+        // 实际逻辑：重新进入空中时不带回入水前尚未执行的跳跃斩断。
+        canJumpCut = false;
     }
 
     public override void Exit( )
@@ -170,7 +178,7 @@ public class IsInAir : BasePlayerState
         
         if (stateMachine.jbtB)
         {
-            jbt += Time.deltaTime;
+            jbt += stateMachine.FrameDeltaTime;
 
             if (jbt >stateMachine.jumpBuffer)
             {
@@ -220,7 +228,7 @@ public class IsInAir : BasePlayerState
         }
 
         //逻辑更新直接使用帧间隔更新时间
-        nowTime += Time.deltaTime;
+        nowTime += stateMachine.FrameDeltaTime;
 
         if (canJumpCut)
         {
@@ -236,7 +244,7 @@ public class IsInAir : BasePlayerState
 
         //所有逻辑执行完成，开始根据信息转换状态，靠前优先度高，满足多种状态的转换条件时，优先度高的表示最终转换后状态
 
-        if (playPhyData.isGrounded)//在地面
+        if (playPhyData.isGrounded && !playActionData.surfaceJumpInProgress)//跃出首帧可能仍贴浅水池底
         {
             //直接靠成员变量来传入，避免频繁GC
             stateMachine.ChangeState(PlayerStateMachine.E_playerState.isOnGround);
