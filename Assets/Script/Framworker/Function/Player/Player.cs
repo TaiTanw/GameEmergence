@@ -19,6 +19,8 @@ public class PlayerInputData
     public bool sprintHeld; // 玩家按住疾跑。松开即为假，不表示角色此刻正在疾跑
     public bool sprintReleased; // 两次逻辑更新之间出现过松开。状态机读过后清掉
 }
+public enum PushPullAction { None, Push, Pull }
+
 /// <summary>
 /// 持续性动作执行数据（瞬时动作靠事件触发
 /// </summary>
@@ -40,6 +42,8 @@ public class MovementData
     public bool surfaceJumpInProgress; // 行为层拥有：跃出期间等待冲量消费和上升结束
     /// <summary>当前选中关系托起推拉能力的箱子；无选中为空。由 Player 写入，执行与表现只读。</summary>
     public PhysicalBox pushPullBox;
+    /// <summary>当帧推箱行为：只在选中、地面且有水平操作时为推或拉；表现只读，不以能力开关代替。</summary>
+    public PushPullAction pushPullAction;
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -63,6 +67,7 @@ public class ReadOnly_ActionData
     public bool isSwimming => NowState == PlayerStateMachine.E_playerState.swimming || isSurfaceSwimming;
     public bool surfaceJumpInProgress => _data.surfaceJumpInProgress;
     public PhysicalBox PushPullBox => _data.pushPullBox;
+    public PushPullAction PushPullAction => _data.pushPullAction;
     public bool PushPullEnabled => _data.pushPullBox != null;
     public bool isFlying => NowState == PlayerStateMachine.E_playerState.flying;
     public FourWayMode FourWay => isFlying ? FourWayMode.Flying : isSurfaceSwimming ? FourWayMode.SurfaceSwimming
@@ -342,7 +347,11 @@ public class Player : MonoBehaviour
         // 安全：Awake 之前没有关系与动作数据。
         PhysicalBox previous = boxSelection?.Selected;
         boxSelection?.Release();
-        if (actionData != null) actionData.pushPullBox = null;
+        if (actionData != null)
+        {
+            actionData.pushPullBox = null;
+            actionData.pushPullAction = PushPullAction.None;
+        }
         ForgetPairContacts(previous);
     }
     //float time;
@@ -358,6 +367,7 @@ public class Player : MonoBehaviour
         //逻辑状态机更新，接收输入信息发送动作数据
         fsm.Update(inputData, ResolveFourWayAbility(), Permissions.movement && Permissions.motionUpdates,
             Permissions.resourceUpdates, deltaTime, playPDate.HasPendingJump, playPDate.GetPlanarVelocity().y);
+        UpdatePushPullAction();
         // 实际逻辑：逻辑入水后立即撤销先前等待物理消费的跳跃，避免入水又离水时补执行。
         if (_ActionData.FourWay != FourWayMode.None) playPDate.ClearPendingActions();
         // 资源只在逻辑更新扣一次；多个 FixedUpdate 和重叠池不会各扣一份。
@@ -382,6 +392,21 @@ public class Player : MonoBehaviour
         // 有效推拉能力只由成立的选中关系托起。
         actionData.pushPullBox = boxSelection.Selected;
         if (previous != boxSelection.Selected) ForgetPairContacts(previous);
+    }
+
+    private void UpdatePushPullAction()
+    {
+        PhysicalBox box = boxSelection.Selected;
+        // 实际逻辑：选中、地面行走状态且本帧有水平操作才算推箱行为；跳跃、游泳／飞行或站立都不输出。
+        if (box == null || _ActionData.NowState != PlayerStateMachine.E_playerState.isOnGround
+            || Mathf.Abs(actionData.onMove) <= 0.01f)
+        {
+            actionData.pushPullAction = PushPullAction.None;
+            return;
+        }
+        // 实际逻辑：操作方向朝向箱子为推，背离为拉。
+        float towardBox = Mathf.Sign(box.BodyBounds.center.x - BodyBounds.center.x);
+        actionData.pushPullAction = actionData.onMove * towardBox > 0f ? PushPullAction.Push : PushPullAction.Pull;
     }
 
     private void ForgetPairContacts(PhysicalBox box)

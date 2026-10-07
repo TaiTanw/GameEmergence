@@ -217,6 +217,12 @@ public class PresentationLayer : MonoBehaviour
     /// </summary>
     private void UpdateFacing()
     {
+        // 推拉期间面向选中箱，拉动时后退而不转身；动作暂沿用 move 切片作为占位，专用推拉动画未制作。
+        if (actionData.PushPullAction != PushPullAction.None && actionData.PushPullBox != null)
+        {
+            spriteRenderer.flipX = actionData.PushPullBox.BodyBounds.center.x < transform.position.x;
+            return;
+        }
         if (actionData.onMove > MoveInputDeadZone)
         {
             spriteRenderer.flipX = false;

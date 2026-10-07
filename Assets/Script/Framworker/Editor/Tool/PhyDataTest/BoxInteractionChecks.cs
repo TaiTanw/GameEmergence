@@ -41,6 +41,9 @@ public static class BoxInteractionChecks
             CheckUnselectedContact();
             CheckSelectionRelations();
             CheckElectrifiedTouch();
+            CheckStorageAndRestore();
+            CheckStorageConflicts();
+            CheckPushPullAction();
             Debug.Log($"Box interaction: {passed.Count} checks passed.");
         }
         finally
@@ -157,9 +160,6 @@ public static class BoxInteractionChecks
         Settle(w);
 
         Tap(player, input);
-        input.interactLongPressed = true;
-        player.TickLogic(0f);
-        Check(player._ActionData.PushPullBox == w.box, "收纳未接入时长按被拒绝，选中保持");
         input.jumpPressed = true;
         player.TickLogic(0f);
         Check(!player._ActionData.PushPullEnabled, "跳跃解除选中");
@@ -247,6 +247,134 @@ public static class BoxInteractionChecks
         Physics2D.SyncTransforms();
         Invoke(player, "UpdateBoxRelations");
         Check(receiver.count == 3, "带电方块顶面接触也请求死亡");
+    }
+
+    /// <summary>长按收纳、固定、变暗、可穿过；拉出受玩家／墙阻挡拒绝，Trigger 不阻挡；显式恢复默认。</summary>
+    private static void CheckStorageAndRestore()
+    {
+        var w = World(80f, true);
+        Player player = w.owner;
+        var input = new PlayerInputData();
+        player.ChangeInputAsset(input);
+        LevelBoxContext.Register(w.box);
+        Sample(w);
+        Rigidbody2D boxBody = w.box.GetComponent<Rigidbody2D>();
+        SpriteRenderer tint = w.box.GetComponentInChildren<SpriteRenderer>();
+        Color baseColor = tint.color;
+        Vector2 storedAt = w.box.DebugActualPosition;
+
+        Tap(player, input);
+        input.interactLongPressed = true;
+        player.TickLogic(0f);
+        Check(w.box.IsStored && !player._ActionData.PushPullEnabled, "选中后长按收纳并解除选中");
+        Check(!w.box.GetComponent<BoxCollider2D>().enabled && !boxBody.simulated && !w.box.IsMotionParticipating,
+            "收纳关闭碰撞器并退出双端运动");
+        Check(tint.color != baseColor, "收纳后显示变暗");
+        w.ground.enabled = false;
+        for (int tick = 0; tick < 20; tick++) Step(w);
+        Check((w.box.DebugActualPosition - storedAt).magnitude < .0001f, "收纳箱失去地面后多个物理步仍固定原位");
+        w.ground.enabled = true;
+
+        Bounds rect = w.box.InteractionBounds;
+        MoveCenter(w.player, rect.center);
+        Check(w.box.Interact(new PlayerInteractRequest(player, PlayerInteractKind.Tap, false)) == PlayerInteractOutcome.Rejected
+            && w.box.IsStored, "玩家站在恢复位置时拒绝拉出");
+        Collider2D wall = Solid(rect.center, new Vector2(.4f, .4f), w.wallLayer);
+        PlaceOn(w.player, rect.min.x - .01f - w.player.BodyBounds.extents.x, w.groundTop);
+        Physics2D.SyncTransforms();
+        Check(w.box.Interact(new PlayerInteractRequest(player, PlayerInteractKind.Tap, false)) == PlayerInteractOutcome.Rejected
+            && w.box.IsStored, "墙挡住恢复位置时拒绝拉出");
+        wall.isTrigger = true;
+        Physics2D.SyncTransforms();
+        Sample(w);
+        Tap(player, input);
+        Check(!w.box.IsStored && w.box.GetComponent<BoxCollider2D>().enabled && boxBody.simulated,
+            "贴合点按拉出，Trigger 与脚下地面不算阻挡");
+        Check((w.box.DebugActualPosition - storedAt).magnitude < .0001f && tint.color == baseColor,
+            "拉出回到收纳坐标并恢复显示");
+        Check(!player._ActionData.PushPullEnabled, "拉出后不自动选中");
+
+        var home = (Vector2)typeof(PhysicalBox).GetField("defaultPosition", Hidden).GetValue(w.box);
+        MoveCenter(w.box, (Vector2)w.box.BodyBounds.center + Vector2.right * 5f);
+        Sample(w);
+        Check(w.box.Interact(new PlayerInteractRequest(player, PlayerInteractKind.LongPress, true))
+            == PlayerInteractOutcome.Stored, "契约直接请求收纳");
+        w.box.RestoreDefault();
+        Check(!w.box.IsStored && (w.box.DebugActualPosition - home).magnitude < .0001f && boxBody.simulated,
+            "显式恢复默认退出收纳并回到默认位置");
+        player.ApplyCapabilities(new PlayerCapabilityPermissions(true, true, false, true, true, false));
+        player.TickLogic(0f);
+        Check(!w.box.IsStored && (w.box.DebugActualPosition - home).magnitude < .0001f,
+            "推拉许可关闭只退操作，不改箱子现场");
+        player.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+    }
+
+    /// <summary>与已收纳箱矩形重合拒绝收纳，不重合可收纳；同时贴合时间隙相同优先外部箱。</summary>
+    private static void CheckStorageConflicts()
+    {
+        var w = World(80f, true);
+        Player player = w.owner;
+        var input = new PlayerInputData();
+        player.ChangeInputAsset(input);
+        LevelBoxContext.Register(w.box);
+        Sample(w);
+        var request = new PlayerInteractRequest(player, PlayerInteractKind.LongPress, true);
+        Check(w.box.Interact(request) == PlayerInteractOutcome.Stored, "第一只箱收纳");
+
+        PhysicalBox second = ExtraBox(w, w.box.InteractionBounds.center);
+        Check(second.Interact(request) == PlayerInteractOutcome.Rejected && !second.IsStored
+            && second.GetComponent<BoxCollider2D>().enabled, "与已收纳箱矩形重合时拒绝收纳且状态不变");
+
+        Tap(player, input);
+        Check(player._ActionData.PushPullBox == second && w.box.IsStored, "同等贴合时优先外部箱");
+        player.RemoveInput();
+        player.ChangeInputAsset(input);
+
+        Bounds stored = w.box.InteractionBounds;
+        MoveCenter(second, new Vector2(stored.max.x + second.BodyBounds.extents.x + .005f, stored.center.y));
+        Check(second.Interact(request) == PlayerInteractOutcome.Stored, "与已收纳箱仅贴边不算重合，可收纳");
+    }
+
+    /// <summary>推箱行为只在选中、地面且有水平操作时输出，朝箱为推、背离为拉。</summary>
+    private static void CheckPushPullAction()
+    {
+        var w = World(80f, true);
+        Player player = w.owner;
+        var input = new PlayerInputData();
+        player.ChangeInputAsset(input);
+        LevelBoxContext.Register(w.box);
+        Sample(w);
+        input.moveInput = 1f;
+        player.TickLogic(0f);
+        Check(player._ActionData.PushPullAction == PushPullAction.None, "未选中的接触推动不输出推箱行为");
+        input.moveInput = 0f;
+        Tap(player, input);
+        Check(player._ActionData.PushPullAction == PushPullAction.None, "选中站立不算推箱");
+        input.moveInput = 1f;
+        player.TickLogic(0f);
+        Check(player._ActionData.PushPullAction == PushPullAction.Push, "朝箱移动输出推");
+        input.moveInput = -1f;
+        player.TickLogic(0f);
+        Check(player._ActionData.PushPullAction == PushPullAction.Pull, "背离箱移动输出拉");
+        input.jumpPressed = true;
+        player.TickLogic(0f);
+        Check(player._ActionData.PushPullAction == PushPullAction.None, "跳跃解除后不输出推箱行为");
+    }
+
+    private static PhysicalBox ExtraBox(TestWorld w, Vector2 center)
+    {
+        PhysicalBox box = Instantiate("box.prefab").GetComponent<PhysicalBox>();
+        Invoke(box, "Awake");
+        MoveCenter(box, center);
+        LevelBoxContext.Register(box);
+        Invoke(box, "GeometricQueryPhase");
+        return box;
+    }
+
+    private static void MoveCenter(BasicEntity e, Vector2 center)
+    {
+        e.transform.position += (Vector3)(center - (Vector2)e.BodyBounds.center);
+        Physics2D.SyncTransforms();
     }
 
     private sealed class CountingDeathReceiver : IPlayerDeathReceiver

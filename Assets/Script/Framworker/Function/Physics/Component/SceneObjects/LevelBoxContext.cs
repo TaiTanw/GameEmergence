@@ -13,7 +13,10 @@ public static class LevelBoxContext
     public static void Register(PhysicalBox box) { if (!boxes.Contains(box)) boxes.Add(box); }
     public static void Unregister(PhysicalBox box) => boxes.Remove(box);
 
-    /// <summary>找与身体侧面贴合、水平间隙不超过 maxGap 的最近箱子；站在箱顶或箱底不算贴合。</summary>
+    /// <summary>
+    /// 找与身体侧面贴合、水平间隙不超过 maxGap 的最近箱子（含收纳箱，按其缓存矩形）；站在箱顶或箱底不算贴合。
+    /// 间隙相同优先外部箱，再相同保持登记顺序。
+    /// </summary>
     public static PhysicalBox FindSideContact(Bounds body, float maxGap)
     {
         PhysicalBox best = null;
@@ -22,15 +25,34 @@ public static class LevelBoxContext
         {
             // 安全：已销毁但尚未注销的残留引用。
             if (box == null) continue;
-            // 实际逻辑：暂停或关闭碰撞的箱子不接受新选中。
-            if (!box.IsMotionParticipating) continue;
-            // 实际逻辑：严格更近才替换，平局保持登记顺序。
-            if (!IsSideContact(body, box.BodyBounds, maxGap, out float gap) || gap >= bestGap) continue;
+            // 实际逻辑：暂停的外部箱不接受交互；收纳箱虽不参与运动仍可被发现。
+            if (!box.IsStored && !box.IsMotionParticipating) continue;
+            if (!IsSideContact(body, box.InteractionBounds, maxGap, out float gap)) continue;
+            bool closer = gap < bestGap || (gap == bestGap && best.IsStored && !box.IsStored);
+            if (!closer) continue;
             best = box;
             bestGap = gap;
         }
         return best;
     }
+
+    /// <summary>矩形是否与除 self 外任一已收纳箱的缓存矩形重合；仅接触边界不算重合。</summary>
+    public static bool OverlapsStored(Bounds rect, PhysicalBox self)
+    {
+        foreach (PhysicalBox box in boxes)
+        {
+            // 安全：残留引用或自身不参与比较。
+            if (box == null || box == self || !box.IsStored) continue;
+            Bounds other = box.InteractionBounds;
+            float overlapX = Mathf.Min(rect.max.x, other.max.x) - Mathf.Max(rect.min.x, other.min.x);
+            float overlapY = Mathf.Min(rect.max.y, other.max.y) - Mathf.Max(rect.min.y, other.min.y);
+            // 实际逻辑：两轴都有正的重叠才算重合，避免贴边并排的箱子被误拒。
+            if (overlapX > OverlapEpsilon && overlapY > OverlapEpsilon) return true;
+        }
+        return false;
+    }
+
+    private const float OverlapEpsilon = .001f;
 
     /// <summary>身体是否碰到任一参与运动的带电方块：任意一面（含站在顶面）间隙不超过 tolerance 即算接触。</summary>
     public static bool TouchesElectrified(Bounds body, float tolerance)
