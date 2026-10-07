@@ -37,7 +37,6 @@ public abstract class BasePhysicsEntity : BasicEntity
     protected override void Init()
     {
         playphyFunData = new PhysicalFunctionData();
-        nowPhyFun = playphyFunData;
         readOnly_GeometryPhysicsData = new(nowGemetry, playphyFunData);
         readOnly_PlayerPhysicsData = new(playerPhysicsData);
     }

@@ -192,28 +192,11 @@ namespace PhyData
         public readonly List<Collider2D> regionOverlaps = new List<Collider2D>();
     }
     /// <summary>
-    /// 物理职能基类
-    /// </summary>
-    public class BasePhyFunData
-    {
-        /// <summary>
-        /// 已废弃：推墙/推箱不再用 Enter 边沿 AddForce（保留字段以免旧序列化/注释对照）
-        /// </summary>
-        public IForceAction nowForceThing;
-        /// <summary>
-        /// 已废弃：同上
-        /// </summary>
-        public IForceAction lastForceThing;
-        // 支撑环境关系及采样已归实体 EnvironmentContext，不再保存 BaseGround 类型引用。
-
-
-    }
-    /// <summary>
     /// 角色在相位 2 从左右墙 Collider 解析出的墙滑能力引用。
     /// 例如左侧碰到普通墙时 canLeftWall 为空，几何上的 onLeftWall 仍可为真。
     /// 职能：物理职能结果；逻辑层只读其是否有效，乘数由执行层读取。箱体不使用本类型。
     /// </summary>
-    public class PhysicalFunctionData:BasePhyFunData
+    public class PhysicalFunctionData
     {
         public IWallSlideSurface canLeftWall;
         public IWallSlideSurface canRightWall;

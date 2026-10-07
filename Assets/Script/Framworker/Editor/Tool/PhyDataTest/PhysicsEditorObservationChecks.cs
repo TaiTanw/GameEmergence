@@ -242,7 +242,6 @@ public sealed class PhysicsObservationCheckBody : BasicEntity
         gravity = 0;
         playerPhysicsData = new PhyData.PlayerPhysicsData();
         nowGemetry = new PhyData.GeometryPhysicsData();
-        nowPhyFun = new PhyData.BasePhyFunData();
     }
     protected override void GeometricQuery() { }
     protected override void HActiveSpeedOperation() => playerPhysicsData.horizontalSpeed = 2;

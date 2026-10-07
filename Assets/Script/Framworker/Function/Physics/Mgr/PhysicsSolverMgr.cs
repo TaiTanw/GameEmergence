@@ -16,7 +16,7 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     /// 本帧预测世界快照。相位 3 由实体上报，相位 4 消费后清空。
     /// </summary>
     readonly List<PhysicalBoundingBox> projectingArray = new List<PhysicalBoundingBox>();
-    internal IContactSolveStrategy ContactStrategy { get; set; } = new CurrentAabbContactSolver();
+    internal IContactSolveStrategy ContactStrategy { get; } = new CurrentAabbContactSolver();
     readonly List<EntityOffsetDecision> pendingOffsets = new List<EntityOffsetDecision>();
 
     // 接触力是有方向的：A 推 B 与 B 推 A 是两条不同的数据链路。
@@ -30,6 +30,8 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     readonly List<DirectedContactPlan> pendingContactPlans = new List<DirectedContactPlan>(); // 当前策略的当帧有向力决定
     readonly List<HorizontalBlockDecision> pendingHorizontalBlocks = new List<HorizontalBlockDecision>(); // 沿水平接触传来的阻挡方向，等待写回
     readonly List<ContactForceLink> pendingExitedContactLinks = new List<ContactForceLink>(); // 本帧退出的旧有向关系
+    // 接触退出渐隐后仍可能有累计速度；保留接收者索引直到其停用，以便来源退出时立即清尾效。
+    readonly HashSet<BasicEntity> contactReceivers = new HashSet<BasicEntity>();
 
     public void Init()
     {
@@ -45,6 +47,66 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
         projectingArray.Add(box);
     }
 
+    /// <summary>撤销当帧预测及实体提交资格，不重置速度、环境或接触累计。</summary>
+    internal void DiscardPrediction(BasicEntity entity)
+    {
+        // 安全：销毁对象没有可撤销的提交状态。
+        if (entity == null) return;
+        // 实际逻辑：相位 4 可能已经消费列表，仍须同步撤销实体本步提交资格。
+        entity.InvalidateMotionPrediction();
+        projectingArray.RemoveAll(prediction => prediction.myPhyBox == entity);
+    }
+
+    /// <summary>解除双方旧接触力及待处理记录；不取消实体阻挡，也不删除其它接触或环境来源。</summary>
+    public void ForgetContactForcesBetween(BasicEntity first, BasicEntity second)
+    {
+        // 安全：未建立关系或对象已销毁时没有可清理的双方。
+        if (first == null || second == null) return;
+        ForgetDirectedContact(first, second);
+        ForgetDirectedContact(second, first);
+        RebuildPendingAttenuations();
+    }
+
+    private void ForgetDirectedContact(BasicEntity source, BasicEntity receiver)
+    {
+        receiver.ForgetContactForce(source);
+        ContactForceLink link = new ContactForceLink(source, receiver);
+        previousContactForceLinks.Remove(link);
+        currentContactForceLinks.Remove(link);
+        pendingContactForces.RemoveAll(decision => decision.link.Equals(link));
+        pendingExitedContactLinks.RemoveAll(exited => exited.Equals(link));
+        pendingContactPlans.RemoveAll(plan => plan.source == source && plan.receiver == receiver);
+    }
+
+    private void RebuildPendingAttenuations()
+    {
+        pendingAttenuations.Clear();
+        foreach (DirectedContactPlan plan in pendingContactPlans)
+            if (!previousContactForceLinks.Contains(new ContactForceLink(plan.source, plan.receiver)))
+                QueueContactAttenuation(plan.source, plan.sourceSeparateSign, plan.retainRatio);
+    }
+
+    /// <summary>实体收纳、停用或显式恢复时撤销所有实体接触，包括已经脱离旧链路的渐隐来源。</summary>
+    public void ForgetEntityContacts(BasicEntity entity)
+    {
+        // 安全：空引用没有实体身份；正常销毁由 OnDisable 在对象仍有效时调用。
+        if (entity == null) return;
+        foreach (BasicEntity receiver in contactReceivers)
+            if (receiver != null) receiver.ForgetContactForce(entity);
+        entity.ForgetReceivedContactForces();
+        contactReceivers.Remove(entity);
+        contactReceivers.RemoveWhere(receiver => receiver == null);
+        previousContactForceLinks.RemoveWhere(link => link.source == entity || link.receiver == entity);
+        currentContactForceLinks.RemoveWhere(link => link.source == entity || link.receiver == entity);
+        pendingContactForces.RemoveAll(decision => decision.link.source == entity || decision.link.receiver == entity);
+        pendingExitedContactLinks.RemoveAll(link => link.source == entity || link.receiver == entity);
+        pendingContactPlans.RemoveAll(plan => plan.source == entity || plan.receiver == entity);
+        pendingOffsets.RemoveAll(decision => decision.entity == entity);
+        pendingHorizontalBlocks.RemoveAll(decision => decision.entity == entity);
+        RebuildPendingAttenuations();
+        DiscardPrediction(entity);
+    }
+
     /// <summary>
     /// 相位 4 总入口，建议先沿调用顺序阅读，再展开各私有步骤。
     /// ① 预测 AABB 重叠按最小深度轴分配接触偏置；② 求环境请求并有限次回算剩余水平重叠；
@@ -53,6 +115,16 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     /// </summary>
     void ContactForSolution()
     {
+        // 实际逻辑：相位 3 后停用、收纳或关闭碰撞的实体不再进入本帧接触求解。
+        projectingArray.RemoveAll(prediction =>
+        {
+            // 安全：销毁实体只移除快照，不能回写其状态。
+            if (prediction.myPhyBox == null) return true;
+            // 实际逻辑：有效参与者继续求解；被过滤者即使本步重开 Collider，也须等待新预测。
+            if (prediction.myPhyBox.IsMotionParticipating) return false;
+            prediction.myPhyBox.InvalidateMotionPrediction();
+            return true;
+        });
         currentContactForceLinks.Clear();
         pendingAttenuations.Clear();
         pendingContactForces.Clear();
@@ -162,7 +234,10 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     void ApplyPendingContactForces()
     {
         foreach (ContactForceDecision decision in pendingContactForces)
+        {
             decision.link.receiver.SetOrUpdateDynamicForce(decision.link.source, decision.parameters);
+            contactReceivers.Add(decision.link.receiver);
+        }
     }
 
     /// <summary>

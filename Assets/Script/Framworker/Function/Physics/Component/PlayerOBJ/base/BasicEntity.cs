@@ -12,11 +12,47 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 {
     /// <summary>Unity 查询与提交端；其它后端可在实体层替换此入口。</summary>
     protected virtual IPhysicsWorldAccess2D PhysicsWorld => UnityPhysicsWorldAccess2D.Instance;
+    protected virtual bool MotionExecutionReady => true;
     protected virtual bool MotionUpdatesEnabled => true;
     protected virtual bool UsesWorldAxisMovement => false;
+    private bool motionParticipation = true;
+    private bool hasMotionPrediction;
+    /// <summary>执行所需组件和子类数据是否已组装；与玩法运动许可分开。</summary>
+    public bool IsMotionReady => rb != null && boxCollider != null && MotionExecutionReady;
+    /// <summary>参与开关与角色规则共同给出的运动许可；未组装不等于规则禁止。</summary>
+    public bool IsMotionPermitted => motionParticipation && MotionUpdatesEnabled;
+    /// <summary>实际参与资格；自研相位 3／5 与原生 simulated 共用就绪、许可和组件启用条件。</summary>
+    public bool IsMotionParticipating => isActiveAndEnabled && IsMotionReady && IsMotionPermitted
+        && boxCollider.enabled;
 
-    /// <summary>当前环境请求策略；与 Unity 查询和提交入口分别替换。</summary>
-    internal IEntityRequestSolveStrategy RequestSolveStrategy { get; set; } =
+    /// <summary>规则侧切换实体运动参与。暂停只保留现场；收纳／默认恢复须另外调用显式清理。</summary>
+    public void SetMotionParticipation(bool active)
+    {
+        motionParticipation = active;
+        SynchronizeMotionParticipation();
+    }
+
+    protected void SynchronizeMotionParticipation()
+    {
+        // 安全：角色组装可能早于本组件 Awake，先关联原生组件。
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (boxCollider == null) boxCollider = GetComponent<BoxCollider2D>();
+        bool participates = IsMotionParticipating;
+        // 实际逻辑：只提交参与变化；同值写入也会将显示插值位置同步回刚体，越过正常位移约束。
+        if (rb != null && rb.simulated != participates) rb.simulated = participates;
+        // 实际逻辑：退出丢弃当帧请求，保留跨帧速度；恢复必须等新的相位 3。
+        if (!participates)
+        {
+            hasPendingDisplacement = false;
+            PhysicsSolverMgr.Instance.DiscardPrediction(this);
+        }
+    }
+
+    /// <summary>撤销本步预测的提交资格；不改变跨帧速度、效果或已提交位移的观测。</summary>
+    internal void InvalidateMotionPrediction() => hasMotionPrediction = false;
+
+    /// <summary>固定的默认环境请求策略；职责与 Unity 查询和提交入口分开。</summary>
+    internal IEntityRequestSolveStrategy RequestSolveStrategy { get; } =
         CurrentEntityRequestSolver.Instance;
 
     protected Rigidbody2D rb; //刚体
@@ -61,10 +97,6 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// 当前几何检测数据
     /// </summary>
     protected GeometryPhysicsData nowGemetry;
-    /// <summary>
-    /// 物理职能数据
-    /// </summary>
-    protected BasePhyFunData nowPhyFun;
     /// <summary>
     /// 当前移动属性
     /// </summary>
@@ -294,8 +326,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
             cPhysics != null ? cPhysics.groundLayer : default,
             cPhysics != null ? cPhysics.wallLayer : default,
             cPhysics != null ? cPhysics.maxClimbAngle : 0f,
-            nowGemetry.groundCollider, nowGemetry.isGrounded,
-            playerPhysicsData.verticalSpeed, Time.fixedDeltaTime, motionFrame, oneWayDropColliders);
+            nowGemetry.groundCollider, motionFrame, oneWayDropColliders);
 
     /// <summary>
     /// 正在穿过的单向平台只读视图。角色在相位 1 维护，相位 4 只读；箱子保持为空。
@@ -366,6 +397,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     {
         effectState.ClearBlockedContactSpeed(source, entitySolutionResult.blockedHorizontalDirection);
     }
+
+    internal void ForgetContactForce(BasicEntity source) => effectState.ForgetContactForce(source);
+    internal void ForgetReceivedContactForces() => effectState.ForgetReceivedContactForces();
 
     /// <summary>
     /// 接触刚成立时，按挤出方向一次性削弱会继续进入接触面的非持续速度来源。
@@ -490,6 +524,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         //下落加速度受空气阻力影响
         gravity*=airResistance;
         Init();
+        SynchronizeMotionParticipation();
     }
 
     /// <summary>供自行实现 Awake 的实体明确完成效果回调关联。</summary>
@@ -499,14 +534,15 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     protected virtual void Init()
     {
-        nowPhyFun = new BasePhyFunData();
     }
 
     /// <summary>显式刷新运动；资源/道具效果不归此入口，环境撤销须由规则调用者单独选择。</summary>
     public void RefreshMotionState(Vector2? position = null, bool releaseEnvironmentEffects = false)
     {
+        PhysicsSolverMgr.Instance.ForgetEntityContacts(this);
         OnMotionRefresh(position.HasValue);
         hasPendingDisplacement = hasDisplacementObservation = false;
+        hasMotionPrediction = false;
         motionFrame = default;
         entitySolutionResult = default;
         playerPhysicsData.horizontalSpeed = playerPhysicsData.verticalSpeed = 0f;
@@ -528,6 +564,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 
     protected virtual void OnEnable()
     {
+        SynchronizeMotionParticipation();
         displacementStep = 0;
         hasPendingDisplacement = false;
         hasDisplacementObservation = false;
@@ -633,8 +670,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void SpeedCalculation()
     {
-        // 实际逻辑：待机角色不积分、不提交预测；区域采样仍沿原相位更新。
-        if (!MotionUpdatesEnabled) return;
+        // 实际逻辑：未就绪或无运动许可的实体不积分、不预测；区域采样仍沿原相位更新。
+        SynchronizeMotionParticipation();
+        if (!IsMotionParticipating) return;
         //水平速度计算
         HorizontalSpeedCalculation();
         //竖直速度计算
@@ -721,7 +759,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         entitySolutionResult.requestedWorldDelta = motionFrame.plannedWorldDelta;
         entitySolutionResult.blockedHorizontalDirection = 0f;
 
-        if (boxCollider == null || rb == null)
+        if (!IsMotionParticipating)
             return;
 
         PhysicalBoundingBox box = new PhysicalBoundingBox();
@@ -734,6 +772,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         PhysicsEditorObservationBridge.ReportPredictionBuilt(this, box.point, box.size);
 #endif
         PhysicsSolverMgr.Instance.AddPhyBoX(box);
+        hasMotionPrediction = true;
     }
 
     /// <summary>
@@ -805,8 +844,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// </summary>
     void DisplacementCorrection()
     {
-        // 实际逻辑：暂停运动不提交上一次残留请求。
-        if (!MotionUpdatesEnabled) return;
+        // 实际逻辑：未参与或预测已失效的实体不提交残留请求。
+        SynchronizeMotionParticipation();
+        if (!IsMotionParticipating || !hasMotionPrediction) return;
         Vector2 requestOrigin = PhysicsWorld.ReadBodyPosition(rb);
         Vector2 requestedDelta = entitySolutionResult.requestedWorldDelta;
 #if UNITY_EDITOR
@@ -821,6 +861,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 #endif
         // F_6.2_6-5：相位 5 只提交一次，不再按帧初贴墙标志裁剪。
         PhysicsWorld.SubmitPosition(rb, requestOrigin + requestedDelta);
+        hasMotionPrediction = false;
         pendingDisplacementStep = displacementStep;
         pendingDisplacementOrigin = requestOrigin;
         pendingRequestedDelta = requestedDelta;
@@ -829,6 +870,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
 
     protected virtual void OnDisable()
     {
+        SynchronizeMotionParticipation();
+        hasMotionPrediction = false;
+        PhysicsSolverMgr.Instance.ForgetEntityContacts(this);
         hasPendingDisplacement = false;
         hasDisplacementObservation = false;
 #if UNITY_EDITOR

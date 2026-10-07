@@ -48,15 +48,10 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     public float MovingDirection => playActionData.onMove;
 
     public float Mobility => speed;
-    protected override bool MotionUpdatesEnabled => playActionData != null && playActionData.motionUpdates;
+    protected override bool MotionExecutionReady => playActionData != null;
+    protected override bool MotionUpdatesEnabled => playActionData == null || playActionData.motionUpdates;
     protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
 
-    public void SetMotionParticipation(bool active)
-    {
-        // 组装可能先于本组件 Awake；只设置原生参与开关，不用启停组件冒充刷新。
-        Rigidbody2D body = rb != null ? rb : GetComponent<Rigidbody2D>();
-        if (body != null) body.simulated = active;
-    }
     #endregion
 
 
@@ -98,6 +93,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     public void Init(ReadOnly_ActionData actionData, LocalEventSystem<PlayerStateMachine.E_playEvent> fsmEventSystem)
     {
         playActionData = actionData;
+        SynchronizeMotionParticipation();
         //注册事件
         fsmEventSystem.AddEventListener(PlayerStateMachine.E_playEvent.jump, Jump);
         fsmEventSystem.AddEventListener(PlayerStateMachine.E_playEvent.jumpRelease, JumpRelease);

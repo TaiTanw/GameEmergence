@@ -448,18 +448,17 @@ public static class PlayerSurfaceSwimmingChecks
             foreach (float horizontal in new[] { 6f, 0f })
             {
                 EntityMotionFrame frame = Build(new Vector2(horizontal, 2f), 0f, grounded, Vector2.up, Vector2.zero, true);
-                EntitySolutionResult result = Solve(frame, grounded, floor, true, .02f);
+                EntitySolutionResult result = Solve(frame, floor, true);
                 Near(result.requestedWorldDelta.y, .04f, "V7 真实墙面查询保留竖直水流，ground=" + grounded + ", x=" + horizontal);
                 Near(result.requestedWorldDelta.x, 0f, "V7 贴墙仍限制水平进入，ground=" + grounded + ", x=" + horizontal);
             }
             EntityMotionFrame carried = Build(new Vector2(6f, 2f), 0f, true, Vector2.up, new Vector2(0f, .02f), true);
-            Near(Solve(carried, true, floor, true, .02f).requestedWorldDelta.y, .06f,
+            Near(Solve(carried, floor, true).requestedWorldDelta.y, .06f,
                 "V7 池底贴墙时水流与平台 Y 各保留一次");
             EntityMotionFrame slope = Build(new Vector2(6f, 3f), 3f, true, new Vector2(-.6f, .8f), new Vector2(.03f, .02f), false);
             foreach (float ratio in new[] { 0f, .5f, 1f })
             {
-                var result = Solve(slope, true, floor, false, .02f, slope.platformDelta.x + slope.motionDelta.x * ratio,
-                    activeVertical: 3f);
+                var result = Solve(slope, floor, false, slope.platformDelta.x + slope.motionDelta.x * ratio);
                 Near(result.requestedWorldDelta.y, .06f + .02f + slope.groundSlopeDeltaY * ratio,
                     "普通坡面按水平保留率缩短，独立起跳和平台 Y 保留，ratio=" + ratio);
             }
@@ -482,15 +481,15 @@ public static class PlayerSurfaceSwimmingChecks
         return (EntityMotionFrame)method.Invoke(null, args);
     }
 
-    private static EntitySolutionResult Solve(EntityMotionFrame frame, bool grounded, Collider2D floor, bool query,
-        float dt, float? allowedX = null, float activeVertical = 0f)
+    private static EntitySolutionResult Solve(EntityMotionFrame frame, Collider2D floor, bool query,
+        float? allowedX = null)
     {
         Assembly runtime = typeof(BasicEntity).Assembly;
         Type inputType = runtime.GetType("EntityEnvironmentSolveInput"), geometryType = runtime.GetType("PhyData.EntityCandidateGeometry");
         Type solverType = runtime.GetType("CurrentEntityRequestSolver");
         var bounds = new Bounds(new Vector3(2000f, 2000f), Vector3.one);
         object input = Activator.CreateInstance(inputType, Hidden, null, new object[] {
-            bounds, null, (LayerMask)1, (LayerMask)1, 45f, floor, grounded, activeVertical, dt, frame, null }, null);
+            bounds, null, (LayerMask)1, (LayerMask)1, 45f, floor, frame, null }, null);
         object geometry = Activator.CreateInstance(geometryType, true);
         geometryType.GetField("candidateCenter", Hidden).SetValue(geometry, (Vector2)bounds.center + frame.plannedWorldDelta);
         geometryType.GetField("candidateDelta", Hidden).SetValue(geometry, query ? frame.plannedWorldDelta : Vector2.zero);

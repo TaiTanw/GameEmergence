@@ -11,15 +11,11 @@ internal readonly struct EntityEnvironmentSolveInput
     internal readonly LayerMask wallLayer;
     internal readonly float maxClimbAngle;
     internal readonly Collider2D groundCollider;
-    internal readonly bool isGrounded;
-    internal readonly float verticalSpeed;
-    internal readonly float fixedDeltaTime;
     internal readonly EntityMotionFrame motionFrame;
     internal readonly IReadOnlyList<Collider2D> oneWayDropColliders;
 
     internal EntityEnvironmentSolveInput(Bounds bounds, Rigidbody2D body, LayerMask groundLayer,
-        LayerMask wallLayer, float maxClimbAngle, Collider2D groundCollider, bool isGrounded,
-        float verticalSpeed, float fixedDeltaTime, EntityMotionFrame motionFrame,
+        LayerMask wallLayer, float maxClimbAngle, Collider2D groundCollider, EntityMotionFrame motionFrame,
         IReadOnlyList<Collider2D> oneWayDropColliders)
     {
         this.bounds = bounds;
@@ -28,9 +24,6 @@ internal readonly struct EntityEnvironmentSolveInput
         this.wallLayer = wallLayer;
         this.maxClimbAngle = maxClimbAngle;
         this.groundCollider = groundCollider;
-        this.isGrounded = isGrounded;
-        this.verticalSpeed = verticalSpeed;
-        this.fixedDeltaTime = fixedDeltaTime;
         this.motionFrame = motionFrame;
         this.oneWayDropColliders = oneWayDropColliders;
     }

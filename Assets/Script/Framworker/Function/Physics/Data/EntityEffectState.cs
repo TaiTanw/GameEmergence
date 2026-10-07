@@ -210,6 +210,24 @@ internal sealed class EntityEffectState
         ChangeDynamicType(source, E_PhyForceType.fadeAway);
     }
 
+    /// <summary>立即删除指定实体接触来源的累计与尾效，不影响环境来源及限时速度。</summary>
+    public void ForgetContactForce(BasicEntity source)
+    {
+        dynamicSources.Remove(source);
+        dynamicForces.Remove(source);
+    }
+
+    /// <summary>实体退出时清自身收到的实体接触力；水流等环境力保留。</summary>
+    public void ForgetReceivedContactForces()
+    {
+        dynamicRemovalBuffer.Clear();
+        foreach (IDynamicAddForce source in dynamicSources)
+            if (source is BasicEntity) dynamicRemovalBuffer.Add(source);
+        foreach (IDynamicAddForce source in dynamicRemovalBuffer)
+        { dynamicSources.Remove(source); dynamicForces.Remove(source); }
+        dynamicRemovalBuffer.Clear();
+    }
+
     /// <summary>
     /// F_6.2_7-4：旧接触退出时，只清除指定来源朝最终静态障碍的累计速度。
     /// 判断该来源自身的 speedStacking，不依赖其它来源合成后的净被动速度；保留其余来源。

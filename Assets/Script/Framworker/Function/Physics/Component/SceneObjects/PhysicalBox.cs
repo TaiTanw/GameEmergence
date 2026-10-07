@@ -5,6 +5,9 @@ using UnityEngine;
 
 public class PhysicalBox : BasicEntity
 {
+    /// <summary>最近一次相位 1 的箱底几何支撑事实。关系规则须另查参与资格，并在双方本步采样后消费。</summary>
+    public bool IsSupported => nowGemetry != null && nowGemetry.isGrounded;
+
     protected override void Awake()
     {
         base.Awake();
