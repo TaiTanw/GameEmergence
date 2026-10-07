@@ -38,6 +38,8 @@ public class MovementData
     public float speedScale = 1f;
     public bool motionUpdates = true;
     public bool surfaceJumpInProgress; // 行为层拥有：跃出期间等待冲量消费和上升结束
+    /// <summary>当前选中关系托起推拉能力的箱子；无选中为空。由 Player 写入，执行与表现只读。</summary>
+    public PhysicalBox pushPullBox;
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -60,6 +62,8 @@ public class ReadOnly_ActionData
     public bool isSurfaceSwimming => NowState == PlayerStateMachine.E_playerState.surfaceSwimming;
     public bool isSwimming => NowState == PlayerStateMachine.E_playerState.swimming || isSurfaceSwimming;
     public bool surfaceJumpInProgress => _data.surfaceJumpInProgress;
+    public PhysicalBox PushPullBox => _data.pushPullBox;
+    public bool PushPullEnabled => _data.pushPullBox != null;
     public bool isFlying => NowState == PlayerStateMachine.E_playerState.flying;
     public FourWayMode FourWay => isFlying ? FourWayMode.Flying : isSurfaceSwimming ? FourWayMode.SurfaceSwimming
         : isSwimming ? FourWayMode.Swimming : FourWayMode.None;
@@ -100,6 +104,9 @@ public readonly struct PlayerResourceFacts
 public class Player : MonoBehaviour
 {
     [SerializeField] private PlayerIdentity identity;
+    [SerializeField, Tooltip("交互发现箱子的最大水平碰撞框间隙，开发期参数")] private float interactContactGap = 0.1f;
+    [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除，开发期参数")] private float interactReleaseGap = 0.3f;
+    [SerializeField, Tooltip("与带电方块碰撞框间隙不超过此值即算触碰，开发期参数")] private float electrifiedContactTolerance = 0.03f;
     private PlayerCapabilityContext capabilities;
     private IPlayerDeathReceiver deathReceiver;
     private PlayerDeathRequest? pendingDeath;
@@ -107,11 +114,16 @@ public class Player : MonoBehaviour
     private bool deathCycleClosed;
     private IPlayerFormRules formRules;
     private IPlayerFlightExecution flightExecution;
+    private PlayerBoxSelection boxSelection;
+    private bool electrifiedDeathLatched;
     public PlayerDeathRequest? PendingDeath => pendingDeath;
     public PlayerDeathStatus DeathStatus { get; private set; } = PlayerDeathStatus.Handled;
     public PlayerIdentity Identity => identity;
     public PlayerCapabilityPermissions Permissions => capabilities?.Permissions ?? PlayerCapabilityPermissions.Walking;
     public FourWayMode ResolveFourWayAbility() => capabilities?.ResolveFourWay(WaterFacts) ?? FourWayMode.None;
+    internal Bounds BodyBounds => playPDate.BodyBounds;
+    internal float InteractContactGap => interactContactGap;
+    internal bool OnGroundForInteraction => _ActionData.NowState == PlayerStateMachine.E_playerState.isOnGround;
 
     public void BindDeathReceiver(IPlayerDeathReceiver receiver)
     {
@@ -176,6 +188,7 @@ public class Player : MonoBehaviour
     public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false)
     {
         inputOwner?.ClearPlayerInputEdges(this);
+        ReleaseBoxSelection();
         ClearActionOutput();
         fsm.RefreshResources();
         playPDate.RefreshMotionState(position, releaseEnvironmentEffects);
@@ -250,6 +263,7 @@ public class Player : MonoBehaviour
     {
 
         capabilities = new PlayerCapabilityContext(identity);
+        boxSelection = new PlayerBoxSelection(this);
 
         //可执行动作数据初始化
         actionData = new MovementData();
@@ -283,8 +297,16 @@ public class Player : MonoBehaviour
         fsm?.ClearPendingActions(playPDate != null && playPDate.HasPendingJump);
         inputData=null;
         inputOwner = null;
+        // 实际逻辑：控制撤销只退出本角色的选中，不影响新目标的关系。
+        ReleaseBoxSelection();
         ClearActionOutput();
         playPDate?.ClearPendingActions();
+    }
+
+    private void OnEnable()
+    {
+        // 相位 2：全体实体相位 1 采样完成后、相位 3 预测前核对箱子关系。
+        MonoPublicMgr.Instance.AddPhysicalTimingUpdate(UpdateBoxRelations, 2);
     }
 
     private void OnDisable()
@@ -292,6 +314,36 @@ public class Player : MonoBehaviour
         // 生命周期：只有仍控制自己的管理器才解除绑定，旧角色不能解绑新目标。
         inputOwner?.UnbindPlayer(this);
         if (actionData != null) RemoveInput();
+        if (!MonoPublicMgr.IsQuitting) MonoPublicMgr.Instance.RemovePhysicalTimingUpdate(UpdateBoxRelations, 2);
+    }
+
+    private void UpdateBoxRelations()
+    {
+        ValidateBoxSelection();
+        // 实际逻辑：碰到带电方块走统一死亡入口，飞行免死由 TryRequestDeath 判断；同一段持续接触只成功请求一次，
+        // 离开后才重开，避免死亡处理完成后仍贴着方块时每个物理步重复死亡。
+        if (!LevelBoxContext.TouchesElectrified(BodyBounds, electrifiedContactTolerance)) electrifiedDeathLatched = false;
+        else if (!electrifiedDeathLatched && TryRequestDeath(PlayerDeathCause.Electrocuted)) electrifiedDeathLatched = true;
+    }
+
+    private void ValidateBoxSelection()
+    {
+        PhysicalBox box = boxSelection.Selected;
+        // 安全：没有选中关系时无需核对。
+        if (ReferenceEquals(box, null)) return;
+        // 实际逻辑：箱子销毁或退出运动、失去箱底支撑、或走远都解除；箱子保留自身速度按原重力继续运动。
+        if (box == null || !box.IsMotionParticipating || !box.IsSupported
+            || !LevelBoxContext.IsSideContact(BodyBounds, box.BodyBounds, interactReleaseGap))
+            ReleaseBoxSelection();
+    }
+
+    private void ReleaseBoxSelection()
+    {
+        // 安全：Awake 之前没有关系与动作数据。
+        PhysicalBox previous = boxSelection?.Selected;
+        boxSelection?.Release();
+        if (actionData != null) actionData.pushPullBox = null;
+        ForgetPairContacts(previous);
     }
     //float time;
     void Update()
@@ -301,6 +353,8 @@ public class Player : MonoBehaviour
 
     public void TickLogic(float deltaTime)
     {
+        // 交互边沿由 FSM 末尾清除，须在其之前消费。
+        ConsumeInteraction();
         //逻辑状态机更新，接收输入信息发送动作数据
         fsm.Update(inputData, ResolveFourWayAbility(), Permissions.movement && Permissions.motionUpdates,
             Permissions.resourceUpdates, deltaTime, playPDate.HasPendingJump, playPDate.GetPlanarVelocity().y);
@@ -312,6 +366,31 @@ public class Player : MonoBehaviour
             TryRequestDeath(PlayerDeathCause.OxygenDepleted);
         if (fsm.oxygen > 0f && !pendingDeath.HasValue && DeathStatus == PlayerDeathStatus.Handled)
             deathCycleClosed = false;
+    }
+
+    private void ConsumeInteraction()
+    {
+        PhysicalBox previous = boxSelection.Selected;
+        PlayerCapabilityPermissions permissions = Permissions;
+        // 实际逻辑：撤权、推拉许可关闭或本帧按下跳跃先退出选中，并丢弃同帧交互，不能先收纳再跳。
+        if (!(permissions.movement && permissions.motionUpdates && permissions.pushPull)
+            || (inputData != null && inputData.jumpPressed))
+            boxSelection.Release();
+        // 实际逻辑：长按与点按互斥，长按成功的这一次不再按点按处理；无控制权时没有边沿可读。
+        else if (inputData != null && inputData.interactLongPressed) boxSelection.Consume(PlayerInteractKind.LongPress);
+        else if (inputData != null && inputData.interactTapped) boxSelection.Consume(PlayerInteractKind.Tap);
+        // 有效推拉能力只由成立的选中关系托起。
+        actionData.pushPullBox = boxSelection.Selected;
+        if (previous != boxSelection.Selected) ForgetPairContacts(previous);
+    }
+
+    private void ForgetPairContacts(PhysicalBox box)
+    {
+        // 实际逻辑：选中建立或解除时立即清双方旧接触累计与尾效，共同运动期间及解除后都不残留拖动；
+        // 无关环境来源保留。
+        if (box != null && playPDate != null) PhysicsSolverMgr.Instance.ForgetContactForcesBetween(playPDate, box);
+        if (boxSelection?.Selected != null && playPDate != null)
+            PhysicsSolverMgr.Instance.ForgetContactForcesBetween(playPDate, boxSelection.Selected);
     }
 
 }

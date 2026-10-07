@@ -3,10 +3,26 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PhysicalBox : BasicEntity
+public class PhysicalBox : BasicEntity, IPlayerInteractable
 {
+    [SerializeField, Tooltip("带电方块：拒绝交互，玩家碰到任意表面即请求电击死亡；推动规则同普通箱")]
+    private bool electrified;
+    public bool IsElectrified => electrified;
+
     /// <summary>最近一次相位 1 的箱底几何支撑事实。关系规则须另查参与资格，并在双方本步采样后消费。</summary>
     public bool IsSupported => nowGemetry != null && nowGemetry.isGrounded;
+
+    /// <summary>箱子对玩家交互的处理：外部箱接受未选中者的点按选中；收纳与拉出尚不接受。</summary>
+    public PlayerInteractOutcome Interact(in PlayerInteractRequest request)
+    {
+        // 实际逻辑：带电方块拒绝一切交互。
+        if (electrified) return PlayerInteractOutcome.Rejected;
+        // 实际逻辑：只有参与运动且有箱底支撑的外部箱可被新选中；已选中者的请求不在此处重复选中。
+        if (request.kind == PlayerInteractKind.Tap && !request.requesterSelectsThis && IsMotionParticipating
+            && IsSupported)
+            return PlayerInteractOutcome.Selected;
+        return PlayerInteractOutcome.Rejected;
+    }
 
     protected override void Awake()
     {
@@ -14,6 +30,18 @@ public class PhysicalBox : BasicEntity
         // 当前推箱解算只处理平移。冻结物理根节点旋转；表现子节点仍可独立旋转。
         rb.freezeRotation = true;
         rb.angularVelocity = 0f;
+    }
+
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        LevelBoxContext.Register(this);
+    }
+
+    protected override void OnDisable()
+    {
+        LevelBoxContext.Unregister(this);
+        base.OnDisable();
     }
 
     protected override void GeometricQuery()

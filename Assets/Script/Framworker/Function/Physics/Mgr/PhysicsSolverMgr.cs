@@ -32,6 +32,7 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
     readonly List<ContactForceLink> pendingExitedContactLinks = new List<ContactForceLink>(); // 本帧退出的旧有向关系
     // 接触退出渐隐后仍可能有累计速度；保留接收者索引直到其停用，以便来源退出时立即清尾效。
     readonly HashSet<BasicEntity> contactReceivers = new HashSet<BasicEntity>();
+    readonly List<CommonHorizontalPair> commonHorizontalPairs = new List<CommonHorizontalPair>(); // 本步选中推拉组
 
     public void Init()
     {
@@ -131,6 +132,8 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
         pendingHorizontalBlocks.Clear();
         pendingExitedContactLinks.Clear();
         pendingOffsets.Clear();
+        // 选中推拉：跟随者先采用领头者的水平计划，再进入原接触与环境流程。
+        AdoptCommonHorizontalIntents();
         //求解位移偏置量
         ContactStrategy.PlanInitialOffsets(projectingArray, pendingOffsets);
         //应用至实体位移偏置数据
@@ -138,6 +141,7 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
         // F_6.2_7-3：先求环境可行位移，再把静态裁剪反馈给实体接触对。
         ResolveEnvironmentRequests();
         ResolveResidualHorizontalOverlaps();
+        ConstrainCommonHorizontalPairs();
         // 残余回算已结束。此时才把末箱的静墙方向传给上游箱子和玩家，供随后的施力登记读取。
         ContactStrategy.PlanPropagatedHorizontalBlocks(projectingArray, pendingHorizontalBlocks);
         ApplyPropagatedHorizontalBlocks();
@@ -145,6 +149,47 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
 
         // 本帧预测快照用完即清；下一帧由各实体重新上报。
         projectingArray.Clear();
+    }
+
+    /// <summary>
+    /// 找出本步双方都在求解列表中的共同水平组，让跟随者的预测改用领头者的水平计划。
+    /// 双方水平速度一致后，原接触施力因相对速度不闭合而不再为这一组登记下一帧推力。
+    /// </summary>
+    void AdoptCommonHorizontalIntents()
+    {
+        commonHorizontalPairs.Clear();
+        for (int i = 0; i < projectingArray.Count; i++)
+        {
+            BasicEntity follower = projectingArray[i].myPhyBox.CommonHorizontalFollower;
+            // 安全：没有跟随者或跟随者已销毁。
+            if (follower == null || follower == projectingArray[i].myPhyBox) continue;
+            for (int j = 0; j < projectingArray.Count; j++)
+            {
+                // 实际逻辑：跟随者本步不参与求解（暂停、收纳、过滤）时，不建立共同组。
+                if (projectingArray[j].myPhyBox != follower) continue;
+                projectingArray[j] = follower.AdoptCommonHorizontal(projectingArray[j], projectingArray[i].motionFrame);
+                commonHorizontalPairs.Add(new CommonHorizontalPair(projectingArray[i].myPhyBox, follower));
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 残余回算后把每组双方的请求 X 收成同一值：方向相反或任一方被挡到零时共同为零，否则取较短者。
+    /// 只缩短请求，不重新扫掠环境；任一方抵墙因此限制整组水平运动。
+    /// </summary>
+    void ConstrainCommonHorizontalPairs()
+    {
+        foreach (CommonHorizontalPair pair in commonHorizontalPairs)
+        {
+            float leaderX = pair.leader.RequestedWorldDelta.x;
+            float followerX = pair.follower.RequestedWorldDelta.x;
+            float commonX = leaderX * followerX <= 0f ? 0f
+                : Mathf.Sign(leaderX) * Mathf.Min(Mathf.Abs(leaderX), Mathf.Abs(followerX));
+            // 实际逻辑：已经一致的一方不重算，避免无谓改写坡面 Y。
+            if (!Mathf.Approximately(leaderX, commonX)) pair.leader.ConstrainCommonHorizontal(commonX);
+            if (!Mathf.Approximately(followerX, commonX)) pair.follower.ConstrainCommonHorizontal(commonX);
+        }
     }
 
     void ApplyPendingOffsets()
@@ -311,6 +356,15 @@ public class PhysicsSolverMgr : BaseMgr<PhysicsSolverMgr>
             this.link = link;
             this.parameters = parameters;
         }
+    }
+
+    /// <summary>本步共用水平位移的一组：领头者决定水平计划，跟随者保留自身竖直运动。仅属相位 4 工作区。</summary>
+    readonly struct CommonHorizontalPair
+    {
+        public readonly BasicEntity leader;
+        public readonly BasicEntity follower;
+        public CommonHorizontalPair(BasicEntity leader, BasicEntity follower)
+        { this.leader = leader; this.follower = follower; }
     }
 
     struct ContactForceLink : IEquatable<ContactForceLink>

@@ -24,6 +24,10 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
     /// <summary>实际参与资格；自研相位 3／5 与原生 simulated 共用就绪、许可和组件启用条件。</summary>
     public bool IsMotionParticipating => isActiveAndEnabled && IsMotionReady && IsMotionPermitted
         && boxCollider.enabled;
+    /// <summary>相位 4 读取：本步与本实体共用水平位移的跟随者；默认没有。</summary>
+    internal virtual BasicEntity CommonHorizontalFollower => null;
+    /// <summary>当前碰撞框的世界包围盒，供规则侧做几何判断；碰撞框缺失时为空。</summary>
+    public Bounds BodyBounds => boxCollider != null ? PhysicsWorld.ReadAabb(boxCollider) : default;
 
     /// <summary>规则侧切换实体运动参与。暂停只保留现场；收纳／默认恢复须另外调用显式清理。</summary>
     public void SetMotionParticipation(bool active)
@@ -319,6 +323,32 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IDynamicAddForc
         }
         RequestSolveStrategy.ResolveCandidate(BuildEnvironmentSolveInput(bounds), candidateGeometry,
             PhysicsWorld, ref entitySolutionResult);
+    }
+
+    /// <summary>
+    /// 相位 4 开头：本步水平基础运动改用领头者的计划水平位移和水平速度，自身平台携带与竖直运动保留，
+    /// 去掉只随自身水平运动产生的坡面 Y。返回同步平移后的预测框；不改跨帧速度。
+    /// </summary>
+    internal PhysicalBoundingBox AdoptCommonHorizontal(PhysicalBoundingBox own, in EntityMotionFrame leader)
+    {
+        EntityMotionFrame previous = motionFrame;
+        motionFrame = new EntityMotionFrame(
+            new Vector2(leader.motionVelocity.x, previous.freeVelocity.y),
+            new Vector2(leader.motionVelocity.x, previous.motionVelocity.y),
+            new Vector2(leader.plannedWorldDelta.x - previous.platformDelta.x,
+                previous.motionDelta.y - previous.groundSlopeDeltaY),
+            previous.platformDelta);
+        entitySolutionResult.requestedWorldDelta = motionFrame.plannedWorldDelta;
+        own.point += motionFrame.plannedWorldDelta - previous.plannedWorldDelta;
+        own.motionFrame = motionFrame;
+        return own;
+    }
+
+    /// <summary>共同水平组的最终约束：把本步请求 X 缩短到组内共同值，再按原规则重算请求；只缩短不放大。</summary>
+    internal void ConstrainCommonHorizontal(float commonX)
+    {
+        entitySolutionResult.allowedHorizontalDelta = commonX;
+        FinalizeRequestedDisplacement();
     }
 
     private EntityEnvironmentSolveInput BuildEnvironmentSolveInput(Bounds bounds) =>

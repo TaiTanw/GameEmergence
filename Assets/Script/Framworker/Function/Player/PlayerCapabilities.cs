@@ -14,15 +14,18 @@ public readonly struct PlayerCapabilityPermissions
     public readonly bool flight;
     public readonly bool motionUpdates;
     public readonly bool resourceUpdates;
+    /// <summary>能否选中箱子并打开推拉能力；关闭时解除现有选中。漫游等阶段由规则层关闭。</summary>
+    public readonly bool pushPull;
 
     public PlayerCapabilityPermissions(bool movement, bool swimming, bool flight,
-        bool motionUpdates, bool resourceUpdates)
+        bool motionUpdates, bool resourceUpdates, bool pushPull = true)
     {
         this.movement = movement;
         this.swimming = swimming;
         this.flight = flight;
         this.motionUpdates = motionUpdates;
         this.resourceUpdates = resourceUpdates;
+        this.pushPull = pushPull;
     }
 
     public static PlayerCapabilityPermissions Walking => new PlayerCapabilityPermissions(true, true, false, true, true);

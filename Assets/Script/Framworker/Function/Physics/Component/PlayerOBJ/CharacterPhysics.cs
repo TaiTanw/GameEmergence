@@ -51,6 +51,8 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     protected override bool MotionExecutionReady => playActionData != null;
     protected override bool MotionUpdatesEnabled => playActionData == null || playActionData.motionUpdates;
     protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
+    /// <summary>选中关系托起推拉能力时，选中箱本步跟随玩家的水平位移。</summary>
+    internal override BasicEntity CommonHorizontalFollower => playActionData?.PushPullBox;
 
     #endregion
 
