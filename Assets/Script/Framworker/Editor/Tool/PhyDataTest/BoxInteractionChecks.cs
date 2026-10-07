@@ -38,12 +38,15 @@ public static class BoxInteractionChecks
         {
             CheckSelectedPushAndPull();
             CheckSelectedWallStops();
+            CheckEngageOnContact();
+            CheckApproachThenPull();
             CheckUnselectedContact();
             CheckSelectionRelations();
             CheckElectrifiedTouch();
             CheckStorageAndRestore();
             CheckStorageConflicts();
             CheckPushPullAction();
+            CheckReachAndHints();
             Debug.Log($"Box interaction: {passed.Count} checks passed.");
         }
         finally
@@ -126,6 +129,67 @@ public static class BoxInteractionChecks
         Check(Mathf.Abs(Gap(pull) - gap) < .03f, $"玩家抵墙后箱子不继续压向玩家 [{gap} → {Gap(pull)}]");
     }
 
+    /// <summary>隔一段距离选中：接触前不共同运动，走到箱边接触后才同步推拉；未接触时反向不拉动。</summary>
+    private static void CheckEngageOnContact()
+    {
+        var w = World(80f);
+        MoveCenter(w.player, (Vector2)w.player.BodyBounds.center + Vector2.left * .3f);
+        w.action.pushPullBox = w.box;
+        Vector2 boxStart = w.box.DebugActualPosition;
+        for (int tick = 0; tick < 10; tick++) { w.action.onMove = -1f; Step(w); }
+        Check(Mathf.Abs(w.box.DebugActualPosition.x - boxStart.x) < .003f,
+            $"选中未接触时反向走开不拉动箱子 [{w.box.DebugActualPosition.x - boxStart.x}]");
+        for (int tick = 0; tick < 10; tick++) { w.action.onMove = 0f; Step(w); }
+        float maxDiff = 0f;
+        bool engaged = false;
+        for (int tick = 0; tick < 60; tick++)
+        {
+            w.action.onMove = 1f;
+            Step(w);
+            if (!engaged) { engaged = Gap(w) <= .05f; continue; }
+            maxDiff = Mathf.Max(maxDiff, Mathf.Abs(Request(w.player).x - Request(w.box).x));
+        }
+        Check(engaged && w.box.DebugActualPosition.x - boxStart.x > 1f, "走到箱边接触后开始推动");
+        Check(maxDiff < .0001f && Gap(w) <= .05f, $"接触后双方请求 X 一致且保持贴合 [{maxDiff}, {Gap(w)}]");
+        Vector2 pullStart = w.box.DebugActualPosition;
+        for (int tick = 0; tick < 30; tick++) { w.action.onMove = -1f; Step(w); }
+        Check(pullStart.x - w.box.DebugActualPosition.x > .5f, "接触后反向可拉动");
+    }
+
+    /// <summary>经 Player 隔距选中：自动走到箱边不撞开箱子，方向输入期间不生效；贴合后反向即拉动且选中不断开。</summary>
+    private static void CheckApproachThenPull()
+    {
+        var w = World(80f, true);
+        Player player = w.owner;
+        var input = new PlayerInputData();
+        player.ChangeInputAsset(input);
+        LevelBoxContext.Register(w.box);
+        StandLeftOf(w, w.box.BodyBounds, .4f);
+        Tap(player, input);
+        Check(player._ActionData.PushPullBox == w.box, "间隙 0.4 点按选中");
+        float boxStartX = w.box.DebugActualPosition.x;
+        input.moveInput = -1f;
+        bool engaged = false;
+        for (int tick = 0; tick < 20 && !engaged; tick++)
+        {
+            player.TickLogic(Time.fixedDeltaTime);
+            Step(w);
+            engaged = Gap(w) <= .05f;
+        }
+        Check(engaged, $"选中后自动走到箱边，反向输入期间不生效 [{Gap(w)}]");
+        Check(Mathf.Abs(w.box.DebugActualPosition.x - boxStartX) < .01f,
+            $"自动走近不撞开箱子 [{w.box.DebugActualPosition.x - boxStartX}]");
+        for (int tick = 0; tick < 20; tick++)
+        {
+            player.TickLogic(Time.fixedDeltaTime);
+            Step(w);
+            Invoke(player, "UpdateBoxRelations");
+        }
+        Check(player._ActionData.PushPullBox == w.box && boxStartX - w.box.DebugActualPosition.x > .5f,
+            "贴合后反向拉动箱子跟随，选中不断开");
+        Check(player._ActionData.PushPullAction == PushPullAction.Pull, "贴合拉动时输出拉");
+    }
+
     /// <summary>未选中：沿原接触仍能推动，反向不拉动。</summary>
     private static void CheckUnselectedContact()
     {
@@ -166,7 +230,11 @@ public static class BoxInteractionChecks
         Settle(w);
 
         Tap(player, input);
-        w.box.transform.position += Vector3.right * 2f;
+        w.box.transform.position += Vector3.right * .7f;
+        Sample(w);
+        Invoke(player, "UpdateBoxRelations");
+        Check(player._ActionData.PushPullEnabled, "间隙 0.7 未超过解除距离，选中保持");
+        w.box.transform.position += Vector3.right * 1.3f;
         Sample(w);
         Invoke(player, "UpdateBoxRelations");
         Check(!player._ActionData.PushPullEnabled, "走远超过解除间隙后相位 2 解除");
@@ -359,6 +427,82 @@ public static class BoxInteractionChecks
         input.jumpPressed = true;
         player.TickLogic(0f);
         Check(player._ActionData.PushPullAction == PushPullAction.None, "跳跃解除后不输出推箱行为");
+    }
+
+    /// <summary>收纳箱扩大取出范围、单目标提示与实际按键一致；外部箱仍须贴合；不可选的带电箱不抢候选。</summary>
+    private static void CheckReachAndHints()
+    {
+        var w = World(80f, true);
+        Player player = w.owner;
+        var input = new PlayerInputData();
+        player.ChangeInputAsset(input);
+        LevelBoxContext.Register(w.box);
+        Sample(w);
+        Bounds rect = w.box.BodyBounds;
+
+        StandLeftOf(w, rect, .7f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.None, "外部箱间隙 0.7 超出选中距离，不提示");
+        StandLeftOf(w, rect, .4f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.Select, "外部箱间隙 0.4 在选中距离内，提示点按选中");
+        StandLeftOf(w, rect, .01f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.Select && player._ActionData.InteractTarget == w.box,
+            "外部箱贴合时提示点按选中");
+        Tap(player, input);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.Selected, "选中后提示解除／收纳");
+        input.interactLongPressed = true;
+        player.TickLogic(0f);
+        Check(w.box.IsStored, "长按收纳");
+
+        StandLeftOf(w, rect, .4f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.Restore && player._ActionData.InteractTarget == w.box,
+            "收纳箱间隙 0.4 在取出范围内，提示点按取出");
+        StandLeftOf(w, rect, .8f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.None, "超出取出范围后提示消失");
+
+        MoveCenter(w.player, new Vector2(rect.center.x, w.player.BodyBounds.center.y));
+        Sample(w);
+        player.TickLogic(0f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.RestoreBlockedBySelf, "站在收纳矩形内提示退开");
+        Tap(player, input);
+        Check(w.box.IsStored, "自身占位时点按拒绝取出");
+        StandLeftOf(w, rect, .2f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.Restore, "退开后立即转为可取出");
+
+        Collider2D wall = Solid(rect.center, new Vector2(.4f, .4f), w.wallLayer);
+        Physics2D.SyncTransforms();
+        player.TickLogic(0f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.RestoreBlockedByOther, "其它物体占位提示恢复位置被占用");
+        Tap(player, input);
+        Check(w.box.IsStored, "其它物体占位时点按拒绝取出");
+        Object.DestroyImmediate(wall.gameObject);
+        Physics2D.SyncTransforms();
+
+        PhysicalBox charged = ExtraBox(w, new Vector2(w.player.BodyBounds.min.x - .01f - rect.extents.x, rect.center.y));
+        typeof(PhysicalBox).GetField("electrified", Hidden).SetValue(charged, true);
+        player.TickLogic(0f);
+        Check(player._ActionData.InteractTarget == w.box, "贴着的带电箱不抢走取出目标");
+        Tap(player, input);
+        Check(!w.box.IsStored && player._ActionData.InteractHint == PlayerInteractHint.Select
+            && player._ActionData.InteractTarget == w.box, "提示目标与按键作用一致：取出后同一箱转为可选中");
+        LevelBoxContext.Unregister(charged);
+
+        player.RemoveInput();
+        Check(player._ActionData.InteractHint == PlayerInteractHint.None && player._ActionData.InteractTarget == null,
+            "撤销控制后提示消失");
+        player.ChangeInputAsset(input);
+        StandLeftOf(w, w.box.BodyBounds, .01f);
+        player.ApplyCapabilities(new PlayerCapabilityPermissions(true, true, false, true, true, false));
+        player.TickLogic(0f);
+        Check(player._ActionData.InteractHint == PlayerInteractHint.None, "推拉许可关闭后不提示");
+        player.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+    }
+
+    /// <summary>把玩家放到矩形左侧、水平间隙为 gap 的地面上，采样并跑一次逻辑更新。</summary>
+    private static void StandLeftOf(TestWorld w, Bounds rect, float gap)
+    {
+        PlaceOn(w.player, rect.min.x - gap - w.player.BodyBounds.extents.x, w.groundTop);
+        Sample(w);
+        w.owner.TickLogic(0f);
     }
 
     private static PhysicalBox ExtraBox(TestWorld w, Vector2 center)

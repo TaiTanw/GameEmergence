@@ -23,6 +23,21 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
     public bool IsStored => stored;
     /// <summary>交互发现与重合判断用的世界矩形：收纳时为收纳瞬间缓存的碰撞矩形，否则为当前碰撞框。</summary>
     public Bounds InteractionBounds => stored ? storedBounds : BodyBounds;
+    /// <summary>
+    /// 表现用矩形：碰撞框只随物理步更新，画面随刚体插值逐帧平滑；按两者位置差平移，使提示框跟住箱子画面。
+    /// 只供表现读取，交互判定与拉出校验仍用 InteractionBounds。
+    /// </summary>
+    public Bounds DisplayBounds
+    {
+        get
+        {
+            Bounds bounds = InteractionBounds;
+            // 实际逻辑：收纳箱不运动，缓存矩形即画面位置。
+            if (stored || rb == null) return bounds;
+            bounds.center += (Vector3)((Vector2)transform.position - rb.position);
+            return bounds;
+        }
+    }
 
     /// <summary>箱子对玩家交互的处理：点按选中外部箱或拉出内部箱；已选中者长按收纳。</summary>
     public PlayerInteractOutcome Interact(in PlayerInteractRequest request)
@@ -35,16 +50,54 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         // 实际逻辑：未选中者的点按，内部箱请求拉出；外部箱须参与运动且有箱底支撑才可被选中。
         if (request.kind == PlayerInteractKind.Tap && !request.requesterSelectsThis)
         {
-            if (stored) return TryRestore() ? PlayerInteractOutcome.Restored : PlayerInteractOutcome.Rejected;
+            if (stored) return TryRestore(request.requester) ? PlayerInteractOutcome.Restored : PlayerInteractOutcome.Rejected;
             if (IsMotionParticipating && IsSupported) return PlayerInteractOutcome.Selected;
         }
         return PlayerInteractOutcome.Rejected;
     }
 
+    public enum RestoreBlock { None, Requester, Other }
+
+    /// <summary>
+    /// 收纳箱恢复矩形的当前占用：请求者自身身体占位与其它实体／地形占位分开报告，其它占位优先（玩家退开后仍会挡住）。
+    /// 提示预览与按键提交共用此判定；外部箱返回 None。
+    /// </summary>
+    public RestoreBlock CheckRestore(Player requester, out Collider2D blocker)
+    {
+        blocker = null;
+        if (!stored) return RestoreBlock.None;
+        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
+        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer));
+        Vector2 size = (Vector2)storedBounds.size - Vector2.one * (2f * RestoreClearance);
+        restoreHits.Clear();
+        PhysicsWorld.OverlapBox(storedBounds.center, size, 0f, filter, restoreHits);
+        RestoreBlock result = RestoreBlock.None;
+        foreach (Collider2D hit in restoreHits)
+        {
+            // 安全：自身碰撞器此时关闭，仍排除同一刚体上的其它碰撞体。
+            if (hit == null || hit.attachedRigidbody == rb) continue;
+            if (requester != null && hit.GetComponentInParent<Player>() == requester)
+            {
+                if (result == RestoreBlock.None) { result = RestoreBlock.Requester; blocker = hit; }
+                continue;
+            }
+            blocker = hit;
+            return RestoreBlock.Other;
+        }
+        return result;
+    }
+
     private bool TryStore()
     {
-        // 实际逻辑：只有参与运动的外部箱可收纳；与任一已收纳箱矩形重合则拒绝，状态不变。
-        if (stored || !IsMotionParticipating || LevelBoxContext.OverlapsStored(BodyBounds, this)) return false;
+        // 实际逻辑：只有参与运动的外部箱可收纳。
+        if (stored || !IsMotionParticipating) return false;
+        // 实际逻辑：与任一已收纳箱矩形重合则拒绝，状态不变；每次尝试打印一次原因。
+        PhysicalBox overlapped = LevelBoxContext.FindOverlappingStored(BodyBounds, this);
+        if (overlapped != null)
+        {
+            Debug.Log($"{name} 收纳被拒绝：与已收纳的「{overlapped.name}」矩形重合", this);
+            return false;
+        }
         storedBounds = BodyBounds;
         stored = true;
         // 实际逻辑：关闭碰撞器即退出自研与原生运动；再清该箱实体接触，不留推力尾效。
@@ -55,27 +108,21 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         return true;
     }
 
-    private bool TryRestore()
+    private bool TryRestore(Player requester)
     {
-        // 实际逻辑：恢复矩形被玩家、其它实体或墙等实心碰撞体挡住时拒绝，状态不变。
-        if (IsRestoreBlocked()) return false;
+        // 实际逻辑：提交前即时复核占用；被玩家、其它实体或地形挡住时拒绝，状态不变，并打印具体阻挡物。
+        RestoreBlock block = CheckRestore(requester, out Collider2D blocker);
+        if (block != RestoreBlock.None)
+        {
+            string source = block == RestoreBlock.Requester ? "玩家自身"
+                : EnvironmentCapabilities.FindEntity(blocker) != null ? "实体" : "地形";
+            Debug.Log($"{name} 拉出被拒绝：恢复位置被{source}「{blocker.name}」占用", this);
+            return false;
+        }
         ExitStored();
         // 实际逻辑：位置在收纳期间固定，原地显式刷新运动并重新采样，不回放收纳前的速度与环境缓存。
         RefreshMotionState();
         return true;
-    }
-
-    private bool IsRestoreBlocked()
-    {
-        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
-        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer));
-        Vector2 size = (Vector2)storedBounds.size - Vector2.one * (2f * RestoreClearance);
-        restoreHits.Clear();
-        PhysicsWorld.OverlapBox(storedBounds.center, size, 0f, filter, restoreHits);
-        foreach (Collider2D hit in restoreHits)
-            // 安全：自身碰撞器此时关闭，仍排除同一刚体上的其它碰撞体。
-            if (hit != null && hit.attachedRigidbody != rb) return true;
-        return false;
     }
 
     private void ExitStored()

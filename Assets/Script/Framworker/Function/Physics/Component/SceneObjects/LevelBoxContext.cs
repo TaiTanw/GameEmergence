@@ -14,10 +14,10 @@ public static class LevelBoxContext
     public static void Unregister(PhysicalBox box) => boxes.Remove(box);
 
     /// <summary>
-    /// 找与身体侧面贴合、水平间隙不超过 maxGap 的最近箱子（含收纳箱，按其缓存矩形）；站在箱顶或箱底不算贴合。
-    /// 间隙相同优先外部箱，再相同保持登记顺序。
+    /// 找本次交互的箱子：外部箱须侧面贴合（间隙不超过 outsideGap），收纳箱用较宽的 storedGap；站在箱顶或箱底不算。
+    /// 距离取非负的矩形边缘间隙，进入收纳矩形记 0；距离相同优先外部箱，再相同保持登记顺序。
     /// </summary>
-    public static PhysicalBox FindSideContact(Bounds body, float maxGap)
+    public static PhysicalBox FindInteractTarget(Bounds body, float outsideGap, float storedGap)
     {
         PhysicalBox best = null;
         float bestGap = float.MaxValue;
@@ -25,9 +25,11 @@ public static class LevelBoxContext
         {
             // 安全：已销毁但尚未注销的残留引用。
             if (box == null) continue;
-            // 实际逻辑：暂停的外部箱不接受交互；收纳箱虽不参与运动仍可被发现。
-            if (!box.IsStored && !box.IsMotionParticipating) continue;
+            // 实际逻辑：不能被选中的外部箱（带电、暂停、无支撑）先排除，不抢走其它有效候选；收纳箱不参与运动仍可被发现。
+            if (!box.IsStored && (box.IsElectrified || !box.IsMotionParticipating || !box.IsSupported)) continue;
+            float maxGap = box.IsStored ? storedGap : outsideGap;
             if (!IsSideContact(body, box.InteractionBounds, maxGap, out float gap)) continue;
+            gap = Mathf.Max(0f, gap);
             bool closer = gap < bestGap || (gap == bestGap && best.IsStored && !box.IsStored);
             if (!closer) continue;
             best = box;
@@ -36,8 +38,8 @@ public static class LevelBoxContext
         return best;
     }
 
-    /// <summary>矩形是否与除 self 外任一已收纳箱的缓存矩形重合；仅接触边界不算重合。</summary>
-    public static bool OverlapsStored(Bounds rect, PhysicalBox self)
+    /// <summary>返回与矩形重合的、除 self 外的第一只已收纳箱；仅接触边界不算重合，无重合为空。</summary>
+    public static PhysicalBox FindOverlappingStored(Bounds rect, PhysicalBox self)
     {
         foreach (PhysicalBox box in boxes)
         {
@@ -47,9 +49,9 @@ public static class LevelBoxContext
             float overlapX = Mathf.Min(rect.max.x, other.max.x) - Mathf.Max(rect.min.x, other.min.x);
             float overlapY = Mathf.Min(rect.max.y, other.max.y) - Mathf.Max(rect.min.y, other.min.y);
             // 实际逻辑：两轴都有正的重叠才算重合，避免贴边并排的箱子被误拒。
-            if (overlapX > OverlapEpsilon && overlapY > OverlapEpsilon) return true;
+            if (overlapX > OverlapEpsilon && overlapY > OverlapEpsilon) return box;
         }
-        return false;
+        return null;
     }
 
     private const float OverlapEpsilon = .001f;

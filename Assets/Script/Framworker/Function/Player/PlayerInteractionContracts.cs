@@ -5,6 +5,12 @@ public enum PlayerInteractKind { Tap, LongPress }
 public enum PlayerInteractOutcome { Rejected, Selected, Stored, Restored }
 
 /// <summary>
+/// 本次按键将作用的目标及其预期结果，供表现层显示单目标高光与提示；与按键消费共用同一候选规则。
+/// RestoreBlockedBySelf 表示玩家自己占着恢复位置，RestoreBlockedByOther 表示其它实体或地形占位。
+/// </summary>
+public enum PlayerInteractHint { None, Select, Selected, Restore, RestoreBlockedBySelf, RestoreBlockedByOther }
+
+/// <summary>
 /// 职能：有限交互契约的输入快照；不携带输入设备、阶段或格子数据。
 /// 具体：谁按的、点按还是长按，以及请求者此刻是否已选中该对象。例如已选中箱子后的长按表示收纳；
 /// 未选中时点按外部箱表示请求选中，点按内部箱表示拉出。

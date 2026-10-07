@@ -44,6 +44,9 @@ public class MovementData
     public PhysicalBox pushPullBox;
     /// <summary>当帧推箱行为：只在选中、地面且有水平操作时为推或拉；表现只读，不以能力开关代替。</summary>
     public PushPullAction pushPullAction;
+    /// <summary>本次按键将作用的目标与预期结果；只有受控且有操作许可时才有。表现只读，用于单目标高光与提示。</summary>
+    public PlayerInteractHint interactHint;
+    public PhysicalBox interactTarget;
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -68,6 +71,8 @@ public class ReadOnly_ActionData
     public bool surfaceJumpInProgress => _data.surfaceJumpInProgress;
     public PhysicalBox PushPullBox => _data.pushPullBox;
     public PushPullAction PushPullAction => _data.pushPullAction;
+    public PlayerInteractHint InteractHint => _data.interactHint;
+    public PhysicalBox InteractTarget => _data.interactTarget;
     public bool PushPullEnabled => _data.pushPullBox != null;
     public bool isFlying => NowState == PlayerStateMachine.E_playerState.flying;
     public FourWayMode FourWay => isFlying ? FourWayMode.Flying : isSurfaceSwimming ? FourWayMode.SurfaceSwimming
@@ -109,8 +114,9 @@ public readonly struct PlayerResourceFacts
 public class Player : MonoBehaviour
 {
     [SerializeField] private PlayerIdentity identity;
-    [SerializeField, Tooltip("交互发现箱子的最大水平碰撞框间隙，开发期参数")] private float interactContactGap = 0.1f;
-    [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除，开发期参数")] private float interactReleaseGap = 0.3f;
+    [SerializeField, Tooltip("选中外部箱的最大水平碰撞框间隙；选中后须接触才开始共同推拉，开发期参数")] private float interactContactGap = 0.5f;
+    [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除；须大于选中间隙，开发期参数")] private float interactReleaseGap = 0.8f;
+    [SerializeField, Tooltip("发现收纳箱以便取出的最大水平碰撞框间隙，开发期参数")] private float storedReachGap = 0.6f;
     [SerializeField, Tooltip("与带电方块碰撞框间隙不超过此值即算触碰，开发期参数")] private float electrifiedContactTolerance = 0.03f;
     private PlayerCapabilityContext capabilities;
     private IPlayerDeathReceiver deathReceiver;
@@ -128,6 +134,7 @@ public class Player : MonoBehaviour
     public FourWayMode ResolveFourWayAbility() => capabilities?.ResolveFourWay(WaterFacts) ?? FourWayMode.None;
     internal Bounds BodyBounds => playPDate.BodyBounds;
     internal float InteractContactGap => interactContactGap;
+    internal float StoredReachGap => storedReachGap;
     internal bool OnGroundForInteraction => _ActionData.NowState == PlayerStateMachine.E_playerState.isOnGround;
 
     public void BindDeathReceiver(IPlayerDeathReceiver receiver)
@@ -302,8 +309,9 @@ public class Player : MonoBehaviour
         fsm?.ClearPendingActions(playPDate != null && playPDate.HasPendingJump);
         inputData=null;
         inputOwner = null;
-        // 实际逻辑：控制撤销只退出本角色的选中，不影响新目标的关系。
+        // 实际逻辑：控制撤销只退出本角色的选中与提示，不影响新目标的关系。
         ReleaseBoxSelection();
+        ClearInteractHint();
         ClearActionOutput();
         playPDate?.ClearPendingActions();
     }
@@ -367,7 +375,9 @@ public class Player : MonoBehaviour
         //逻辑状态机更新，接收输入信息发送动作数据
         fsm.Update(inputData, ResolveFourWayAbility(), Permissions.movement && Permissions.motionUpdates,
             Permissions.resourceUpdates, deltaTime, playPDate.HasPendingJump, playPDate.GetPlanarVelocity().y);
+        ApproachSelectedBox();
         UpdatePushPullAction();
+        UpdateInteractHint();
         // 实际逻辑：逻辑入水后立即撤销先前等待物理消费的跳跃，避免入水又离水时补执行。
         if (_ActionData.FourWay != FourWayMode.None) playPDate.ClearPendingActions();
         // 资源只在逻辑更新扣一次；多个 FixedUpdate 和重叠池不会各扣一份。
@@ -394,11 +404,30 @@ public class Player : MonoBehaviour
         if (previous != boxSelection.Selected) ForgetPairContacts(previous);
     }
 
+    private void ApproachSelectedBox()
+    {
+        PhysicalBox box = boxSelection.Selected;
+        // 实际逻辑：隔距选中后、尚未贴合时，自动朝箱子走到箱边；期间方向输入不生效，跳跃仍会解除选中。
+        if (box == null || playPDate.IsEngagedWith(box)
+            || _ActionData.NowState != PlayerStateMachine.E_playerState.isOnGround) return;
+        Bounds body = BodyBounds, target = box.BodyBounds;
+        float toward = Mathf.Sign(target.center.x - body.center.x);
+        float gap = Mathf.Max(target.min.x - body.max.x, body.min.x - target.max.x);
+        // 实际逻辑：按剩余间隙缩小输入，最后一步不冲进箱子；保留最小幅度避免停在贴合阈值外。
+        float remaining = gap - ApproachStopGap;
+        actionData.onMove = toward * Mathf.Clamp(remaining / playPDate.WalkStepDistance, MinApproachInput, 1f);
+        actionData.speedScale = 1f;
+    }
+
+    private const float ApproachStopGap = .02f;
+    private const float MinApproachInput = .05f;
+
     private void UpdatePushPullAction()
     {
         PhysicalBox box = boxSelection.Selected;
-        // 实际逻辑：选中、地面行走状态且本帧有水平操作才算推箱行为；跳跃、游泳／飞行或站立都不输出。
-        if (box == null || _ActionData.NowState != PlayerStateMachine.E_playerState.isOnGround
+        // 实际逻辑：选中且已贴合、地面行走状态且本帧有水平操作才算推箱行为；自动走近、跳跃、游泳／飞行或站立都不输出。
+        if (box == null || !playPDate.IsEngagedWith(box)
+            || _ActionData.NowState != PlayerStateMachine.E_playerState.isOnGround
             || Mathf.Abs(actionData.onMove) <= 0.01f)
         {
             actionData.pushPullAction = PushPullAction.None;
@@ -407,6 +436,26 @@ public class Player : MonoBehaviour
         // 实际逻辑：操作方向朝向箱子为推，背离为拉。
         float towardBox = Mathf.Sign(box.BodyBounds.center.x - BodyBounds.center.x);
         actionData.pushPullAction = actionData.onMove * towardBox > 0f ? PushPullAction.Push : PushPullAction.Pull;
+    }
+
+    private void UpdateInteractHint()
+    {
+        PlayerCapabilityPermissions permissions = Permissions;
+        // 实际逻辑：无控制权或无操作／推拉许可时按键不会被消费，不显示目标。
+        if (inputData == null || !(permissions.movement && permissions.motionUpdates && permissions.pushPull))
+        {
+            ClearInteractHint();
+            return;
+        }
+        actionData.interactHint = boxSelection.Preview(out actionData.interactTarget);
+    }
+
+    private void ClearInteractHint()
+    {
+        // 安全：Awake 之前没有动作数据。
+        if (actionData == null) return;
+        actionData.interactHint = PlayerInteractHint.None;
+        actionData.interactTarget = null;
     }
 
     private void ForgetPairContacts(PhysicalBox box)

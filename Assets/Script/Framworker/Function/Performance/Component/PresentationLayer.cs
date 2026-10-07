@@ -108,6 +108,7 @@ public class PresentationLayer : MonoBehaviour
     private float postWallActiveVerticalSpeed;
 
     private bool isInitialized;
+    private readonly InteractionHintView interactHintView = new InteractionHintView();
 
     private void Awake()
     {
@@ -211,6 +212,33 @@ public class PresentationLayer : MonoBehaviour
         previousActiveVerticalSpeed = activeVerticalSpeed;
         hasVerticalSpeedSample = true;
     }
+
+    /// <summary>只显示逻辑层给出的本次按键目标；文字配颜色区分可操作、已选中与受阻，不只依赖颜色。</summary>
+    private void UpdateInteractHint()
+    {
+        PhysicalBox target = actionData.InteractTarget;
+        string text;
+        Color color;
+        switch (target == null ? PlayerInteractHint.None : actionData.InteractHint)
+        {
+            case PlayerInteractHint.Select: text = "点按选中"; color = Color.white; break;
+            case PlayerInteractHint.Selected: text = "点按解除 / 长按收纳"; color = new Color(1f, .85f, .2f); break;
+            case PlayerInteractHint.Restore: text = "点按取出"; color = new Color(.3f, .9f, 1f); break;
+            case PlayerInteractHint.RestoreBlockedBySelf: text = "退开一点后取出"; color = new Color(1f, .6f, .2f); break;
+            case PlayerInteractHint.RestoreBlockedByOther: text = "恢复位置被占用"; color = new Color(1f, .3f, .3f); break;
+            default: interactHintView.Hide(); return;
+        }
+        interactHintView.Show(target.DisplayBounds, text, color);
+    }
+
+    // 实际逻辑：提示在 LateUpdate 绘制，读取本帧已写入的刚体插值位置。
+    private void LateUpdate()
+    {
+        if (isInitialized) UpdateInteractHint();
+    }
+
+    private void OnDisable() => interactHintView.Hide();
+    private void OnDestroy() => interactHintView.Dispose();
 
     /// <summary>
     /// 保留既有翻转规则：角色朝向只跟随逻辑层已经过滤后的移动意图，零输入时保持最后朝向。

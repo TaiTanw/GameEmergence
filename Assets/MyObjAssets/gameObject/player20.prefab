@@ -202,6 +202,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   identity: 0
+  interactContactGap: 0.5
+  interactReleaseGap: 0.8
+  storedReachGap: 0.6
+  electrifiedContactTolerance: 0.03
 --- !u!61 &2481104452557541454
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -297,6 +301,7 @@ MonoBehaviour:
   speed: 15
   fourWaySpeed: 6
   upSpeed: 15
+  pushPullEngageGap: 0.04
 --- !u!1 &7743792163046834635
 GameObject:
   m_ObjectHideFlags: 0

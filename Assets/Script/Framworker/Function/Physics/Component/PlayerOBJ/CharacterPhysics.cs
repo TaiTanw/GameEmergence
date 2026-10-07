@@ -51,8 +51,27 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     protected override bool MotionExecutionReady => playActionData != null;
     protected override bool MotionUpdatesEnabled => playActionData == null || playActionData.motionUpdates;
     protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
-    /// <summary>选中关系托起推拉能力时，选中箱本步跟随玩家的水平位移。</summary>
-    internal override BasicEntity CommonHorizontalFollower => playActionData?.PushPullBox;
+    [SerializeField, Tooltip("选中箱与玩家碰撞框水平间隙不超过此值才开始共同推拉，开发期参数")]
+    private float pushPullEngageGap = 0.05f;
+
+    /// <summary>
+    /// 选中箱贴合玩家时，本步跟随玩家的水平位移；选中但尚未接触时不跟随，玩家先走到箱边，避免保持间隙的隔空推拉。
+    /// </summary>
+    internal override BasicEntity CommonHorizontalFollower
+    {
+        get
+        {
+            PhysicalBox box = playActionData?.PushPullBox;
+            return box != null && IsEngagedWith(box) ? box : null;
+        }
+    }
+
+    /// <summary>与箱子是否已贴合到可共同推拉的距离。</summary>
+    internal bool IsEngagedWith(PhysicalBox box) =>
+        LevelBoxContext.IsSideContact(BodyBounds, box.BodyBounds, pushPullEngageGap);
+
+    /// <summary>一个物理步内行走输入为 1 时的水平位移，供自动走近时按剩余间隙缩小输入、避免冲撞。</summary>
+    internal float WalkStepDistance => speed * Time.fixedDeltaTime;
 
     #endregion
 

@@ -314,7 +314,6 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
             return;
         }
         inputData.interactTapped = true;
-        print("交互点按");
     }
 
     void UpdateInteractHold()
@@ -330,7 +329,6 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         if (interactLongFired) return;
         interactLongFired = true;
         inputData.interactLongPressed = true;
-        print("交互长按");
     }
 
     /// <summary>关闭输入或改交互键前中止按住计时，并清掉还没被状态机消费的交互边沿。</summary>
