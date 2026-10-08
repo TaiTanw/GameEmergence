@@ -82,10 +82,10 @@ public static class PlayerSwimmingPlayModeChecks
         previousSimulation = Physics2D.simulationMode; Physics2D.simulationMode = SimulationMode2D.Script;
         MonoPublicMgr.IsQuitting = false;
         scheduler = MonoPublicMgr.Instance; scheduler.enabled = false;
-        body = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/player20.prefab"), origin, Quaternion.identity).GetComponent<Player>();
-        spirit = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/SpiritPlayer.prefab"), origin + Vector2.right * 20f, Quaternion.identity).GetComponent<Player>();
+        body = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab"), origin, Quaternion.identity).GetComponent<Player>();
+        spirit = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab"), origin + Vector2.right * 20f, Quaternion.identity).GetComponent<Player>();
         spirit.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
-        water = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/WaterPool.prefab"), origin, Quaternion.identity).GetComponent<WaterRegion>();
+        water = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/WaterPool.prefab"), origin, Quaternion.identity).GetComponent<WaterRegion>();
         water.transform.localScale = new Vector3(12f, 8f, 1f);
         var config = (SO_CPhysics)typeof(BasicEntity).GetField("cPhysics", Private).GetValue(body.GetComponent<CharacterPhysics>());
         floor = Solid("floor", origin + new Vector2(0f, -2.5f), new Vector2(12f, .5f), FirstLayer(config.groundLayer));

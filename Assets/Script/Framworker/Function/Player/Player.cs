@@ -199,6 +199,8 @@ public class Player : MonoBehaviour
 
     public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false)
     {
+        // 实际逻辑：进关可能在 Start 之前刷新，先完成状态机接线。
+        EnsureRuntimeReady();
         inputOwner?.ClearPlayerInputEdges(this);
         ReleaseBoxSelection();
         ClearActionOutput();
@@ -266,6 +268,7 @@ public class Player : MonoBehaviour
     /// 玩家逻辑状态机对象
     /// </summary>
     PlayerStateMachine fsm;
+    bool runtimeReady;
     /// <summary>
     /// 表现层状态机
     /// </summary>
@@ -286,12 +289,15 @@ public class Player : MonoBehaviour
         animatorFSM = gameObject.GetComponentInChildren<PresentationLayer>();
 
     }
-    private void Start()
+    private void Start() => EnsureRuntimeReady();
+
+    void EnsureRuntimeReady()
     {
-        //保证可用
+        if (runtimeReady) return;
         fsm.InitData(playPDate.ReadOnly_GeometryPhysicsData, inputData, actionData);
         playPDate.Init(_ActionData, fsm.EventSystem);
-        animatorFSM.Init(playPDate.ReadOnly_PlayersPhysicsData,playPDate.ReadOnly_GeometryPhysicsData, _ActionData);
+        animatorFSM.Init(playPDate.ReadOnly_PlayersPhysicsData, playPDate.ReadOnly_GeometryPhysicsData, _ActionData);
+        runtimeReady = true;
     }
     /// <summary>
     /// 注入玩家按键数据行为
@@ -392,6 +398,8 @@ public class Player : MonoBehaviour
     {
         PhysicalBox previous = boxSelection.Selected;
         PlayerCapabilityPermissions permissions = Permissions;
+        // 实际逻辑：没有箱子目标的点按留给道具；有目标时仍只交给箱子。
+        bool freeTap = inputData != null && inputData.interactTapped && boxSelection.ResolveTarget() == null;
         // 实际逻辑：撤权、推拉许可关闭或本帧按下跳跃先退出选中，并丢弃同帧交互，不能先收纳再跳。
         if (!(permissions.movement && permissions.motionUpdates && permissions.pushPull)
             || (inputData != null && inputData.jumpPressed))
@@ -399,6 +407,7 @@ public class Player : MonoBehaviour
         // 实际逻辑：长按与点按互斥，长按成功的这一次不再按点按处理；无控制权时没有边沿可读。
         else if (inputData != null && inputData.interactLongPressed) boxSelection.Consume(PlayerInteractKind.LongPress);
         else if (inputData != null && inputData.interactTapped) boxSelection.Consume(PlayerInteractKind.Tap);
+        if (freeTap) SceneProp.OfferInteract(this);
         // 有效推拉能力只由成立的选中关系托起。
         actionData.pushPullBox = boxSelection.Selected;
         if (previous != boxSelection.Selected) ForgetPairContacts(previous);

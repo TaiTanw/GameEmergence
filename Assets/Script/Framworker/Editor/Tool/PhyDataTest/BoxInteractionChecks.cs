@@ -840,7 +840,8 @@ public static class BoxInteractionChecks
 
     private static GameObject Instantiate(string prefab)
     {
-        GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/" + prefab);
+        string folder = prefab == "player20.prefab" || prefab == "SpiritPlayer.prefab" ? "Player/" : "SceneObj/";
+        GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/" + folder + prefab);
         if (asset == null) asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/default/" + prefab);
         if (asset == null) throw new InvalidOperationException("Missing fixture prefab: " + prefab);
         GameObject item = Object.Instantiate(asset);

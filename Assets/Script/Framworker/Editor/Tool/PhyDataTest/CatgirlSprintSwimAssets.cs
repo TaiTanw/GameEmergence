@@ -264,7 +264,7 @@ public static class CatgirlSprintSwimAssets
         paths = paths.Concat(Directory.GetFiles("Assets/MyObjAssets/gameObject/Animation", "*", SearchOption.AllDirectories)
             .Where(p => p.EndsWith(".anim", StringComparison.Ordinal) || p.EndsWith(".anim.meta", StringComparison.Ordinal))
             .Where(p => !Specs.Any(s => p.Replace('\\', '/') == s.ClipPath || p.Replace('\\', '/') == s.ClipPath + ".meta")));
-        paths = paths.Concat(new[] { "Assets/MyObjAssets/gameObject/player20.prefab", "Assets/MyObjAssets/gameObject/player20.prefab.meta" });
+        paths = paths.Concat(new[] { "Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab", "Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab.meta" });
         return paths.Distinct().ToDictionary(p => p, FileHash);
     }
 

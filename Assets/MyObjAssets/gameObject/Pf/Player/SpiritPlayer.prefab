@@ -107,7 +107,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: -1767477884, guid: 879993fcef34b91419a4d50c9df6f124, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.44025147, g: 0.44025147, b: 0.44025147, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -202,6 +202,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   identity: 1
+  interactContactGap: 0.5
+  interactReleaseGap: 0.8
+  storedReachGap: 0.6
+  electrifiedContactTolerance: 0.03
 --- !u!61 &2481104452557541454
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -294,8 +298,11 @@ MonoBehaviour:
   gravity: -35
   airResistance: 1
   envImpact: 1
+  horizontalAcceleration: 300
   speed: 15
+  fourWaySpeed: 6
   upSpeed: 15
+  pushPullEngageGap: 0.05
 --- !u!1 &7743792163046834635
 GameObject:
   m_ObjectHideFlags: 0

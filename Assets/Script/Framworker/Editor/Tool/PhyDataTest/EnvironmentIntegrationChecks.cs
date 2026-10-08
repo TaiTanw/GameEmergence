@@ -1117,7 +1117,8 @@ public static class EnvironmentIntegrationChecks
     }
     private static T Prefab<T>(string name, Vector3 position) where T : Component
     {
-        GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/" + name);
+        string folder = name == "player20.prefab" || name == "SpiritPlayer.prefab" ? "Player/" : "SceneObj/";
+        GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/" + folder + name);
         if (asset == null) asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/default/" + name);
         if (asset == null) throw new InvalidOperationException("Missing fixture prefab: " + name);
         GameObject item = Object.Instantiate(asset);

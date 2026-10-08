@@ -231,4 +231,37 @@ public class DataAndInitMgr
         return data;
     }
     #endregion
+
+    #region 关卡进度
+    public const string LevelOrderResource = "LevelOrder";
+    static string LevelProgressPath => Application.persistentDataPath + "/LevelProgress.txt";
+
+    public LevelOrderFile LoadLevelOrder()
+    {
+        TextAsset asset = Resources.Load<TextAsset>(LevelOrderResource);
+        // 安全：还没生成顺序文件时不编造关卡。
+        if (asset == null || string.IsNullOrEmpty(asset.text)) return new LevelOrderFile();
+        LevelOrderFile file = JsonUtility.FromJson<LevelOrderFile>(asset.text);
+        if (file == null || file.scenes == null) return new LevelOrderFile();
+        return file;
+    }
+
+    public int LoadLevelIndex()
+    {
+        // 安全：没有进度文件时从第一关开始。
+        if (!File.Exists(LevelProgressPath)) return 0;
+        return int.TryParse(File.ReadAllText(LevelProgressPath), out int index) ? index : 0;
+    }
+
+    public void SaveLevelIndex(int index)
+    {
+        File.WriteAllText(LevelProgressPath, index.ToString());
+    }
+
+    public void ClearLevelProgress()
+    {
+        // 安全：没有进度文件时不用删。
+        if (File.Exists(LevelProgressPath)) File.Delete(LevelProgressPath);
+    }
+    #endregion
 }

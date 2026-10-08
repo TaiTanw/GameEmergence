@@ -33,8 +33,8 @@ public static class SlopePushSceneChecks
         foreach (IceGround ice in Object.FindObjectsOfType<IceGround>())
             if (Mathf.Abs(ice.transform.eulerAngles.z) < .01f) { ground = ice; break; }
         if (ground == null) throw new InvalidOperationException("Actual scene requires its flat ICE fixture.");
-        CharacterPhysics player = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/player20.prefab")).GetComponent<CharacterPhysics>();
-        PhysicalBox box = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/box.prefab")).GetComponent<PhysicalBox>();
+        CharacterPhysics player = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab")).GetComponent<CharacterPhysics>();
+        PhysicalBox box = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/box.prefab")).GetComponent<PhysicalBox>();
         SimulationMode2D oldMode = Physics2D.simulationMode;
         Physics2D.simulationMode = SimulationMode2D.Script;
         var passed = new List<string>();
