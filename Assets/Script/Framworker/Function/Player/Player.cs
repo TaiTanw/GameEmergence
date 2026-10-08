@@ -1,4 +1,4 @@
-﻿using PhyData;
+using PhyData;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -458,14 +458,7 @@ public class Player : MonoBehaviour
         actionData.interactTarget = null;
     }
 
-    private void ForgetPairContacts(PhysicalBox box)
-    {
-        // 实际逻辑：选中建立或解除时立即清双方旧接触累计与尾效，共同运动期间及解除后都不残留拖动；
-        // 无关环境来源保留。
-        if (box != null && playPDate != null) PhysicsSolverMgr.Instance.ForgetContactForcesBetween(playPDate, box);
-        if (boxSelection?.Selected != null && playPDate != null)
-            PhysicsSolverMgr.Instance.ForgetContactForcesBetween(playPDate, boxSelection.Selected);
-    }
-
+    // 关系变化只撤销原生水平约束，不清箱子或玩家的真实受力速度。
+    internal void ReleasePushPullConstraint() => playPDate?.ReleasePushPull();
+    private void ForgetPairContacts(PhysicalBox box) => ReleasePushPullConstraint();
 }
-

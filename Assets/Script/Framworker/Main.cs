@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,7 +33,6 @@ public class Main : MonoBehaviour
         MusicMgr.Instance.Init();
 
         InputControlMgr.Instance.Init();
-        PhysicsSolverMgr.Instance.Init();
         //缓存加载界面
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, (UI) =>
         {

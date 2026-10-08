@@ -9,7 +9,7 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 
 /// <summary>
-/// P_5.4 箱子交互的 Edit Mode 批处理检查：克隆实际玩家与箱子预制体，手动推进 1–5 相位并调用 Physics2D.Simulate。
+/// P_5.4 箱子交互的 Edit Mode 批处理检查：克隆实际玩家与箱子预制体，手动推进 1–3 相位、统一 Unity 模拟、相位 5 回读。
 /// 物理组直接写动作数据核对共同水平运动；玩家组经 Player 的交互消费与相位 2 关系核对选中、解除和带电触碰。
 /// 只创建临时对象，结束即销毁，不保存场景或预制体。
 /// </summary>
@@ -36,6 +36,12 @@ public static class BoxInteractionChecks
         Physics2D.simulationMode = SimulationMode2D.Script;
         try
         {
+            CheckHighSpeedSurfaces();
+            CheckTopContactClears();
+            CheckEnvironmentalMotion();
+            CheckDescendingPlatform();
+            CheckNativeChain();
+            CheckUnderBoxJump();
             CheckSelectedPushAndPull();
             CheckSelectedWallStops();
             CheckEngageOnContact();
@@ -64,45 +70,249 @@ public static class BoxInteractionChecks
         }
     }
 
-    /// <summary>平地上选中推与拉：每步双方请求 X 相同、间距不变，双方都实际移动。</summary>
+    /// <summary>真实刚体高速跨入薄面时由原生连续检测阻挡，不调用旧扫掠或纠偏。</summary>
+    private static void CheckHighSpeedSurfaces()
+    {
+        foreach (bool isPlayer in new[] { true, false })
+        {
+            TestWorld wallWorld = World(80f);
+            BasicEntity body = isPlayer ? (BasicEntity)wallWorld.player : wallWorld.box;
+            BasicEntity other = isPlayer ? (BasicEntity)wallWorld.box : wallWorld.player;
+            other.SetMotionParticipation(false);
+            Collider2D wall = Solid(new Vector2(body.BodyBounds.max.x + .2f, wallWorld.groundTop + 1.5f),
+                new Vector2(.1f, 3f), wallWorld.wallLayer);
+            body.GetComponent<Rigidbody2D>().velocity = new Vector2(45f, 0f);
+            Step(wallWorld);
+            Check(body.BodyBounds.max.x <= wall.bounds.min.x + .025f,
+                (isPlayer ? "角色" : "箱子") + "高速水平运动被真实薄墙阻挡");
+
+            TestWorld floorWorld = World(80f);
+            body = isPlayer ? (BasicEntity)floorWorld.player : floorWorld.box;
+            other = isPlayer ? (BasicEntity)floorWorld.box : floorWorld.player;
+            other.SetMotionParticipation(false);
+            floorWorld.ground.size = new Vector2(80f, .04f);
+            floorWorld.ground.transform.position = new Vector2(floorWorld.ground.transform.position.x, floorWorld.groundTop - .02f);
+            MoveCenter(body, (Vector2)body.BodyBounds.center + Vector2.up);
+            body.GetComponent<Rigidbody2D>().velocity = new Vector2(0f, -80f);
+            Step(floorWorld);
+            Check(body.BodyBounds.min.y >= floorWorld.ground.bounds.max.y - .025f,
+                (isPlayer ? "角色" : "箱子") + "高速下落被真实薄地面阻挡");
+        }
+    }
+
+    private static void CheckTopContactClears()
+    {
+        TestWorld w = World(80f);
+        w.box.SetMotionParticipation(false);
+        Collider2D roof = Solid(new Vector2(w.player.BodyBounds.center.x, w.player.BodyBounds.max.y + .2f),
+            new Vector2(4f, .1f), w.wallLayer);
+        w.player.GetComponent<Rigidbody2D>().velocity = Vector2.up * 20f;
+        Step(w); Step(w);
+        Check(w.player.BodyBounds.max.y <= roof.bounds.min.y + .025f && w.player.DebugIsTopBlocked,
+            "角色原生撞顶后采到实际顶头接触");
+        for (int tick = 0; tick < 20; tick++) Step(w);
+        Check(!w.player.DebugIsTopBlocked, "角色自然离顶后清除旧顶头事实");
+    }
+
+    /// <summary>环境持续施力与固定流速直接作用真实运动，不留第二份累计速度。</summary>
+    private static void CheckEnvironmentalMotion()
+    {
+        TestWorld force = World(80f);
+        MoveCenter(force.box, (Vector2)force.box.BodyBounds.center + Vector2.right * 30f);
+        ForceField field = Instantiate("F1.prefab").GetComponent<ForceField>();
+        field.transform.position = force.player.BodyBounds.center;
+        field.transform.localScale = Vector3.one;
+        BoxCollider2D trigger = field.GetComponent<BoxCollider2D>();
+        trigger.isTrigger = true; trigger.size = new Vector2(20f, 10f);
+        typeof(ForceField).GetField("add", Hidden).SetValue(field, 2f);
+        typeof(ForceField).GetField("maxSpeed", Hidden).SetValue(field, 8f);
+        typeof(ForceField).GetField("speedChangeNum", Hidden).SetValue(field, 0f);
+        for (int i = 0; i < 50; i++) Step(force);
+        float speed = force.player.GetComponent<Rigidbody2D>().velocity.x;
+        Check(speed > 1.5f && speed < 2.2f, "零输入角色连续环境施力逐步取得实际速度 [" + speed + "]");
+
+        TestWorld flow = World(80f);
+        flow.ground.enabled = false;
+        flow.player.SetMotionParticipation(false);
+        WaterWithEffects water = Instantiate("WaterPoolWithEffects.prefab").GetComponent<WaterWithEffects>();
+        water.transform.position = flow.box.BodyBounds.center;
+        water.transform.localScale = Vector3.one;
+        water.GetComponent<BoxCollider2D>().size = new Vector2(30f, 30f);
+        typeof(WaterWithEffects).GetField("flowVelocity", Hidden).SetValue(water, new Vector2(2f, 3f));
+        typeof(WaterWithEffects).GetField("movementSpeedOffset", Hidden).SetValue(water, 0f);
+        flow.box.gravity = 0f;
+        Vector2 start = flow.box.DebugActualPosition;
+        for (int i = 0; i < 50; i++) Step(flow);
+        Vector2 actual = flow.box.GetComponent<Rigidbody2D>().velocity;
+        Check((actual - new Vector2(2f, 3f)).magnitude < .02f,
+            "箱子连续二维固定水流保持原速，不逐帧翻倍 [" + actual + "]");
+        Check((flow.box.DebugActualPosition - start - new Vector2(2f, 3f)).magnitude < .05f,
+            "箱子一秒实际位移与二维水流一致");
+
+        var remaining = new List<float>();
+        foreach (float direction in new[] { -1f, 1f })
+        {
+            TestWorld iceWorld = World(80f);
+            iceWorld.player.SetMotionParticipation(false);
+            IceGround ice = iceWorld.ground.gameObject.AddComponent<IceGround>();
+            typeof(IceGround).GetField("phySpeed", Hidden).SetValue(ice, Vector2.zero);
+            ice.Odex = 2f;
+            for (int i = 0; i < 5; i++) Step(iceWorld);
+            iceWorld.box.GetComponent<Rigidbody2D>().velocity = new Vector2(direction * 4f, 0f);
+            for (int i = 0; i < 50; i++) Step(iceWorld);
+            remaining.Add(Mathf.Abs(iceWorld.box.GetComponent<Rigidbody2D>().velocity.x));
+        }
+        Check(remaining[0] < 3.5f && remaining[1] < 3.5f && Mathf.Abs(remaining[0] - remaining[1]) < .03f,
+            "自由箱冰面左右实际惯性对称制动 [" + remaining[0] + ", " + remaining[1] + "]");
+    }
+
+    /// <summary>实际移动平台每步下降超过旧探针间隙时，站立角色仍保持支撑并同步下降。</summary>
+    private static void CheckDescendingPlatform()
+    {
+        TestWorld w = World(80f);
+        w.ground.enabled = false;
+        w.box.SetMotionParticipation(false);
+        Taijie platform = Instantiate("Taijie.prefab").GetComponent<Taijie>();
+        platform.ToMovePoint(new Vector3(w.player.BodyBounds.center.x, 94f, 0f));
+        Physics2D.SyncTransforms();
+        float top = platform.GetComponent<Collider2D>().bounds.max.y;
+        PlaceOn(w.player, platform.GetComponent<Collider2D>().bounds.center.x, top);
+        Sample(w);
+        Vector2 start = w.player.DebugActualPosition;
+        Vector2 platformStart = platform.transform.position;
+        bool supported = true;
+        for (int tick = 0; tick < 50; tick++)
+        {
+            typeof(Taijie).GetField("nowtime", Hidden).SetValue(platform, AudioSettings.dspTime - (tick + 1) * Time.fixedDeltaTime);
+            Invoke(platform, "FixFun"); Step(w);
+            supported &= w.player.DebugIsGrounded;
+        }
+        Vector2 delta = (Vector2)platform.transform.position - platformStart;
+        Check(supported && delta.y < -1f, "实际平台持续下降且每步保留角色支撑");
+        Check((w.player.DebugActualPosition - start - delta).magnitude < .04f,
+            "下降平台和站立角色实际位移一致");
+        Check(Mathf.Abs(w.player.GetComponent<Rigidbody2D>().velocity.y - platform.Delta.y / Time.fixedDeltaTime) < .05f,
+            "下降平台和角色实际竖直速度一致");
+        float currentGap = w.player.BodyBounds.min.y - platform.GetComponent<Collider2D>().bounds.max.y;
+        w.player.RefreshMotionState(w.player.DebugActualPosition + Vector2.up * (.04f - currentGap));
+        Check(!w.player.DebugIsGrounded, "迁移到下降平台上方后立即清除旧支撑");
+        Sample(w);
+        Check(!w.player.DebugIsGrounded, "新位置模拟前的采样不重用旧下降平台接触");
+    }
+
+    /// <summary>真正碰撞推动有限箱链：前进、抵墙、松手、反向退出及移墙后恢复。</summary>
+    private static void CheckNativeChain()
+    {
+        for (int count = 1; count <= 3; count++)
+        {
+            TestWorld w = World(80f);
+            var chain = new List<PhysicalBox> { w.box };
+            for (int i = 1; i < count; i++)
+            {
+                PhysicalBox previous = chain[i - 1];
+                PhysicalBox next = ExtraBox(w, (Vector2)previous.BodyBounds.center + Vector2.right * (previous.BodyBounds.size.x + .01f));
+                chain.Add(next);
+            }
+            var start = new List<float>();
+            foreach (PhysicalBox box in chain) start.Add(box.DebugActualPosition.x);
+            for (int tick = 0; tick < 100; tick++) { w.action.onMove = 1f; Step(w); }
+            for (int i = 0; i < count; i++)
+                Check(chain[i].DebugActualPosition.x - start[i] > .5f, count + " 箱链第 " + (i + 1) + " 箱通过实际碰撞前进");
+            PhysicalBox front = chain[count - 1];
+            Collider2D wall = Solid(new Vector2(front.BodyBounds.max.x + .75f, w.groundTop + 1.5f), new Vector2(.5f, 3f), w.wallLayer);
+            for (int tick = 0; tick < 100; tick++) Step(w);
+            Check(front.BodyBounds.max.x <= wall.bounds.min.x + .025f, count + " 箱鏈抵墙不穿入");
+            float stopped = front.DebugActualPosition.x;
+            for (int tick = 0; tick < 20; tick++) Step(w);
+            Check(Mathf.Abs(front.DebugActualPosition.x - stopped) < .025f, count + " 箱链持续推动抵墙后位置稳定");
+            for (int i = 0; i < count - 1; i++)
+                Check(chain[i + 1].BodyBounds.min.x - chain[i].BodyBounds.max.x >= -.025f, count + " 箱链相邻箱不穿入");
+            w.action.onMove = 0f;
+            for (int tick = 0; tick < 40; tick++) Step(w);
+            float rest = front.DebugActualPosition.x;
+            w.action.onMove = -1f;
+            for (int tick = 0; tick < 40; tick++) Step(w);
+            Check(Mathf.Abs(front.DebugActualPosition.x - rest) < .06f, count + " 箱链未选中反向走开不被拉动");
+            wall.enabled = false;
+            w.action.onMove = 1f;
+            for (int tick = 0; tick < 120; tick++) Step(w);
+            Check(front.DebugActualPosition.x > stopped + .5f, count + " 箱链移除阻挡后恢复推动");
+            w.box.SetMotionParticipation(false);
+            Vector2 paused = w.box.DebugActualPosition;
+            for (int tick = 0; tick < 20; tick++) Step(w);
+            Check(w.box.DebugActualPosition == paused, count + " 箱链暂停箱体保持现场坐标");
+            w.box.SetMotionParticipation(true);
+            Check(w.box.GetComponent<Rigidbody2D>().simulated, count + " 箱链恢复箱体重新参加原生模拟");
+        }
+    }
+
+    /// <summary>允许从下方顶普通箱；接触速度由原生模拟决定，侧移后不会重放旧下落速度。</summary>
+    private static void CheckUnderBoxJump()
+    {
+        TestWorld w = World(80f, true);
+        var input = new PlayerInputData();
+        w.owner.ChangeInputAsset(input);
+        MoveCenter(w.box, new Vector2(w.player.BodyBounds.center.x, w.player.BodyBounds.max.y + w.box.BodyBounds.extents.y + .01f));
+        for (int tick = 0; tick < 5; tick++) { w.owner.TickLogic(Time.fixedDeltaTime); Step(w); }
+        float startY = w.box.DebugActualPosition.y, peak = startY;
+        input.jumpPressed = true;
+        for (int tick = 0; tick < 12; tick++)
+        {
+            w.owner.TickLogic(Time.fixedDeltaTime); Step(w);
+            peak = Mathf.Max(peak, w.box.DebugActualPosition.y);
+        }
+        Check(peak > startY + .1f, "普通箱允许从下方被跳跃顶起");
+        input.moveInput = -1f;
+        bool bounded = true;
+        for (int tick = 0; tick < 160; tick++)
+        {
+            w.owner.TickLogic(Time.fixedDeltaTime); Step(w);
+            Vector2 velocity = w.box.GetComponent<Rigidbody2D>().velocity;
+            bounded &= !float.IsNaN(velocity.y) && Mathf.Abs(velocity.y) < 50f;
+        }
+        Check(bounded, "顶箱后整个下落过程实际竖直速度有界");
+        Check(w.box.BodyBounds.min.y >= w.groundTop - .025f && Mathf.Abs(w.box.GetComponent<Rigidbody2D>().velocity.y) < .1f,
+            "角色侧移后箱子落地稳定，没有旧下落速度突增");
+    }
+
+    /// <summary>平地上选中推与拉：双方实际移动并保持贴合。</summary>
     private static void CheckSelectedPushAndPull()
     {
         var w = World(80f);
+        w.player.GetComponent<Rigidbody2D>().velocity = Vector2.right * 3f;
+        w.box.GetComponent<Rigidbody2D>().velocity = Vector2.right * 3f;
+        for (int tick = 0; tick < 5; tick++) Step(w);
+        float movingGap = Gap(w);
         w.action.pushPullBox = w.box;
+        Step(w);
+        Check(Mathf.Abs(Gap(w) - movingGap) < .02f, "已移动的缩放箱首次建立关节不改变实际贴合间距");
         float startGap = Gap(w);
         Vector2 boxStart = w.box.DebugActualPosition;
-        float maxDiff = 0f;
         for (int tick = 0; tick < 60; tick++)
         {
             w.action.onMove = tick < 5 ? 0f : 1f;
             Step(w);
-            maxDiff = Mathf.Max(maxDiff, Mathf.Abs(Request(w.player).x - Request(w.box).x));
         }
-        Check(maxDiff < .0001f, $"选中推动每步双方请求 X 一致 [{maxDiff}]");
-        Check(w.box.DebugActualPosition.x - boxStart.x > 2f, "选中推动箱子实际前进");
+        Check(w.box.DebugActualPosition.x - boxStart.x > 2f, $"选中推动箱子实际前进 [delta={w.box.DebugActualPosition.x - boxStart.x}, player={w.player.DebugActualPosition}, box={w.box.DebugActualPosition}, gap={Gap(w)}]");
         Check(Mathf.Abs(Gap(w) - startGap) < .02f, $"选中推动间距保持 [{startGap} → {Gap(w)}]");
         Check(w.box.DebugIsGrounded, "推动后箱子仍着地");
 
         Vector2 pullStart = w.box.DebugActualPosition;
-        maxDiff = 0f;
         for (int tick = 0; tick < 60; tick++)
         {
             w.action.onMove = -1f;
             Step(w);
-            maxDiff = Mathf.Max(maxDiff, Mathf.Abs(Request(w.player).x - Request(w.box).x));
         }
-        Check(maxDiff < .0001f, $"选中拉动每步双方请求 X 一致 [{maxDiff}]");
         Check(pullStart.x - w.box.DebugActualPosition.x > 2f, "选中拉动箱子跟随后退");
         Check(Mathf.Abs(Gap(w) - startGap) < .02f, $"选中拉动间距保持 [{Gap(w)}]");
 
-        // 松手并解除：旧接触已清，箱子不继续滑行。
+        // 松手按真实惯性制动，再解除水平贴合。
         w.action.onMove = 0f;
-        Step(w);
+        for (int tick = 0; tick < 30; tick++) Step(w);
         w.action.pushPullBox = null;
-        PhysicsSolverMgr.Instance.ForgetContactForcesBetween(w.player, w.box);
         Vector2 rest = w.box.DebugActualPosition;
         for (int tick = 0; tick < 30; tick++) Step(w);
-        Check((w.box.DebugActualPosition - rest).magnitude < .003f, "解除后箱子无可见滑行");
+        Check((w.box.DebugActualPosition - rest).magnitude < .025f, "松手制动后解除箱子保持稳定");
     }
 
     /// <summary>箱子前方或玩家身后有墙：共同运动被较受限的一方截停，双方不嵌入墙或彼此。</summary>
@@ -140,17 +350,14 @@ public static class BoxInteractionChecks
         Check(Mathf.Abs(w.box.DebugActualPosition.x - boxStart.x) < .003f,
             $"选中未接触时反向走开不拉动箱子 [{w.box.DebugActualPosition.x - boxStart.x}]");
         for (int tick = 0; tick < 10; tick++) { w.action.onMove = 0f; Step(w); }
-        float maxDiff = 0f;
         bool engaged = false;
         for (int tick = 0; tick < 60; tick++)
         {
             w.action.onMove = 1f;
             Step(w);
             if (!engaged) { engaged = Gap(w) <= .05f; continue; }
-            maxDiff = Mathf.Max(maxDiff, Mathf.Abs(Request(w.player).x - Request(w.box).x));
         }
         Check(engaged && w.box.DebugActualPosition.x - boxStart.x > 1f, "走到箱边接触后开始推动");
-        Check(maxDiff < .0001f && Gap(w) <= .05f, $"接触后双方请求 X 一致且保持贴合 [{maxDiff}, {Gap(w)}]");
         Vector2 pullStart = w.box.DebugActualPosition;
         for (int tick = 0; tick < 30; tick++) { w.action.onMove = -1f; Step(w); }
         Check(pullStart.x - w.box.DebugActualPosition.x > .5f, "接触后反向可拉动");
@@ -197,7 +404,10 @@ public static class BoxInteractionChecks
         Vector2 start = w.box.DebugActualPosition;
         for (int tick = 0; tick < 60; tick++) { w.action.onMove = 1f; Step(w); }
         Check(w.box.DebugActualPosition.x - start.x > .5f, "未选中箱子仍可接触推动");
-        for (int tick = 0; tick < 30; tick++) { w.action.onMove = 0f; Step(w); }
+        w.action.onMove = 0f;
+        int settling = 0;
+        while (Mathf.Abs(w.box.GetComponent<Rigidbody2D>().velocity.x) > .02f && settling++ < 90) Step(w);
+        Check(Mathf.Abs(w.box.GetComponent<Rigidbody2D>().velocity.x) <= .02f, "未选中箱子按实际惯性在合理时间内制动");
         Vector2 before = w.box.DebugActualPosition;
         for (int tick = 0; tick < 40; tick++) { w.action.onMove = -1f; Step(w); }
         Check(Mathf.Abs(w.box.DebugActualPosition.x - before.x) < .05f, "未选中反向走开不拉动箱子");
@@ -512,6 +722,7 @@ public static class BoxInteractionChecks
         MoveCenter(box, center);
         LevelBoxContext.Register(box);
         Invoke(box, "GeometricQueryPhase");
+        w.entities.Add(box);
         return box;
     }
 
@@ -542,6 +753,7 @@ public static class BoxInteractionChecks
         public BoxCollider2D ground;
         public float groundTop;
         public int wallLayer;
+        public readonly List<BasicEntity> entities = new List<BasicEntity>();
     }
 
     /// <summary>平地上玩家在左、箱子在右，碰撞框间隙约 0.01。owner 为真时经 Player 组装动作数据。</summary>
@@ -556,6 +768,8 @@ public static class BoxInteractionChecks
         w.player = playerObject.GetComponent<CharacterPhysics>();
         Invoke(w.box, "Awake");
         Invoke(w.player, "Awake");
+        w.entities.Add(w.player);
+        w.entities.Add(w.box);
         if (owner)
         {
             w.owner = playerObject.GetComponent<Player>();
@@ -606,19 +820,16 @@ public static class BoxInteractionChecks
     private static void Step(TestWorld w)
     {
         Physics2D.SyncTransforms();
-        BasicEntity[] entities = { w.player, w.box };
+        BasicEntity[] entities = w.entities.ToArray();
         foreach (BasicEntity e in entities) Invoke(e, "GeometricQueryPhase");
         foreach (BasicEntity e in entities) Invoke(e, "PhyFunUpdate");
         foreach (BasicEntity e in entities) Invoke(e, "SpeedCalculation");
-        Invoke(PhysicsSolverMgr.Instance, "ContactForSolution");
-        foreach (BasicEntity e in entities) Invoke(e, "DisplacementCorrection");
         Physics2D.Simulate(Time.fixedDeltaTime);
+        foreach (BasicEntity e in entities) Invoke(e, "DisplacementCorrection");
     }
 
     private static float Gap(TestWorld w) => w.box.BodyBounds.min.x - w.player.BodyBounds.max.x;
 
-    private static Vector2 Request(BasicEntity e) =>
-        ((EntitySolutionResult)typeof(BasicEntity).GetField("entitySolutionResult", Hidden).GetValue(e)).requestedWorldDelta;
 
     private static int FirstLayer(LayerMask mask)
     {
@@ -639,6 +850,7 @@ public static class BoxInteractionChecks
     private static GameObject Instantiate(string prefab)
     {
         GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/" + prefab);
+        if (asset == null) asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/default/" + prefab);
         if (asset == null) throw new InvalidOperationException("Missing fixture prefab: " + prefab);
         GameObject item = Object.Instantiate(asset);
         item.hideFlags = HideFlags.DontSave;

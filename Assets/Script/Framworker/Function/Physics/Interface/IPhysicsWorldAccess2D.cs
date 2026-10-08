@@ -19,7 +19,6 @@ public interface IPhysicsWorldAccess2D
     int GetLayerCollisionMask(int layer);
     bool GetIgnoreCollision(Collider2D first, Collider2D second);
     void SetIgnoreCollision(Collider2D first, Collider2D second, bool ignore);
-    void SubmitPosition(Rigidbody2D body, Vector2 target);
     /// <summary>规则刷新时显式清原生速度，可选择立即恢复位置；不是每帧提交第二次位移。</summary>
     void RestoreBodyMotion(Rigidbody2D body, Vector2? position);
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -82,7 +82,6 @@ public static class PlayerSwimmingPlayModeChecks
         previousSimulation = Physics2D.simulationMode; Physics2D.simulationMode = SimulationMode2D.Script;
         MonoPublicMgr.IsQuitting = false;
         scheduler = MonoPublicMgr.Instance; scheduler.enabled = false;
-        PhysicsSolverMgr.Instance.Init();
         body = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/player20.prefab"), origin, Quaternion.identity).GetComponent<Player>();
         spirit = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/SpiritPlayer.prefab"), origin + Vector2.right * 20f, Quaternion.identity).GetComponent<Player>();
         spirit.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
@@ -112,7 +111,6 @@ public static class PlayerSwimmingPlayModeChecks
     private static void PhysicsStep()
     {
         typeof(MonoPublicMgr).GetMethod("FixedUpdate", Private).Invoke(scheduler, null);
-        Physics2D.Simulate(Time.fixedDeltaTime);
     }
 
     private static void Step(Player actor, PlayerInputData input, int count = 1)
@@ -133,6 +131,7 @@ public static class PlayerSwimmingPlayModeChecks
         Check(Vector2.Distance(hover, body.GetComponent<Rigidbody2D>().position) < .01f, "连续 120 物理帧零输入悬停");
         Near(body.ResourceFacts.oxygen, oxygen - 120f * Time.fixedDeltaTime * State(body).oxygenDrainPerSecond, "无输入连续耗氧", .02f);
 
+        CheckSwimmingDynamicForce();
         body.RefreshRuntime(origin);
         Step(body, new PlayerInputData { moveInput = 1f, verticalInput = 1f }, 10);
         Near(body.GetComponent<CharacterPhysics>().GetPlanarVelocity().magnitude, 6f, "真实双轴游泳斜向速度归一化");
@@ -170,6 +169,31 @@ public static class PlayerSwimmingPlayModeChecks
         CheckInputAndRebind();
     }
 
+    private static void CheckSwimmingDynamicForce()
+    {
+        var host = new GameObject("K11 swimming dynamic field");
+        host.transform.position = origin;
+        var trigger = host.AddComponent<BoxCollider2D>();
+        trigger.isTrigger = true; trigger.size = new Vector2(20f, 20f);
+        var field = host.AddComponent<ForceField>();
+        typeof(ForceField).GetField("add", Private).SetValue(field, 2f);
+        typeof(ForceField).GetField("maxSpeed", Private).SetValue(field, 8f);
+        typeof(ForceField).GetField("speedChangeNum", Private).SetValue(field, 0f);
+        try
+        {
+            body.RefreshRuntime(origin);
+            Step(body, new PlayerInputData { moveInput = 1f }, 20);
+            float moving = body.GetComponent<Rigidbody2D>().velocity.x;
+            Check(body._ActionData.isSwimming && moving > 6.5f && moving < 7.1f,
+                "真实游泳有输入仍逐步累积动态水流 [" + moving + "]");
+            Step(body, null, 20);
+            float idle = body.GetComponent<Rigidbody2D>().velocity.x;
+            Check(body._ActionData.isSwimming && idle > 1.3f && idle < 1.9f,
+                "真实游泳零输入保留已有环境惯性并继续受力 [" + idle + "]");
+        }
+        finally { Object.DestroyImmediate(host); body.RefreshRuntime(origin); }
+    }
+
     private static void CheckOneWayAndEntry()
     {
         body.RefreshRuntime(origin + Vector2.up * 2f);
@@ -183,7 +207,7 @@ public static class PlayerSwimmingPlayModeChecks
         ceiling.enabled = false;
         body.RefreshRuntime(new Vector2(origin.x, water.SurfaceY + .5f));
         var speeds = (PhyData.PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData", Private).GetValue(body.GetComponent<CharacterPhysics>());
-        speeds.verticalSpeed = -30f;
+        body.GetComponent<Rigidbody2D>().velocity = Vector2.down * 30f;
         Step(body, null, 8);
         Check((body.WaterFacts.submerged || body.WaterFacts.partlyAboveSurface) && body._ActionData.isSwimming,
             "高速落水后按相位二几何进入水面或水下游泳; position="

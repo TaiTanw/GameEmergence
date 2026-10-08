@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -26,14 +26,12 @@ namespace PhyData
     public enum E_PhyForceType
     {
         apply,//施加
-        balance,//平衡
         controlRecovery,//控制复原
-        fadeAway,//消退
     }
 
     /// <summary>
     /// 动态施力参数：不包含实体已累计的速度或当前受力类型。
-    /// 环境来源创建参数，实体的 ForceData 持有参数并独立维护跨帧状态。
+    /// 环境来源创建参数，实体的 ForceData 保存当前控制参数；真实惯性归刚体。
     /// </summary>
     public readonly struct DynamicForceParameters
     {
@@ -49,82 +47,19 @@ namespace PhyData
         }
     }
 
-    /// <summary>
-    /// 动态受力数据：施力参数与跨帧状态分开保存。
-    /// </summary>
-    public struct ForceData 
+    /// <summary>动态环境参数；每步读取刚体实际速度，不保存另一份累计动量。</summary>
+    public struct ForceData
     {
-        /// <summary>施力配置；刷新此值不覆盖下方的跨帧状态。</summary>
         public DynamicForceParameters parameters;
         public readonly float Force => parameters.Force;
         public readonly float recoverySpeed => parameters.recoverySpeed;
         public readonly float balanceSpeed => parameters.balanceSpeed;
-        /// <summary>
-        /// 此施力所致的速度叠加
-        /// </summary>
-        public float speedStacking;
-        /// <summary>
-        /// 当满足当前叠加速度大于平衡速度时
-        /// </summary>
-        public readonly bool IsBalance => Mathf.Abs(speedStacking) > Mathf.Abs(parameters.balanceSpeed);
-        /// <summary>
-        /// 施力类型
-        /// </summary>
         public E_PhyForceType type;
-
-        public void Init(float Force,float recoverySpeed, float balanceSpeed)
+        public void Init(float force, float recoverySpeed, float balanceSpeed)
         {
-            parameters = new DynamicForceParameters(Force, balanceSpeed, recoverySpeed);
+            parameters = new DynamicForceParameters(force, balanceSpeed, recoverySpeed);
             type = E_PhyForceType.apply;
         }
-
-
-        /// <summary>
-        /// 当类型为施加的物理帧更新逻辑
-        /// </summary>
-        /// <param name="quality">受力物体受环境影响程度（质量倒数）</param>
-        /// <returns>速度叠加</returns>
-        public float FixUpdate(float quality)
-        {
-            speedStacking += parameters.Force * quality * Time.fixedDeltaTime;
-            if(IsBalance)
-            {
-                if (speedStacking < 0)
-                {
-                    speedStacking=-parameters.balanceSpeed;
-                }
-                else
-                {
-                    speedStacking=parameters.balanceSpeed;
-                }
-            }
-
-            return speedStacking;
-        }
-        /// <summary>
-        /// 受控速度恢复
-        /// </summary>
-        /// <param name="quality">质量倒数</param>
-        /// <returns></returns>
-        public float ControlledSpeedRecovery(float quality)
-        {
-            if (speedStacking > 0.2)
-            {
-                speedStacking -= parameters.recoverySpeed * quality * Time.fixedDeltaTime;
-            }
-            else if (speedStacking < -0.2)
-            {
-                speedStacking += parameters.recoverySpeed * quality * Time.fixedDeltaTime;
-            }
-            else
-            {
-                speedStacking = 0;
-            }
-
-            return speedStacking;
-        }
-
-
     }
 
     #region 物理实时数据
@@ -151,17 +86,11 @@ namespace PhyData
         /// </summary>
         public float phyVSpeed;
         /// <summary>
-        /// 位移偏置（旧草稿，正式管线改用 EntitySolutionResult.displacementOffset）
-        /// </summary>
-        //public float displacementBias;
-        /// <summary>
-        /// 位移嵌入（旧草稿，预测重叠在解算器内用 AABB v4 计算，不写回此字段）
-        /// </summary>
-        //public float positionalEmbedding;
-        /// <summary>
         /// 当前环境物理约束数据,移动速度（粘滞力
         /// </summary>
         public float nowPhyNum;
+        /// <summary>真正消费跳跃/墙跳时递增，原生顶起不产生跳跃起手。</summary>
+        public int jumpSequence;
 
     }
     /// <summary>
@@ -213,6 +142,7 @@ namespace PhyData
             _data = data;
         }
 
+        public int jumpSequence => _data.jumpSequence;
         public float horizontalSpeed => _data.horizontalSpeed;   //当前自身水平速度(主动
 
         public float phyHSpeed => _data.phyHSpeed;//被动水平速度
@@ -250,107 +180,8 @@ namespace PhyData
     #endregion
 
     /// <summary>
-    /// 相位 3 输出的只读运动快照，每帧整体替换；预测和接触解算读取同一份基础运动。
-    /// freeVelocity 是速度更新后的世界合速度，motionVelocity/motionDelta 是支撑处理后的自身运动；
-    /// 平台携带另存 platformDelta，合成 plannedWorldDelta 供预测使用，不作为自身接触施力速度。
-    /// groundSlopeDeltaY 明确区分地面切线补偿与世界竖直运动，供水平阻挡按比例缩短坡面分量。
-    /// 速度单位为世界单位/秒，位移单位为世界单位。相位 4 的约束结果另存 EntitySolutionResult，
-    /// 这份快照不保存接触纠偏、最终请求或 Unity 实际落点，也不持有跨帧累计速度。
-    /// </summary>
-    public readonly struct EntityMotionFrame
-    {
-        public readonly Vector2 freeVelocity; // 自由合速度（支撑处理前）
-        public readonly Vector2 motionVelocity; // 自身运动速度（支撑处理后）
-        public readonly Vector2 motionDelta; // 自身基础位移
-        public readonly Vector2 platformDelta; // 支撑平台携带位移（离地为零）
-        public readonly float groundSlopeDeltaY; // 仅地面切线带出的 Y；世界竖直运动和平台携带不属于它
-        public readonly Vector2 plannedWorldDelta; // 预测基础位移＝自身＋平台
-
-        /// <summary>保存各运动分量，并将自身位移与平台位移合成为预测基础；不在这里施加碰撞约束。</summary>
-        public EntityMotionFrame(Vector2 freeVelocity, Vector2 motionVelocity, Vector2 motionDelta, Vector2 platformDelta,
-            float groundSlopeDeltaY = 0f)
-        {
-            this.freeVelocity = freeVelocity;
-            this.motionVelocity = motionVelocity;
-            this.motionDelta = motionDelta;
-            this.platformDelta = platformDelta;
-            this.groundSlopeDeltaY = groundSlopeDeltaY;
-            plannedWorldDelta = motionDelta + platformDelta;
-        }
-    }
-
-    /// <summary>
-    /// 相位 3 上报给 PhysicsSolverMgr 的预测 AABB：用本帧基础位移平移当前碰撞框。
-    /// 携带产生该终点的运动快照，使相位 4 的接触读速与预测同帧；实体引用用于写回纠偏。
-    /// point 还不包含接触偏置或环境裁剪；回算请求终点时，要减去基础位移再加 RequestedWorldDelta。
-    /// </summary>
-    public struct PhysicalBoundingBox
-    {
-        public Vector2 point; // 世界预测中心
-        public Vector2 size; // AABB 半宽、半高
-        public EntityMotionFrame motionFrame; // 同帧基础运动
-        public BasicEntity myPhyBox; // 所属实体
-    }
-
-    /// <summary>
-    /// 每个实体持有的相位 4 查询工作区，由 ProbeCandidateEnvironment 清空、复用和填充。
-    /// 候选终点＝基础预测终点＋实体间偏置；分别保存移动路径、终点重叠、脚下与抬升净空的命中。
-    /// 原始法线和距离供环境判定与最终请求裁剪读取；单向组件字典只记录身份，不直接表示可通行。
-    /// 接触回算改变偏置后会重查本工作区；它不是帧初着地事实，也不保存最终请求或跨帧状态。
-    /// </summary>
-    internal sealed class EntityCandidateGeometry
-    {
-        internal Vector2 candidateCenter; // 世界候选中心
-        internal Vector2 candidateDelta; // 当前中心至候选中心的位移
-        internal float downwardCastLift; // 向下回扫的起点抬高量
-        internal readonly List<RaycastHit2D> pathHits = new List<RaycastHit2D>(); // 候选移动路径命中
-        internal readonly List<RaycastHit2D> downwardHits = new List<RaycastHit2D>(); // 候选终点脚下命中
-        internal readonly List<RaycastHit2D> liftHits = new List<RaycastHit2D>(); // 额外抬升路径命中
-        internal readonly List<RaycastHit2D> allowedDownwardHits = new List<RaycastHit2D>(); // X 受限后的脚下命中
-        internal readonly List<Collider2D> endpointOverlaps = new List<Collider2D>(); // 候选终点重叠体
-        // 单向碰撞体 → 有效平台效应器
-        internal readonly Dictionary<Collider2D, PlatformEffector2D> oneWayEffectors =
-            new Dictionary<Collider2D, PlatformEffector2D>();
-
-        internal void RecordOneWayEffector(Collider2D hit)
-        {
-            if (hit.usedByEffector && hit.TryGetComponent(out PlatformEffector2D effector) &&
-                effector.isActiveAndEnabled && effector.useOneWay)
-                oneWayEffectors[hit] = effector;
-        }
-
-        /// <summary>
-        /// 这块碰撞体当前是不是单向平台的实心顶面。侧面和底面不算。
-        /// 职能：识别相位 1 脚下可落下的单向支撑，不建立碰撞忽略关系。
-        /// </summary>
-        internal static bool IsSolidOneWayTop(Collider2D collider, Vector2 normal)
-        {
-            // 安全：没有碰撞体，或没挂启用中的单向效应器，就不是可落下的顶面。
-            if (collider == null || !collider.usedByEffector) return false;
-            if (!collider.TryGetComponent(out PlatformEffector2D effector) ||
-                !effector.isActiveAndEnabled || !effector.useOneWay) return false;
-            // 实际逻辑：法线落在效应器表面弧内，才是站上去的那一面。
-            return Vector2.Angle(effector.transform.up, normal) <= effector.surfaceArc * 0.5f;
-        }
-    }
-
-    /// <summary>
-    /// 相位 4 写给本实体的解算结果：接触偏置与环境限制在这里合成为 requestedWorldDelta。
-    /// 接触回算期间可以重写，最终相位 5 只提交请求位移一次；阻挡方向供接触施力及速度清理读取。
-    /// 基础运动仍在 EntityMotionFrame，累计速度仍在 EntityEffectState；请求不等于 Unity 实际落点。
-    /// </summary>
-    public struct EntitySolutionResult
-    {
-        public Vector2 displacementOffset; // 实体间纠偏位移
-        public Vector2 environmentOffset; // 环境附加修正（当前只用坡面 Y）
-        public float allowedHorizontalDelta; // 环境允许的水平位移
-        public Vector2 requestedWorldDelta; // 本帧请求位移
-        public float blockedHorizontalDirection; // X 阻挡方向：-1 左、1 右、0 无
-    }
-
-    /// <summary>
-    /// 一次位移请求与下一物理步观测到的刚体位置；供运行时只读比较请求和实际移动。
-    /// requestStep 是提交请求的实体物理步，observedStep 是随后采样的实体物理步。
+    /// 本步原生运动命令与模拟后同一步的刚体位置；供运行时只读比较请求和实际移动。
+    /// requestStep/observedStep 是同一固定步；requestedWorldDelta 为自由命令推算，碰撞后的实际位移另外读取。
     /// 实测差值可能包含 Unity 碰撞修正及其它外部位置写入，不宣称是纯引擎修正量。
     /// </summary>
     public readonly struct EntityDisplacementObservation

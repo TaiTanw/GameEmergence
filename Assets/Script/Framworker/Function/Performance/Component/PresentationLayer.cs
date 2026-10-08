@@ -81,7 +81,7 @@ public class PresentationLayer : MonoBehaviour
     private SpriteRenderer spriteRenderer;
 
     /// <summary>
-    /// 物理层速度只读快照。主动竖直速度用于识别新的跳跃冲量，主动与被动速度之和用于判断升降阶段。
+    /// 物理层只读快照。动作序号识别新的跳跃，竖直速度之和用于判断实际升降阶段。
     /// </summary>
     private ReadOnly_PlayerPhysicsData playerPhysicsData;
 
@@ -100,7 +100,7 @@ public class PresentationLayer : MonoBehaviour
     private MotionMode previousMotionMode = MotionMode.Ground;
     private AirPhase airPhase = AirPhase.None;
     private float previousActiveVerticalSpeed;
-    private bool hasVerticalSpeedSample;
+    private int previousJumpSequence;
 
     // 墙跳事件先由 Update 写入逻辑层、再由下一个 FixedUpdate 写入物理速度。
     // 离墙后的短暂等待避免在墙跳速度尚未结算时错误闪过一次下落起手动画。
@@ -143,7 +143,7 @@ public class PresentationLayer : MonoBehaviour
         }
 
         previousActiveVerticalSpeed = playerPhysicsData.verticalSpeed;
-        hasVerticalSpeedSample = true;
+        previousJumpSequence = playerPhysicsData.jumpSequence;
         previousMotionMode = ResolveMotionMode();
         isInitialized = true;
     }
@@ -171,11 +171,8 @@ public class PresentationLayer : MonoBehaviour
         // 否则移动平台或力场造成的实际升降会与画面方向不一致。
         float activeVerticalSpeed = playerPhysicsData.verticalSpeed;
         float totalVerticalSpeed = activeVerticalSpeed + playerPhysicsData.phyVSpeed;
-        // 着地会把负的主动竖直速度归零，同样表现为数值上升，但它不是跳跃。
-        // 因此只有“主动速度离散增大且结果为正”才是 CharacterPhysics 消费 jump/wallJump 后的触发边沿。
-        bool receivedJumpImpulse = hasVerticalSpeedSample
-            && activeVerticalSpeed > VerticalSpeedDeadZone
-            && activeVerticalSpeed > previousActiveVerticalSpeed + JumpImpulseEpsilon;
+        // 跳跃起手只消费动作序号；平台、水流和箱子顶起只影响真实升降循环。
+        bool receivedJumpImpulse = playerPhysicsData.jumpSequence != previousJumpSequence;
 
         MotionMode motionMode = ResolveMotionMode();
         bool justLanded = motionMode == MotionMode.Ground
@@ -210,7 +207,7 @@ public class PresentationLayer : MonoBehaviour
 
         previousMotionMode = motionMode;
         previousActiveVerticalSpeed = activeVerticalSpeed;
-        hasVerticalSpeedSample = true;
+        previousJumpSequence = playerPhysicsData.jumpSequence;
     }
 
     /// <summary>只显示逻辑层给出的本次按键目标；文字配颜色区分可操作、已选中与受阻，不只依赖颜色。</summary>
@@ -290,7 +287,7 @@ public class PresentationLayer : MonoBehaviour
     {
         activeTrigger = TriggerAction.None;
         ResetAirState();
-        hasVerticalSpeedSample = false;
+        previousJumpSequence = playerPhysicsData.jumpSequence;
         previousMotionMode = ResolveMotionMode();
         previousActiveVerticalSpeed = playerPhysicsData.verticalSpeed;
     }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -8,7 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-/// <summary>由现有 Play Mode 批处理调用，覆盖 V_7 请求分量及真实水面游泳；不保存场景。</summary>
+/// <summary>由现有 Play Mode 批处理调用，覆盖真实水面游泳及输入、刷新生命周期；不保存场景。</summary>
 public static class PlayerSurfaceSwimmingChecks
 {
     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -28,7 +28,6 @@ public static class PlayerSurfaceSwimmingChecks
         start = actor.GetComponent<Rigidbody2D>().position;
         try
         {
-            CheckMotionRequests();
             CheckSurfaceFacts();
             CheckSwimming();
             CheckJumping();
@@ -59,20 +58,7 @@ public static class PlayerSurfaceSwimmingChecks
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
-    public static void RunMotionForBatch()
-    {
-        if (!Application.isBatchMode || Application.isPlaying) throw new InvalidOperationException("Require a fresh batch editor.");
-        try
-        {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            passed.Clear(); CheckMotionRequests();
-            Directory.CreateDirectory(".utmp/EnvironmentValidation");
-            File.WriteAllLines(".utmp/EnvironmentValidation/v7-motion-checks.txt", passed);
-            Debug.Log("V7 motion requests: " + passed.Count + " checks passed.");
-            EditorApplication.Exit(0);
-        }
-        catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
-    }
+
 
     private static void Step(PlayerInputData input, int count = 1)
     {
@@ -437,34 +423,7 @@ public static class PlayerSurfaceSwimmingChecks
         throw new InvalidOperationException("Fixture requires a collision layer.");
     }
 
-    private static void CheckMotionRequests()
-    {
-        var floor = Solid("V7 floor", new Vector2(2000f, 1999.25f), new Vector2(10f, .5f));
-        var wall = Solid("V7 wall", new Vector2(2000.75f, 2000f), new Vector2(.5f, 10f));
-        try
-        {
-            Physics2D.SyncTransforms();
-            foreach (bool grounded in new[] { true, false })
-            foreach (float horizontal in new[] { 6f, 0f })
-            {
-                EntityMotionFrame frame = Build(new Vector2(horizontal, 2f), 0f, grounded, Vector2.up, Vector2.zero, true);
-                EntitySolutionResult result = Solve(frame, floor, true);
-                Near(result.requestedWorldDelta.y, .04f, "V7 真实墙面查询保留竖直水流，ground=" + grounded + ", x=" + horizontal);
-                Near(result.requestedWorldDelta.x, 0f, "V7 贴墙仍限制水平进入，ground=" + grounded + ", x=" + horizontal);
-            }
-            EntityMotionFrame carried = Build(new Vector2(6f, 2f), 0f, true, Vector2.up, new Vector2(0f, .02f), true);
-            Near(Solve(carried, floor, true).requestedWorldDelta.y, .06f,
-                "V7 池底贴墙时水流与平台 Y 各保留一次");
-            EntityMotionFrame slope = Build(new Vector2(6f, 3f), 3f, true, new Vector2(-.6f, .8f), new Vector2(.03f, .02f), false);
-            foreach (float ratio in new[] { 0f, .5f, 1f })
-            {
-                var result = Solve(slope, floor, false, slope.platformDelta.x + slope.motionDelta.x * ratio);
-                Near(result.requestedWorldDelta.y, .06f + .02f + slope.groundSlopeDeltaY * ratio,
-                    "普通坡面按水平保留率缩短，独立起跳和平台 Y 保留，ratio=" + ratio);
-            }
-        }
-        finally { Object.DestroyImmediate(floor.gameObject); Object.DestroyImmediate(wall.gameObject); }
-    }
+
 
     private static Collider2D Solid(string name, Vector2 center, Vector2 size)
     {
@@ -472,47 +431,9 @@ public static class PlayerSurfaceSwimmingChecks
         var collider = item.AddComponent<BoxCollider2D>(); collider.size = size; return collider;
     }
 
-    private static EntityMotionFrame Build(Vector2 velocity, float vertical, bool grounded, Vector2 normal, Vector2 platform, bool worldAxis)
-    {
-        var method = typeof(BasicEntity).GetMethod("BuildMotionFrame", BindingFlags.Static | BindingFlags.NonPublic);
-        object[] args = method.GetParameters().Length == 8
-            ? new object[] { null, velocity, vertical, grounded, normal, platform, .02f, worldAxis }
-            : new object[] { velocity, vertical, grounded, normal, platform, .02f, worldAxis };
-        return (EntityMotionFrame)method.Invoke(null, args);
-    }
 
-    private static EntitySolutionResult Solve(EntityMotionFrame frame, Collider2D floor, bool query,
-        float? allowedX = null)
-    {
-        Assembly runtime = typeof(BasicEntity).Assembly;
-        Type inputType = runtime.GetType("EntityEnvironmentSolveInput"), geometryType = runtime.GetType("PhyData.EntityCandidateGeometry");
-        Type solverType = runtime.GetType("CurrentEntityRequestSolver");
-        var bounds = new Bounds(new Vector3(2000f, 2000f), Vector3.one);
-        object input = Activator.CreateInstance(inputType, Hidden, null, new object[] {
-            bounds, null, (LayerMask)1, (LayerMask)1, 45f, floor, frame, null }, null);
-        object geometry = Activator.CreateInstance(geometryType, true);
-        geometryType.GetField("candidateCenter", Hidden).SetValue(geometry, (Vector2)bounds.center + frame.plannedWorldDelta);
-        geometryType.GetField("candidateDelta", Hidden).SetValue(geometry, query ? frame.plannedWorldDelta : Vector2.zero);
-        float lift = 1f + Mathf.Abs(frame.plannedWorldDelta.y) + .01f;
-        geometryType.GetField("downwardCastLift", Hidden).SetValue(geometry, lift);
-        var world = UnityPhysicsWorldAccess2D.Instance;
-        object solver = solverType.GetField("Instance", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
-        var result = new EntitySolutionResult { allowedHorizontalDelta = allowedX ?? frame.plannedWorldDelta.x };
-        if (query)
-        {
-            var filter = new ContactFilter2D { useTriggers = false }; filter.SetLayerMask(1);
-            var path = (List<RaycastHit2D>)geometryType.GetField("pathHits", Hidden).GetValue(geometry);
-            var down = (List<RaycastHit2D>)geometryType.GetField("downwardHits", Hidden).GetValue(geometry);
-            var overlaps = (List<Collider2D>)geometryType.GetField("endpointOverlaps", Hidden).GetValue(geometry);
-            world.BoxCast(bounds.center, bounds.size, 0f, frame.plannedWorldDelta.normalized, frame.plannedWorldDelta.magnitude, filter, path);
-            world.OverlapBox((Vector2)bounds.center + frame.plannedWorldDelta, bounds.size, 0f, filter, overlaps);
-            world.BoxCast((Vector2)bounds.center + frame.plannedWorldDelta + Vector2.up * lift, bounds.size, 0f, Vector2.down, lift + .05f, filter, down);
-            object[] resolve = { input, geometry, world, result }; solverType.GetMethod("ResolveCandidate").Invoke(solver, resolve);
-            result = (EntitySolutionResult)resolve[3];
-        }
-        object[] finalize = { input, geometry, result }; solverType.GetMethod("FinalizeRequest").Invoke(solver, finalize);
-        return (EntitySolutionResult)finalize[2];
-    }
+
+
 
     private static void Check(bool condition, string message)
     {

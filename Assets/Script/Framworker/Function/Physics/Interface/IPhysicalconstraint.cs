@@ -1,4 +1,4 @@
-﻿using PhyData;
+using PhyData;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -16,7 +16,7 @@ public interface IDynamicAddForce
 }
 
 /// <summary>
-/// 受力实体的效果写入口；来源关系由环境上下文管理，累计速度由实体数值状态持有。
+/// 受力实体的效果写入口；来源关系由环境上下文管理，实际运动由刚体持有。
 /// </summary>
 public interface IForceAction
 {
@@ -50,35 +50,27 @@ public interface IForceAction
     public void AddTimeSpeed(float time, float addSpeed);
 
     /// <summary>
-    /// 登记来源提供的初始动态力数据；同来源再次登记时沿用原参数和累计速度。
+    /// 登记来源提供的初始动态力数据；本步从刚体实际速度计算环境加速度。
     /// </summary>
     /// <param name="iD">动态力来源</param>
     /// <param name="force">初始数据</param>
     public void AddForce(IDynamicAddForce iD, ForceData force);
 
     /// <summary>
-    /// 新增或刷新来源的施力参数，保留该实体已累计的速度并恢复施加状态。
-    /// 接触解算器在相位 4 写入，新参数从下一帧相位 3 开始积分。
-    /// </summary>
-    /// <param name="source">动态力来源</param>
-    /// <param name="parameters">施力参数，不携带运行状态</param>
-    public void SetOrUpdateDynamicForce(IDynamicAddForce source, DynamicForceParameters parameters);
-
-    /// <summary>
-    /// 只改变已登记来源的施力大小，保留其余参数、类型和累计速度。
+    /// 只改变已登记来源的施力大小，保留其余参数和类型。
     /// </summary>
     /// <param name="iD">动态力来源</param>
     /// <param name="newForce">新的施力大小</param>
     public void ChangeForce(IDynamicAddForce iD, float newForce);
 
     /// <summary>
-    /// 切换已登记来源的受力类型，不清除累计速度。
+    /// 切换已登记来源的本步控制类型。
     /// </summary>
     /// <param name="iD">动态力来源</param>
     /// <param name="type">新的受力类型</param>
     public void ChangeType(IDynamicAddForce iD, E_PhyForceType type);
     /// <summary>
-    /// 来源退出控制，已累计速度进入渐隐阶段。
+    /// 来源退出控制，获得的真实惯性仍由刚体保留。
     /// </summary>
     /// <param name="iD">动态力来源</param>
     public void RemoveForce(IDynamicAddForce iD);

@@ -15,7 +15,7 @@ public static class LevelBoxContext
 
     /// <summary>
     /// 找本次交互的箱子：外部箱须侧面贴合（间隙不超过 outsideGap），收纳箱用较宽的 storedGap；站在箱顶或箱底不算。
-    /// 距离取非负的矩形边缘间隙，进入收纳矩形记 0；距离相同优先外部箱，再相同保持登记顺序。
+    /// 距离取非负的矩形边缘间隙。只要有未收纳且可推动的侧面箱子，就先选它；否则才选收纳箱。同类里间隙更小者优先。
     /// </summary>
     public static PhysicalBox FindInteractTarget(Bounds body, float outsideGap, float storedGap)
     {
@@ -30,12 +30,19 @@ public static class LevelBoxContext
             float maxGap = box.IsStored ? storedGap : outsideGap;
             if (!IsSideContact(body, box.InteractionBounds, maxGap, out float gap)) continue;
             gap = Mathf.Max(0f, gap);
-            bool closer = gap < bestGap || (gap == bestGap && best.IsStored && !box.IsStored);
-            if (!closer) continue;
+            if (!PreferCandidate(box, gap, best, bestGap)) continue;
             best = box;
             bestGap = gap;
         }
         return best;
+    }
+
+    static bool PreferCandidate(PhysicalBox box, float gap, PhysicalBox best, float bestGap)
+    {
+        if (best == null) return true;
+        // 实际逻辑：人在收纳矩形里时间隙会被记成 0，不能因此压过旁边能推的箱子。
+        if (box.IsStored != best.IsStored) return !box.IsStored;
+        return gap < bestGap;
     }
 
     /// <summary>返回与矩形重合的、除 self 外的第一只已收纳箱；仅接触边界不算重合，无重合为空。</summary>

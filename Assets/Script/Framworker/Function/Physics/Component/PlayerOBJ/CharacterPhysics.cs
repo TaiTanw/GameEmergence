@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -54,16 +54,56 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     [SerializeField, Tooltip("选中箱与玩家碰撞框水平间隙不超过此值才开始共同推拉，开发期参数")]
     private float pushPullEngageGap = 0.05f;
 
-    /// <summary>
-    /// 选中箱贴合玩家时，本步跟随玩家的水平位移；选中但尚未接触时不跟随，玩家先走到箱边，避免保持间隙的隔空推拉。
-    /// </summary>
-    internal override BasicEntity CommonHorizontalFollower
+    private SliderJoint2D pushPullJoint;
+
+    /// <summary>选中退出立即关闭约束；原生实际惯性不被清零。</summary>
+    internal void ReleasePushPull()
     {
-        get
+        if (pushPullJoint == null) return;
+        pushPullJoint.enabled = false;
+        pushPullJoint.connectedBody = null;
+    }
+
+    private void SynchronizePushPull()
+    {
+        PhysicalBox box = playActionData?.PushPullBox;
+        // 实际逻辑：正朝箱子推时水平改由附加速度负责，关节不能同时钉住这一轴。
+        bool closingOnBox = box != null && playerPhysicsData.horizontalSpeed
+            * (box.BodyBounds.center.x - BodyBounds.center.x) > 0.05f;
+        // 跳跃、落边、停用和非行走运动都解除，禁止把箱子吊在玩家身边。
+        if (jump || wallJump || closingOnBox || !IsMotionParticipating || playActionData.FourWay != FourWayMode.None
+            || box == null || !box.IsMotionParticipating || !box.IsSupported || !nowGemetry.isGrounded
+            || !IsEngagedWith(box))
         {
-            PhysicalBox box = playActionData?.PushPullBox;
-            return box != null && IsEngagedWith(box) ? box : null;
+            ReleasePushPull();
+            return;
         }
+        Rigidbody2D body = box.GetComponent<Rigidbody2D>();
+        if (pushPullJoint != null && pushPullJoint.enabled && pushPullJoint.connectedBody == body) return;
+        if (pushPullJoint == null) pushPullJoint = gameObject.AddComponent<SliderJoint2D>();
+        pushPullJoint.enabled = false;
+        pushPullJoint.autoConfigureAngle = false;
+        pushPullJoint.angle = 90f;
+        pushPullJoint.autoConfigureConnectedAnchor = false;
+        pushPullJoint.connectedBody = body;
+        pushPullJoint.anchor = Vector2.zero;
+        // Joint 锚点使用局部坐标；用刚体位置差换算旋转/缩放，避开显示插值的平移滞后。
+        // 两锚点初始世界 X 相同；竖直滑动自由，不把两刚体中心拉到一起。
+        pushPullJoint.connectedAnchor = body.transform.InverseTransformVector(rb.position - body.position);
+        pushPullJoint.useMotor = false;
+        pushPullJoint.useLimits = false;
+        pushPullJoint.enableCollision = true;
+        pushPullJoint.enabled = true;
+    }
+
+    protected override void OnMotionSuspended() => ReleasePushPull();
+
+    internal override bool HoldsHorizontalLock(BasicEntity other)
+    {
+        // 安全：关节未连上或对方无效时没有水平锁。
+        if (other == null || pushPullJoint == null || !pushPullJoint.enabled) return false;
+        // 实际逻辑：仍连着这只箱子时，水平贴合由关节负责。
+        return other.HasBody(pushPullJoint.connectedBody);
     }
 
     /// <summary>与箱子是否已贴合到可共同推拉的距离。</summary>
@@ -86,6 +126,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     {
         base.OnMotionRefresh(relocated);
         ClearPendingActions();
+        ReleasePushPull();
     }
 
     #region 瞬时触发事件
@@ -130,7 +171,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
         if (playActionData == null) return false;
         // 实际逻辑：负向超过一半才算按下。侧面和普通地面不放开。
         return playActionData.verticalInput < -0.5f
-            && EntityCandidateGeometry.IsSolidOneWayTop(support, normal);
+            && IsSolidOneWayTop(support, normal);
     }
 
     protected override float HorizontalSpeedCalculation()
@@ -144,13 +185,15 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
 
     protected override void PhyEventUpdate()
     {
+        SynchronizePushPull();
         // 四向行为不叠普通跳跃或墙跳；仅清待消费操作，不清环境累计速度。
         if (playActionData != null && playActionData.FourWay != FourWayMode.None)
         {
             ClearPendingActions();
             return;
         }
-        //playActionData.onMove=1;
+        // 真正消费动作时才递增，碰撞顶起不触发跳跃起手。
+        if (jump || wallJump) playerPhysicsData.jumpSequence++;
         //普通跳跃
         if (jump)
         {

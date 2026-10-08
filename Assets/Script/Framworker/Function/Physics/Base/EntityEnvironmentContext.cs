@@ -47,7 +47,7 @@ public sealed class EntityEnvironmentContext
     public EntityWaterFrame WaterFrame { get; private set; }
 
 #if UNITY_EDITOR
-    /// <summary>[EditorOnly] 绑定来源数，不包含已退出、仍在实体中衰减的动态速度。</summary>
+    /// <summary>[EditorOnly] 当前有效的环境来源数，不另存已退出接触力。</summary>
     public int DebugSourceCount => bindings.Count;
 #endif
 
@@ -113,7 +113,7 @@ public sealed class EntityEnvironmentContext
         // 按登记凭据撤销，而不是重新询问来源当前有什么能力。
         if (binding.hasMovement) receiver.StatePowerCancellation(source);
         if (binding.hasStateVelocity) receiver.RemoveSpeedStatus(source);
-        // RemoveForce 只停止控制并切到 fadeAway；取得的速度仍归实体，不在这里清零。
+        // RemoveForce 只撤销环境控制；取得的真实惯性仍在刚体中，不在这里清零。
         if (binding.dynamicForce != null) receiver.RemoveForce(binding.dynamicForce);
     }
 

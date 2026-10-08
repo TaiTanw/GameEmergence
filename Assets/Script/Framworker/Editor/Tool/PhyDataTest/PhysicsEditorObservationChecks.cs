@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -79,6 +79,7 @@ public static class PhysicsEditorObservationChecks
     {
         MonoPublicMgr.IsQuitting = false;
         MonoPublicMgr manager = MonoPublicMgr.Instance;
+        manager.Init();
         manager.enabled = false; // 精确推进真实 FixedUpdate，避免等待期间额外产生物理帧。
         Check(manager.actionsLen.Length == 7, "逻辑数组仍为七槽");
         Check(PhysicsEditorObservationBridge.FixedTick == 0, "重进播放重置帧号");
@@ -120,9 +121,11 @@ public static class PhysicsEditorObservationChecks
             for (int i = 0; i < 7; i++) manager.RemovePhysicalTimingUpdate(callbacks[i], i);
         }
 
-        PhysicsSolverMgr.Instance.Init();
-        var item = new GameObject("F8 receiver");
-        item.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+        var item = new GameObject("K11 observation receiver");
+        Rigidbody2D rigidbody = item.AddComponent<Rigidbody2D>();
+        rigidbody.bodyType = RigidbodyType2D.Dynamic;
+        rigidbody.position = new Vector2(1000, 1000);
+        rigidbody.freezeRotation = true;
         item.AddComponent<BoxCollider2D>();
         var body = item.AddComponent<PhysicsObservationCheckBody>();
         PhysicsEditorEntityObservation.StartObserving();
@@ -131,63 +134,61 @@ public static class PhysicsEditorObservationChecks
         PhysicsEditorContactObservation.StartObserving();
         try
         {
+            Vector2 origin = rigidbody.position;
             Tick(manager);
             EntityPhysicsDebugSnapshot first = PhysicsEditorEntityObservation.GetSnapshot(body);
-            Check(first.phase == 5 && first.fixedTick == PhysicsEditorObservationBridge.FixedTick, "实体发布当前物理帧相位五快照");
-            Check(first.plannedWorldDelta == new Vector2(2, 0) * Time.fixedDeltaTime, "运动事实与运行时公式一致");
-            Check(first.requestedDelta == first.plannedWorldDelta, "无阻挡提交与基础位移一致");
-            body.GetComponent<Rigidbody2D>().position = first.requestedTarget + Vector2.up;
-            Tick(manager);
-            Check(PhysicsEditorEntityObservation.GetSnapshot(body).engineCorrection == Vector2.up, "下一帧实际位置对应上一请求");
+            Check(first.phase == 5 && first.fixedTick == PhysicsEditorObservationBridge.FixedTick, "相位五读取当前物理帧实际快照");
+            Check(Mathf.Abs(first.actualPosition.x - origin.x - 2f * Time.fixedDeltaTime) < .0001f,
+                $"一个真实调度物理步只推进一次 Unity 模拟 [origin={origin}, actual={first.actualPosition}, velocity={rigidbody.velocity}, dt={Time.fixedDeltaTime}, mode={Physics2D.simulationMode}, participating={body.IsMotionParticipating}]");
+            Check(first.actualPosition == rigidbody.position && first.planarVelocity == rigidbody.velocity,
+                "观测速度和位置与实际刚体一致");
             PhysicsEditorEntityObservation.StopObserving();
             PhysicsEditorContactObservation.StopObserving();
             Tick(manager);
-            Check(PhysicsEditorEntityObservation.GetSnapshot(body).fixedTick == PhysicsEditorObservationBridge.FixedTick, "一个消费者退出不停止其他消费者");
-
-            ReportPair(body);
-            Check(PhysicsEditorContactObservation.Contacts.Count == 0, "接触批次完成前不提前发布");
-            PhysicsEditorObservationBridge.CompletePhysicsPhase(4);
-            Check(PhysicsEditorContactObservation.Contacts.Count == 1, "接触批次只采集一次，无重复订阅");
-            Check(PhysicsEditorContactObservation.PublishedFixedTick == PhysicsEditorObservationBridge.FixedTick, "接触批次携带帧号");
+            Check(PhysicsEditorEntityObservation.GetSnapshot(body).fixedTick == PhysicsEditorObservationBridge.FixedTick,
+                "一个消费者退出不停止其他消费者");
             body.enabled = false;
-            Check(PhysicsEditorContactObservation.Contacts.Count == 0, "禁用实体立即移除已发布接触");
-            Check(PhysicsEditorEntityObservation.GetSnapshot(body).phase == -2, "禁用实体立即失去旧样本");
+            Check(PhysicsEditorEntityObservation.GetSnapshot(body).phase == -2, "禁用实体立即移除旧样本");
             body.enabled = true;
             Tick(manager);
-            Check(PhysicsEditorEntityObservation.GetSnapshot(body).engineCorrection == Vector2.zero, "重新启用不继承上次生命周期请求");
-            Check(PhysicsEditorContactObservation.Contacts.Count == 0, "空接触帧清除旧批次");
+            Check(PhysicsEditorEntityObservation.GetSnapshot(body).phase == 5, "重新启用恢复实际样本");
 
             PhysicsEditorEntityObservation.StopObserving();
             PhysicsEditorContactObservation.StopObserving();
-            Vector2 off = CaptureRequest(manager, body);
+            origin = rigidbody.position; Tick(manager); Vector2 off = rigidbody.position - origin;
             PhysicsEditorEntityObservation.StartObserving();
             PhysicsEditorContactObservation.StartObserving();
-            Vector2 on = CaptureRequest(manager, body);
-            Check(off == on, "观测开关不改变物理请求位移");
+            origin = rigidbody.position; Tick(manager); Vector2 on = rigidbody.position - origin;
+            Check((off - on).sqrMagnitude < .00000001f, "观测开关不改变实际位移");
             var window = ScriptableObject.CreateInstance<PlayerDataWindow>();
             Object.DestroyImmediate(window);
             Tick(manager);
-            Check(PhysicsEditorEntityObservation.GetSnapshot(body).phase == 5, "窗口开关不破坏已有观测消费者");
-            var otherItem = new GameObject("F8 contact receiver");
+            Check(PhysicsEditorEntityObservation.GetSnapshot(body).phase == 5, "窗口开关不破坏已有消费者");
+            var otherItem = new GameObject("K11 native contact receiver");
             try
             {
-                otherItem.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+                Rigidbody2D otherBody = otherItem.AddComponent<Rigidbody2D>();
+                otherBody.bodyType = RigidbodyType2D.Dynamic;
+                otherBody.freezeRotation = true;
+                otherBody.position = rigidbody.position + Vector2.right * .98f;
                 otherItem.AddComponent<BoxCollider2D>();
                 var other = otherItem.AddComponent<PhysicsObservationCheckBody>();
-                other.GetComponent<Rigidbody2D>().position = body.DebugActualPosition + Vector2.right * .75f;
                 Physics2D.SyncTransforms();
-                Tick(manager);
-                Check(PhysicsEditorContactObservation.Contacts.Count == 1, "实际预测与接触解算产生单个观测记录");
-                Check(PhysicsEditorEntityObservation.GetSnapshot(body).solverOffset != Vector2.zero,
-                    "实际接触纠偏进入实体提交观测");
+                for (int i = 0; i < 5; i++) Tick(manager);
+                bool found = false;
+                foreach (var pair in PhysicsEditorContactObservation.Contacts)
+                    found |= (pair.entityA == body && pair.entityB == other) || (pair.entityA == other && pair.entityB == body);
+                Check(found, "实际 Unity 碰撞产生接触观测");
+                Check(PhysicsEditorContactObservation.PublishedFixedTick == PhysicsEditorObservationBridge.FixedTick,
+                    "真实接触携带当前物理帧号");
                 other.enabled = false;
-                Check(PhysicsEditorContactObservation.Contacts.Count == 0, "实际接触对象禁用后清理批次");
+                Check(PhysicsEditorContactObservation.Contacts.Count == 0, "禁用接触实体即时移除接触样本");
             }
             finally { Object.DestroyImmediate(otherItem); }
-            ReportPair(body);
-            PhysicsEditorObservationBridge.CompletePhysicsPhase(4);
+            Tick(manager);
+            Check(PhysicsEditorContactObservation.Contacts.Count == 0, "空接触帧没有上一步残留");
             Object.DestroyImmediate(item);
-            Check(PhysicsEditorContactObservation.Contacts.Count == 0, "销毁实体即时清理接触记录");
+            Check(PhysicsEditorEntityObservation.GetSnapshot(body).phase != 5, "销毁实体不再提供旧样本");
         }
         finally
         {
@@ -199,19 +200,6 @@ public static class PhysicsEditorObservationChecks
         }
     }
 
-    private static Vector2 CaptureRequest(MonoPublicMgr manager, BasicEntity entity)
-    {
-        Vector2 result = default;
-        PhysicsEditorObservationBridge.MovementRequestedObserver capture = (body, offset, before, delta, target, clamped) => { if (body == entity) result = delta; };
-        PhysicsEditorObservationBridge.MovementRequested += capture;
-        try { Tick(manager); }
-        finally { PhysicsEditorObservationBridge.MovementRequested -= capture; }
-        return result;
-    }
-
-    private static void ReportPair(BasicEntity body) => PhysicsEditorObservationBridge.ReportContactPair(
-        body, body, Vector2.zero, Vector2.right, Vector2.left, true, .1f, .098f, 2,
-        true, false, 1, 0, .5f, .5f, Vector2.left, Vector2.right);
     private static void Tick(MonoPublicMgr manager) => fixedUpdate.Invoke(manager, null);
     private static void Check(bool condition, string message)
     {
@@ -230,7 +218,7 @@ public static class PhysicsEditorObservationChecks
     }
 }
 
-// 保留真实实体调度、速度计算、预测及提交，仅以固定意图替代角色输入和场景探针。
+// 保留真实实体调度和 Unity 模拟，仅以固定意图替代角色输入和场景探针。
 public sealed class PhysicsObservationCheckBody : BasicEntity
 {
     protected override void Awake()
@@ -243,6 +231,7 @@ public sealed class PhysicsObservationCheckBody : BasicEntity
         playerPhysicsData = new PhyData.PlayerPhysicsData();
         nowGemetry = new PhyData.GeometryPhysicsData();
     }
+    protected override bool HasHorizontalDrive => true;
     protected override void GeometricQuery() { }
     protected override void HActiveSpeedOperation() => playerPhysicsData.horizontalSpeed = 2;
 }

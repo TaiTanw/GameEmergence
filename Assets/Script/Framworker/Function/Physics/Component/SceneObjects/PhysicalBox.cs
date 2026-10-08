@@ -1,4 +1,4 @@
-﻿using PhyData;
+using PhyData;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,10 +10,13 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
     public bool IsElectrified => electrified;
 
     [SerializeField, Tooltip("收纳时显示色乘数")] private float storedTint = .45f;
+    const float StoredBehindZ = 0.05f;
     private const float RestoreClearance = .02f; // 拉出校验每边内缩，避免贴地或贴邻接触误判为阻挡
     private static readonly List<Collider2D> restoreHits = new List<Collider2D>();
     private bool stored;
     private Bounds storedBounds;
+    private float storedLocalZ;
+    private bool storedDepthRecorded;
     private SpriteRenderer[] renderers;
     private Color[] baseColors;
 
@@ -100,11 +103,10 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         }
         storedBounds = BodyBounds;
         stored = true;
-        // 实际逻辑：关闭碰撞器即退出自研与原生运动；再清该箱实体接触，不留推力尾效。
+        // 实际逻辑：关闭碰撞器并退出原生模拟，停止参与推拉和接触。
         boxCollider.enabled = false;
         SynchronizeMotionParticipation();
-        PhysicsSolverMgr.Instance.ForgetEntityContacts(this);
-        SetStoredTint(true);
+        SetStoredAppearance(true);
         return true;
     }
 
@@ -128,20 +130,16 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
     private void ExitStored()
     {
         stored = false;
-        // 实际逻辑：先启用碰撞器，再同步参与，恢复双端运动。
+        // 实际逻辑：先启用碰撞器，再恢复原生模拟参与。
         boxCollider.enabled = true;
         SynchronizeMotionParticipation();
-        SetStoredTint(false);
+        SetStoredAppearance(false);
     }
 
-    private void SetStoredTint(bool dim)
+    private void SetStoredAppearance(bool dim)
     {
-        if (renderers == null)
-        {
-            renderers = GetComponentsInChildren<SpriteRenderer>(true);
-            baseColors = new Color[renderers.Length];
-            for (int i = 0; i < renderers.Length; i++) baseColors[i] = renderers[i].color;
-        }
+        CacheRenderers();
+        SetStoredDepth(dim);
         for (int i = 0; i < renderers.Length; i++)
         {
             // 安全：运行中被移除的表现子节点。
@@ -151,19 +149,50 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         }
     }
 
+    private void CacheRenderers()
+    {
+        if (renderers != null) return;
+        renderers = GetComponentsInChildren<SpriteRenderer>(true);
+        baseColors = new Color[renderers.Length];
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            // 安全：子节点上的渲染器可能为空。
+            if (renderers[i] == null) continue;
+            baseColors[i] = renderers[i].color;
+        }
+    }
+
+    private void SetStoredDepth(bool behind)
+    {
+        // 实际逻辑：序号与背景墙相同，只把 Z 稍稍后移，才能落在墙前、未收纳箱子后。
+        if (behind)
+        {
+            if (!storedDepthRecorded)
+            {
+                storedLocalZ = transform.localPosition.z;
+                storedDepthRecorded = true;
+            }
+            Vector3 pose = transform.localPosition;
+            pose.z = storedLocalZ + StoredBehindZ;
+            transform.localPosition = pose;
+            return;
+        }
+        if (!storedDepthRecorded) return;
+        Vector3 restored = transform.localPosition;
+        restored.z = storedLocalZ;
+        transform.localPosition = restored;
+    }
+
     protected override void Awake()
     {
         base.Awake();
-        // 当前推箱解算只处理平移。冻结物理根节点旋转；表现子节点仍可独立旋转。
-        rb.freezeRotation = true;
-        rb.angularVelocity = 0f;
         defaultPosition = rb.position;
     }
 
     private Vector2 defaultPosition;
 
     /// <summary>
-    /// 规则侧显式恢复默认：退出收纳、回到首次 Awake 记录的位置，清运动与实体接触并重新采样。
+    /// 规则侧显式恢复默认：退出收纳、回到首次 Awake 记录的位置，清运动并重新采样。
     /// 不做阻挡校验；调用时机由关卡刷新规则决定。暂停、再次启用都不改默认记录。
     /// </summary>
     public void RestoreDefault()
@@ -190,10 +219,10 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         float a = Vector2.SignedAngle(Vector2.up, transform.up);
         ContactFilter2D contactFilter = new ContactFilter2D { useTriggers = false };
         contactFilter.SetLayerMask(cPhysics.groundLayer);
-        RaycastHit2D hit = FindGroundHit(groundV.position, cPhysics.boxCastH, a,
+        RaycastHit2D hit = FindGroundHit(ProbePosition(groundV), cPhysics.boxCastH, a,
             -transform.up, contactFilter);
         // 顶头与脚下同属接触查询，沿用同一层掩码和 Trigger 过滤。
-        RaycastHit2D topHit = PhysicsWorld.BoxCast(upV.position, cPhysics.boxCastH, a,
+        RaycastHit2D topHit = PhysicsWorld.BoxCast(ProbePosition(upV), cPhysics.boxCastH, a,
             transform.up, 0f, contactFilter);
         nowGemetry.istop = topHit.collider != null;
         //缓存真实命中法线；斜坡位移与着地判定必须使用表面信息
@@ -214,9 +243,9 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         nowGemetry.groundCollider = onGroundNow ? hit.collider : null;
         // 左右墙只记几何接触。箱体没有贴墙下滑，不把侧面来源送进持续效果登记。
         contactFilter.SetLayerMask(cPhysics.wallLayer);
-        RaycastHit2D hit1 = PhysicsWorld.BoxCast(leftV.position, cPhysics.boxCastV, a,
+        RaycastHit2D hit1 = PhysicsWorld.BoxCast(ProbePosition(leftV), cPhysics.boxCastV, a,
             -transform.right, 0f, contactFilter);
-        RaycastHit2D hit2 = PhysicsWorld.BoxCast(rightV.position, cPhysics.boxCastV, a,
+        RaycastHit2D hit2 = PhysicsWorld.BoxCast(ProbePosition(rightV), cPhysics.boxCastV, a,
             transform.right, 0f, contactFilter);
         nowGemetry.onLeftWall = false;
         nowGemetry.leftWallCollider = null;

@@ -2072,7 +2072,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 356494c744af6a649a7128a9df30c5af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  slowingEffect: 5
+  slowingEffect: 0.3
   jumpHeightNum: 0
 --- !u!1001 &1637417383982581336
 PrefabInstance:

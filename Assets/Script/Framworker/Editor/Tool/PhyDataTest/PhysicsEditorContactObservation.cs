@@ -1,203 +1,97 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using PhyData;
 
-/// <summary>
-/// 收集一帧预测接触对的编辑器展示数据，并在相位 4 完成后发布完整批次。
-/// 职能：接触观测快照组装与批次生命周期，不参与物理解算。
-/// </summary>
+/// <summary>相位 4 原生模拟结束后查询真实接触；没有预测接触、传力批次或纠偏数据。</summary>
 [InitializeOnLoad]
 public static class PhysicsEditorContactObservation
 {
-    private static List<ContactPairDebugSnapshot> collectingContacts = new List<ContactPairDebugSnapshot>();
-    private static List<ContactPairDebugSnapshot> publishedContacts = new List<ContactPairDebugSnapshot>();
+    private static readonly List<ContactPairDebugSnapshot> contacts = new List<ContactPairDebugSnapshot>();
+    private static readonly ContactPoint2D[] buffer = new ContactPoint2D[128];
     private static int observerCount;
-    private static bool bridgeSubscribed;
+    public static IReadOnlyList<ContactPairDebugSnapshot> Contacts => contacts;
+    public static int PublishedFixedTick { get; private set; } = -1;
 
     static PhysicsEditorContactObservation()
     {
-        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        EditorApplication.playModeStateChanged += state =>
+        {
+            if (state == PlayModeStateChange.ExitingPlayMode || state == PlayModeStateChange.EnteredEditMode) Clear();
+        };
         AssemblyReloadEvents.beforeAssemblyReload += StopAllObservers;
     }
 
-    public static IReadOnlyList<ContactPairDebugSnapshot> Contacts => publishedContacts;
-    public static int PublishedFixedTick { get; private set; } = -1;
-
     public static void StartObserving()
     {
-        observerCount++;
-        if (observerCount != 1) return;
-
-        PhysicsEditorObservation.PhysicsFrameStarted += OnPhysicsFrameStarted;
-        PhysicsEditorObservation.PhysicsPhaseCompleted += OnPhysicsPhaseCompleted;
-        if (Application.isPlaying)
-            StartBridgeObservation();
+        if (++observerCount != 1) return;
+        PhysicsEditorObservation.PhysicsPhaseCompleted += SamplePhase;
+        PhysicsEditorObservationBridge.EntityDisabled += Remove;
     }
 
     public static void StopObserving()
     {
-        if (observerCount == 0) return;
-        observerCount--;
-        if (observerCount != 0) return;
-
-        PhysicsEditorObservation.PhysicsFrameStarted -= OnPhysicsFrameStarted;
-        PhysicsEditorObservation.PhysicsPhaseCompleted -= OnPhysicsPhaseCompleted;
-        StopBridgeObservation();
-        ClearContacts();
-    }
-
-    private static void OnPlayModeStateChanged(PlayModeStateChange state)
-    {
-        if (observerCount == 0) return;
-        if (state == PlayModeStateChange.EnteredPlayMode)
-        {
-            ClearContacts();
-            StartBridgeObservation();
-        }
-        else if (state == PlayModeStateChange.ExitingPlayMode || state == PlayModeStateChange.EnteredEditMode)
-        {
-            StopBridgeObservation();
-            ClearContacts();
-        }
-    }
-
-    private static void StartBridgeObservation()
-    {
-        if (bridgeSubscribed || observerCount == 0 || !Application.isPlaying) return;
-
-        PhysicsEditorObservationBridge.ContactPairReported += RecordContactPair;
-        PhysicsEditorObservationBridge.EntityDisabled += RemoveEntityContacts;
-        bridgeSubscribed = true;
-    }
-
-    private static void StopBridgeObservation()
-    {
-        if (!bridgeSubscribed) return;
-
-        PhysicsEditorObservationBridge.ContactPairReported -= RecordContactPair;
-        PhysicsEditorObservationBridge.EntityDisabled -= RemoveEntityContacts;
-        bridgeSubscribed = false;
+        if (observerCount == 0 || --observerCount != 0) return;
+        PhysicsEditorObservation.PhysicsPhaseCompleted -= SamplePhase;
+        PhysicsEditorObservationBridge.EntityDisabled -= Remove;
+        Clear();
     }
 
     private static void StopAllObservers()
     {
         if (observerCount > 0)
         {
-            PhysicsEditorObservation.PhysicsFrameStarted -= OnPhysicsFrameStarted;
-            PhysicsEditorObservation.PhysicsPhaseCompleted -= OnPhysicsPhaseCompleted;
+            PhysicsEditorObservation.PhysicsPhaseCompleted -= SamplePhase;
+            PhysicsEditorObservationBridge.EntityDisabled -= Remove;
         }
         observerCount = 0;
-        StopBridgeObservation();
-        ClearContacts();
+        Clear();
     }
 
-    private static void OnPhysicsFrameStarted(int fixedTick)
-    {
-        // Drop only an incomplete batch; the last fully published batch stays visible until phase 4.
-        collectingContacts.Clear();
-    }
+    private static void Remove(BasicEntity entity) => contacts.RemoveAll(pair => ReferenceEquals(pair.entityA, entity) || ReferenceEquals(pair.entityB, entity));
 
-    private static void OnPhysicsPhaseCompleted(int fixedTick, int phase)
+    private static void SamplePhase(int tick, int phase)
     {
         if (phase != 4) return;
-
-        List<ContactPairDebugSnapshot> oldPublished = publishedContacts;
-        publishedContacts = collectingContacts;
-        collectingContacts = oldPublished;
-        collectingContacts.Clear();
-        PublishedFixedTick = fixedTick;
-    }
-
-    private static void RemoveEntityContacts(BasicEntity entity)
-    {
-        RemoveEntityContacts(collectingContacts, entity);
-        RemoveEntityContacts(publishedContacts, entity);
-    }
-
-    private static void RemoveEntityContacts(List<ContactPairDebugSnapshot> contacts, BasicEntity entity)
-    {
-        for (int i = contacts.Count - 1; i >= 0; i--)
-            if (ReferenceEquals(contacts[i].entityA, entity) || ReferenceEquals(contacts[i].entityB, entity))
-                contacts.RemoveAt(i);
-    }
-
-    private static void RecordContactPair(
-        BasicEntity entityA,
-        BasicEntity entityB,
-        Vector2 predictedCenterA,
-        Vector2 predictedCenterB,
-        Vector2 centerDelta,
-        bool separateOnX,
-        float depth,
-        float correctionDepth,
-        float closingSpeed,
-        bool aAppliedForce,
-        bool bAppliedForce,
-        float targetSpeedAToB,
-        float targetSpeedBToA,
-        float weightA,
-        float weightB,
-        Vector2 offsetA,
-        Vector2 offsetB)
-    {
-        Vector2 normalA = separateOnX
-            ? new Vector2(centerDelta.x >= 0f ? 1f : -1f, 0f)
-            : new Vector2(0f, centerDelta.y >= 0f ? 1f : -1f);
-
-        collectingContacts.Add(new ContactPairDebugSnapshot
+        contacts.Clear();
+        var pairs = new HashSet<ulong>();
+        foreach (BasicEntity entity in Object.FindObjectsOfType<BasicEntity>())
         {
-            entityA = entityA,
-            entityB = entityB,
-            predictedCenterA = predictedCenterA,
-            predictedCenterB = predictedCenterB,
-            separateOnX = separateOnX,
-            normalA = normalA,
-            depth = depth,
-            correctionDepth = correctionDepth,
-            closingSpeed = closingSpeed,
-            aAppliedForce = aAppliedForce,
-            bAppliedForce = bAppliedForce,
-            targetSpeedAToB = targetSpeedAToB,
-            targetSpeedBToA = targetSpeedBToA,
-            weightA = weightA,
-            weightB = weightB,
-            offsetA = offsetA,
-            offsetB = offsetB
-        });
+            if (!entity.isActiveAndEnabled) continue;
+            Rigidbody2D body = entity.GetComponent<Rigidbody2D>();
+            if (body == null || !body.simulated) continue;
+            int count = body.GetContacts(buffer);
+            for (int i = 0; i < count; i++)
+            {
+                ContactPoint2D point = buffer[i];
+                if (point.collider == null || point.otherCollider == null) continue;
+                uint a = unchecked((uint)point.collider.GetInstanceID()), b = unchecked((uint)point.otherCollider.GetInstanceID());
+                ulong key = a < b ? ((ulong)a << 32) | b : ((ulong)b << 32) | a;
+                if (!pairs.Add(key)) continue;
+                contacts.Add(new ContactPairDebugSnapshot
+                {
+                    entityA = point.collider.GetComponentInParent<BasicEntity>(), entityB = point.otherCollider.GetComponentInParent<BasicEntity>(),
+                    colliderA = point.collider, colliderB = point.otherCollider,
+                    position = point.point, normal = point.normal, separation = point.separation,
+                    normalImpulse = point.normalImpulse
+                });
+            }
+        }
+        PublishedFixedTick = tick;
     }
 
-    private static void ClearContacts()
-    {
-        collectingContacts.Clear();
-        publishedContacts.Clear();
-        PublishedFixedTick = -1;
-    }
+    private static void Clear() { contacts.Clear(); PublishedFixedTick = -1; }
 }
 
-/// <summary>仅供编辑器窗口展示的预测接触对快照。</summary>
 namespace PhyData
 {
     public struct ContactPairDebugSnapshot
     {
-        public BasicEntity entityA;
-        public BasicEntity entityB;
-        public Vector2 predictedCenterA;
-        public Vector2 predictedCenterB;
-        public bool separateOnX;
-        public Vector2 normalA;
-        public float depth;
-        public float correctionDepth;
-        public float closingSpeed;
-        public bool aAppliedForce;
-        public bool bAppliedForce;
-        public float targetSpeedAToB;
-        public float targetSpeedBToA;
-        public float weightA;
-        public float weightB;
-        public Vector2 offsetA;
-        public Vector2 offsetB;
+        public BasicEntity entityA, entityB;
+        public Collider2D colliderA, colliderB;
+        public Vector2 position, normal;
+        public float separation, normalImpulse;
     }
 }
 #endif

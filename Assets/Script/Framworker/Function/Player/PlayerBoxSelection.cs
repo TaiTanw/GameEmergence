@@ -54,5 +54,9 @@ public sealed class PlayerBoxSelection
         }
     }
 
-    public void Release() => Selected = null;
+    public void Release()
+    {
+        Selected = null;
+        owner.ReleasePushPullConstraint();
+    }
 }

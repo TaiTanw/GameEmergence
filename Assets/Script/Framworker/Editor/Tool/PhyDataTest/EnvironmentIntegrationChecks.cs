@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -41,17 +41,13 @@ public static class EnvironmentIntegrationChecks
             if ((MonoPublicMgr)previousScheduler == null)
                 schedulerField.SetValue(null, NewObject("validation scheduler", Vector3.zero).AddComponent<MonoPublicMgr>());
             CheckGroundLifecycle();
-            CheckDynamicForceRefresh();
             CheckMotionParticipation();
-            CheckDiscardedPredictions();
             CheckMotionInitialization();
-            CheckImmediateContactCleanup();
             CheckRegions();
             CheckWaterRegions();
             CheckPlayerCapabilities();
             CheckPlayerControlSwitch();
             CheckFourWayBehavior();
-            CheckSwimmingExecution();
             CheckDeathRequestContracts();
             CheckOxygenResources();
             CheckPlayerRefresh();
@@ -67,8 +63,6 @@ public static class EnvironmentIntegrationChecks
             CheckTriggerContactFilter();
             CheckSlopeFootprintSupport();
             CheckSlopeSideSupport();
-            CheckIceSideContactFeedback();
-            CheckSlopeCeilingConstraint();
             CheckWallSlideBehavior();
             Directory.CreateDirectory(".utmp/EnvironmentValidation");
             File.WriteAllLines(".utmp/EnvironmentValidation/checks.txt", passed);
@@ -146,57 +140,6 @@ public static class EnvironmentIntegrationChecks
         Check(new ReadOnly_ActionData(movement).isFlying && !new ReadOnly_ActionData(movement).isSwimming, "飞行与游泳原因互斥");
         fsm.Update(input, FourWayMode.Swimming, false, true, 0f);
         Near(movement.onMove, 0f, "移动许可关闭不改变水事实但屏蔽操作");
-    }
-
-    private static void CheckSwimmingExecution()
-    {
-        Player player = PlayerActor("player20.prefab");
-        CharacterPhysics physics = player.GetComponent<CharacterPhysics>();
-        var fsm = (PlayerStateMachine)typeof(Player).GetField("fsm", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player);
-        var geometry = (GeometryPhysicsData)typeof(BasicEntity).GetField("nowGemetry", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics);
-        var speeds = (PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics);
-        var input = new PlayerInputData { moveInput = 1f, verticalInput = 1f, jumpPressed = true, sprintHeld = true };
-        MethodInfo horizontal = typeof(BasicEntity).GetMethod("HorizontalSpeedCalculation", BindingFlags.Instance | BindingFlags.NonPublic);
-        MethodInfo vertical = typeof(BasicEntity).GetMethod("VerticalSpeedCalculation", BindingFlags.Instance | BindingFlags.NonPublic);
-        MethodInfo build = typeof(BasicEntity).GetMethod("BuildMotionFrame", BindingFlags.Static | BindingFlags.NonPublic);
-        fsm.Update(input, FourWayMode.Swimming, true, true, 0f);
-        speeds.verticalSpeed = -100f;
-        typeof(CharacterPhysics).GetMethod("Jump", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(physics, null);
-        horizontal.Invoke(physics, null);
-        vertical.Invoke(physics, null);
-        Near(new Vector2(speeds.horizontalSpeed, speeds.verticalSpeed).magnitude, 6f, "游泳主动速度双轴一致且斜向不加速");
-        Check(!(bool)typeof(CharacterPhysics).GetField("jump", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(physics), "游泳物理消费前清待执行跳跃");
-        WaterWithEffects water = Prefab<WaterWithEffects>("WaterPoolWithEffects.prefab", NextPosition());
-        typeof(WaterWithEffects).GetField("flowVelocity", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(water, new Vector2(2f, 3f));
-        Physics2D.SyncTransforms();
-        physics.EnvironmentContext.RefreshEnvironment(null, new List<Collider2D> { water.GetComponent<Collider2D>() }, (Vector2)water.transform.position);
-        horizontal.Invoke(physics, null);
-        vertical.Invoke(physics, null);
-        Near(new Vector2(speeds.horizontalSpeed, speeds.verticalSpeed).magnitude, 4.5f, "水移速修饰同时作用两轴主动速度");
-        Near(speeds.phyHSpeed, 2f, "二维恒定水流沿原持续速度通道 X");
-        Near(speeds.phyVSpeed, 3f, "二维恒定水流沿原持续速度通道 Y");
-        EntityMotionFrame motion = (EntityMotionFrame)build.Invoke(null, new object[]
-            { physics, physics.GetPlanarVelocity(), speeds.verticalSpeed, true, Vector2.up, new Vector2(1f, 2f), .02f, true });
-        Near(motion.plannedWorldDelta.y, (speeds.verticalSpeed + 3f) * .02f + 2f, "池底四向运动保留竖直水流和一次平台携带");
-        fsm.Update(null, FourWayMode.Swimming, true, true, 0f);
-        horizontal.Invoke(physics, null);
-        vertical.Invoke(physics, null);
-        Near(speeds.horizontalSpeed, 0f, "零输入水平方向主动悬停");
-        Near(speeds.verticalSpeed, 0f, "零输入竖直方向主动悬停");
-        Check(speeds.phyHSpeed == 2f && speeds.phyVSpeed == 3f, "主动悬停不清水流");
-        physics.EnvironmentContext.RefreshEnvironment(null, new List<Collider2D>(), Vector2.zero);
-        input.moveInput = 0f;
-        input.verticalInput = 1f;
-        fsm.Update(input, FourWayMode.Swimming, true, true, 0f);
-        horizontal.Invoke(physics, null);
-        vertical.Invoke(physics, null);
-        float exitSpeed = speeds.verticalSpeed;
-        geometry.isGrounded = false;
-        fsm.Update(null, FourWayMode.None, true, true, 0f);
-        horizontal.Invoke(physics, null);
-        vertical.Invoke(physics, null);
-        Near(speeds.verticalSpeed, exitSpeed + physics.gravity * Time.fixedDeltaTime, "离水继承当前游泳竖直速度再受重力");
-        Near(speeds.phyVSpeed, 0f, "离开水后撤销该水源持续流速");
     }
 
     private sealed class RefreshOutcomeProbe : IPlayerRunRefreshRules
@@ -497,37 +440,22 @@ public static class EnvironmentIntegrationChecks
         Collider2D ground = ice.GetComponent<Collider2D>();
         EnvironmentCheckBody body = Body(position + Vector3.up * 3);
         body.RefreshSupport(ground);
-        Check(PhysicsEditorEntityObservation.GetSnapshot(body).environmentSourceCount == 1, "冰面登记一个来源");
-        Check(PhysicsEditorEntityObservation.GetSnapshot(body).movementModifierCount == 1 && PhysicsEditorEntityObservation.GetSnapshot(body).stateVelocityCount == 1 &&
-            PhysicsEditorEntityObservation.GetSnapshot(body).dynamicForceCount == 1, "冰面三类效果完整登记");
-        Near(body.Frame.slowingMultiplier, .5f, "保留冰面阻力倍率");
-        Near(body.Frame.jumpHeightOffset, -.5f, "保留冰面跳跃加成");
-        ForceData initial = body.Force(ice);
-        Near(initial.balanceSpeed, 15f, "冰面可移动实体初始化公式");
-        Near(initial.recoverySpeed, 5f, "冰面受控恢复参数");
-        body.RunForces();
-        Near(body.Force(ice).speedStacking, 15f * body.envImpact * Time.fixedDeltaTime, "实际实体按旧公式积分冰面施力");
+        Check(body.DebugEnvironmentSourceCount == 1 && body.DebugMovementModifierCount == 1
+            && body.DebugStateVelocityCount == 1 && body.DebugDynamicForceCount == 1, "冰面环境三类能力登记到同一来源");
+        Near(body.Frame.slowingMultiplier, .5f, "冰面保留阻力倍率");
+        Near(body.Frame.jumpHeightOffset, -.5f, "冰面保留跳跃加成");
         body.RefreshSupport(ground);
-        Near(body.Force(ice).speedStacking, 15f * Time.fixedDeltaTime, "重复支撑采样不重置累计速度");
-        body.Direction = 0;
-        body.RunForces();
-        Check(body.Force(ice).type == E_PhyForceType.controlRecovery, "松开输入进入受控恢复");
-        body.SetStack(ice, 4f);
+        Check(body.DebugEnvironmentSourceCount == 1 && body.DebugDynamicForceCount == 1, "重复支撑采样不重复登记来源");
+        Rigidbody2D rigidbody = body.GetComponent<Rigidbody2D>();
+        rigidbody.velocity = Vector2.right * 4f;
         body.RefreshSupport(null);
-        Check(PhysicsEditorEntityObservation.GetSnapshot(body).environmentSourceCount == 0 && PhysicsEditorEntityObservation.GetSnapshot(body).movementModifierCount == 0 &&
-            PhysicsEditorEntityObservation.GetSnapshot(body).stateVelocityCount == 0, "离地撤销绑定和持续状态");
-        Check(body.Force(ice).type == E_PhyForceType.fadeAway, "离地动态力进入消退");
-        Near(body.Force(ice).speedStacking, 4f, "退出保留已取得速度");
-        body.RunForces();
-        Check(body.Force(ice).speedStacking < 4f && body.Force(ice).speedStacking > 0, "尾效继续由实体阻力衰减");
-        float tail = body.Force(ice).speedStacking;
-        ice.Odex = 99;
+        Check(body.DebugEnvironmentSourceCount == 0 && body.DebugMovementModifierCount == 0
+            && body.DebugStateVelocityCount == 0 && body.DebugDynamicForceCount == 0, "离地撤销来源和环境力");
+        Check(rigidbody.velocity == Vector2.right * 4f, "撤销环境来源不抹除原生惯性");
         body.RefreshSupport(ground);
-        Near(body.Force(ice).speedStacking, tail, "重新进入保留尾效速度");
-        Near(body.Force(ice).recoverySpeed, initial.recoverySpeed, "重新进入沿用旧初始化参数规则");
-
+        Check(body.DebugEnvironmentSourceCount == 1, "重新进入恢复原来源");
         Disable(ice);
-        Check(body.EnvironmentContext.DebugSourceCount == 0, "源端禁用统一解除绑定");
+        Check(body.EnvironmentContext.DebugSourceCount == 0 && body.DebugDynamicForceCount == 0, "源端禁用立即解除来源和施力");
         body.RefreshSupport(ground);
         Near(body.Frame.slowingMultiplier, 1f, "禁用组件仍有 Collider 时不读取表面效果");
         Check(body.EnvironmentContext.DebugSourceCount == 0, "禁用来源不能被支撑查询重新登记");
@@ -543,29 +471,6 @@ public static class EnvironmentIntegrationChecks
         ice.EnvironmentRegistration.ReleaseAll();
         body.EnvironmentContext.ReleaseAll();
         Check(body.EnvironmentContext.DebugSourceCount == 0, "双方重复清理幂等");
-
-        GameObject plainObject = NewObject("non-moving", position);
-        EnvironmentCheckReceiver plain = plainObject.AddComponent<EnvironmentCheckReceiver>();
-        ForceData passive = ice.CreateEnvironmentForce(plain);
-        Near(passive.balanceSpeed, 0, "冰面对无移动能力实体仍使用零平衡速度");
-        Near(passive.recoverySpeed, .5f, "无移动能力分支保留地面恢复参数");
-    }
-
-    private static void CheckDynamicForceRefresh()
-    {
-        Vector3 position = NextPosition();
-        ForceField source = Prefab<ForceField>("F1.prefab", position);
-        EnvironmentCheckBody body = Body(position + Vector3.up * 3);
-        body.SetOrUpdateDynamicForce(source, new DynamicForceParameters(1f, 2f, 3f));
-        body.SetStack(source, 4f);
-        body.ChangeType(source, E_PhyForceType.fadeAway);
-        body.SetOrUpdateDynamicForce(source, new DynamicForceParameters(5f, -6f, 7f));
-        ForceData refreshed = body.Force(source);
-        Near(refreshed.Force, 5f, "接触力刷新替换施力大小");
-        Near(refreshed.balanceSpeed, 6f, "接触力刷新仍规范化平衡速度");
-        Near(refreshed.recoverySpeed, 7f, "接触力刷新替换恢复速度");
-        Near(refreshed.speedStacking, 4f, "接触力刷新保留累计速度");
-        Check(refreshed.type == E_PhyForceType.apply, "接触力刷新恢复施加状态");
     }
 
     private static void CheckMotionParticipation()
@@ -575,59 +480,36 @@ public static class EnvironmentIntegrationChecks
         rigidbody.bodyType = RigidbodyType2D.Dynamic;
         rigidbody.gravityScale = 0f;
         rigidbody.freezeRotation = true;
-        var motion = (PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData",
-            BindingFlags.Instance | BindingFlags.NonPublic).GetValue(body);
-        motion.horizontalSpeed = 3f;
-        motion.verticalSpeed = -2f;
         var source = new EnvironmentCheckSource();
         body.AddSpeedStatus(source.EnvironmentRegistration, new Vector2(1f, 2f));
-        Physics2D.SyncTransforms();
+        rigidbody.velocity = new Vector2(3f, -2f);
         SimulationMode2D previousSimulation = Physics2D.simulationMode;
         Physics2D.simulationMode = SimulationMode2D.Script;
         try
         {
-            InvokePhysics(body, "SpeedCalculation");
-            float vertical = motion.verticalSpeed;
             body.SetMotionParticipation(false);
             Vector2 position = rigidbody.position;
-            Check(!body.IsMotionParticipating && !rigidbody.simulated, "普通实体暂停同时关闭 EPhy 与原生运动");
-            for (int i = 0; i < 12; i++)
-            {
-                InvokePhysics(body, "SpeedCalculation");
-                InvokePhysics(PhysicsSolverMgr.Instance, "ContactForSolution");
-                InvokePhysics(body, "DisplacementCorrection");
-                Physics2D.Simulate(Time.fixedDeltaTime);
-            }
-            Check(rigidbody.position == position, "暂停连续物理步保持原世界坐标");
-            Near(motion.verticalSpeed, vertical, "暂停不继续积分重力也不清已有速度");
-            Check(body.DebugStateVelocityCount == 1, "暂停保留环境速度来源");
-            body.SetMotionParticipation(true);
-            Check(body.IsMotionParticipating && rigidbody.simulated, "恢复重新同步 EPhy 与原生参与");
-            InvokePhysics(body, "DisplacementCorrection");
-            Physics2D.Simulate(Time.fixedDeltaTime);
-            Check(rigidbody.position == position, "恢复不提交暂停前遗留的位移请求");
-            InvokePhysics(body, "SpeedCalculation");
-            InvokePhysics(PhysicsSolverMgr.Instance, "ContactForSolution");
-            InvokePhysics(body, "DisplacementCorrection");
-            Physics2D.Simulate(Time.fixedDeltaTime);
-            Check(rigidbody.position.x > position.x, "恢复后新物理帧仍消费原主动速度和环境速度");
-            position = rigidbody.position;
-            body.SetMotionParticipation(false);
+            Check(!body.IsMotionParticipating && !rigidbody.simulated, "普通实体暂停关闭原生模拟");
             for (int i = 0; i < 12; i++) Physics2D.Simulate(Time.fixedDeltaTime);
-            Check(rigidbody.position == position, "已有原生位移速度的实体暂停后仍固定位置");
+            Check(rigidbody.position == position, "暂停连续物理步保持现场坐标");
+            Check(body.DebugStateVelocityCount == 1, "暂停保留环境来源");
             body.SetMotionParticipation(true);
-            InvokePhysics(body, "DisplacementCorrection");
-            InvokePhysics(body, "GeometricQueryPhase");
-            Check(!body.TryGetLastDisplacementObservation(out _), "恢复不再次提交已经消费的运动请求");
-            body.GetComponent<BoxCollider2D>().enabled = false;
-            InvokePhysics(body, "SpeedCalculation");
-            Check(!body.IsMotionParticipating && !rigidbody.simulated, "关闭碰撞器后不再预测或保留原生运动");
-            body.GetComponent<BoxCollider2D>().enabled = true;
+            Check(body.IsMotionParticipating && rigidbody.simulated, "恢复重新参加统一物理模拟");
+            Physics2D.Simulate(Time.fixedDeltaTime);
+            Check((rigidbody.position - position).magnitude < .1f, "恢复没有额外旧位移或速度突增");
+            body.SetMotionParticipation(false);
+            position = rigidbody.position;
+            for (int i = 0; i < 12; i++) Physics2D.Simulate(Time.fixedDeltaTime);
+            Check(rigidbody.position == position, "已有速度的实体暂停后仍固定位置");
             body.SetMotionParticipation(true);
             body.RefreshMotionState(position);
-            Near(motion.horizontalSpeed, 0f, "显式刷新才清自身主动速度");
-            Near(motion.verticalSpeed, 0f, "显式刷新才清自身竖直速度");
-            Check(body.DebugStateVelocityCount == 1, "显式运动刷新保留未要求撤销的环境速度");
+            Check(rigidbody.velocity == Vector2.zero, "显式运动刷新清实际刚体速度");
+            Check(body.DebugStateVelocityCount == 1, "显式运动刷新保留未要求撤销的环境来源");
+            body.GetComponent<BoxCollider2D>().enabled = false;
+            InvokePhysics(body, "SpeedCalculation");
+            Check(!body.IsMotionParticipating && !rigidbody.simulated, "关闭碰撞器后退出原生运动");
+            body.GetComponent<BoxCollider2D>().enabled = true;
+            body.SetMotionParticipation(true);
         }
         finally { Physics2D.simulationMode = previousSimulation; body.SetMotionParticipation(false); }
 
@@ -636,10 +518,10 @@ public static class EnvironmentIntegrationChecks
         player.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
         character.SetMotionParticipation(true);
         Check(!character.IsMotionParticipating && !character.GetComponent<Rigidbody2D>().simulated,
-            "实体参与开关不能越过玩家既有运动许可");
+            "实体参与入口不能越过玩家既有运动许可");
         player.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
         Check(character.IsMotionParticipating && character.GetComponent<Rigidbody2D>().simulated,
-            "玩家原权限接到统一参与入口后仍可恢复");
+            "原玩家权限入口可以恢复统一运动");
     }
 
     private static void CheckMotionInitialization()
@@ -668,125 +550,6 @@ public static class EnvironmentIntegrationChecks
         character.SetMotionParticipation(false);
     }
 
-    private static void CheckDiscardedPredictions()
-    {
-        SimulationMode2D previousSimulation = Physics2D.simulationMode;
-        Physics2D.simulationMode = SimulationMode2D.Script;
-        try
-        {
-            string[] paths = { "预测后清实体接触", "相位 4 过滤关闭的 Collider 后重开", "求解后清实体接触" };
-            for (int path = 0; path < paths.Length; path++)
-            {
-                EnvironmentCheckBody body = Body(NextPosition());
-                Rigidbody2D rigidbody = body.GetComponent<Rigidbody2D>();
-                rigidbody.bodyType = RigidbodyType2D.Dynamic;
-                rigidbody.gravityScale = body.gravity = 0f;
-                rigidbody.freezeRotation = true;
-                var motion = (PlayerPhysicsData)typeof(BasicEntity).GetField("playerPhysicsData",
-                    BindingFlags.Instance | BindingFlags.NonPublic).GetValue(body);
-                motion.horizontalSpeed = 3f;
-                Physics2D.SyncTransforms();
-                Vector2 position = rigidbody.position;
-                InvokePhysics(body, "SpeedCalculation");
-                var solver = PhysicsSolverMgr.Instance;
-                if (path == 1)
-                {
-                    body.GetComponent<BoxCollider2D>().enabled = false;
-                    InvokePhysics(solver, "ContactForSolution");
-                    body.GetComponent<BoxCollider2D>().enabled = true;
-                    body.SetMotionParticipation(true);
-                }
-                else
-                {
-                    if (path == 2) InvokePhysics(solver, "ContactForSolution");
-                    solver.ForgetEntityContacts(body);
-                    InvokePhysics(solver, "ContactForSolution");
-                }
-                InvokePhysics(body, "DisplacementCorrection");
-                Check(!(bool)typeof(BasicEntity).GetField("hasPendingDisplacement",
-                    BindingFlags.Instance | BindingFlags.NonPublic).GetValue(body), paths[path] + "不提交旧请求");
-                Physics2D.Simulate(Time.fixedDeltaTime);
-                Near((rigidbody.position - position).magnitude, 0f, paths[path] + "实际位移为零");
-                Near(motion.horizontalSpeed, 3f, paths[path] + "保留跨帧速度");
-                InvokePhysics(body, "SpeedCalculation");
-                InvokePhysics(solver, "ContactForSolution");
-                InvokePhysics(body, "DisplacementCorrection");
-                Physics2D.Simulate(Time.fixedDeltaTime);
-                Near(rigidbody.position.x, position.x + 3f * Time.fixedDeltaTime,
-                    paths[path] + "后的新预测正常提交");
-                body.SetMotionParticipation(false);
-            }
-        }
-        finally { Physics2D.simulationMode = previousSimulation; }
-    }
-
-    private static void CheckImmediateContactCleanup()
-    {
-        Vector3 origin = NextPosition();
-        var config = ScriptableObject.CreateInstance<SO_CPhysics>();
-        config.groundLayer = config.wallLayer = 0;
-        Transform probe = NewObject("cleanup probe", origin + Vector3.up * 10f).transform;
-        EnvironmentCheckBox box = ProbeBox(origin, config, probe, probe, probe, probe);
-        EnvironmentCheckBox pusher = ProbeBox(origin + Vector3.right, config, probe, probe, probe, probe);
-        var solver = PhysicsSolverMgr.Instance;
-        try
-        {
-            Physics2D.SyncTransforms();
-            solver.AddPhyBoX(box.Prediction(Vector2.zero, 0f));
-            solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
-            InvokePhysics(solver, "ContactForSolution");
-            Check(HasContactForce(box, pusher), "实际相位 4 接触建立实体来源力");
-            box.SetContactStack(pusher, -2f);
-            var other = Body(origin + Vector3.right * 5f);
-            box.SetOrUpdateDynamicForce(other, new DynamicForceParameters(1f, 3f, 1f));
-            ForceField field = Prefab<ForceField>("F1.prefab", origin + Vector3.up * 20f);
-            box.SetOrUpdateDynamicForce(field, new DynamicForceParameters(1f, 3f, 1f));
-            solver.ForgetContactForcesBetween(pusher, box);
-            solver.ForgetContactForcesBetween(pusher, box);
-            Check(!HasContactForce(box, pusher), "双方解除立即忘记累计力且重复清理安全");
-            Check(HasContactForce(box, other) && HasContactForce(box, field), "双方解除保留其它实体与环境来源");
-            solver.AddPhyBoX(box.Prediction(Vector2.zero, 0f));
-            solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
-            InvokePhysics(solver, "ContactForSolution");
-            Near(box.ContactForce(pusher).speedStacking, 0f, "再次接触不复用已删除的累计速度");
-            box.SetContactStack(pusher, -2f);
-            InvokePhysics(solver, "ContactForSolution");
-            Check(box.ContactForce(pusher).type == E_PhyForceType.fadeAway, "普通脱离仍沿原渐隐路径退出");
-            Disable(pusher);
-            Check(!HasContactForce(box, pusher), "来源停用立即清除已脱离管理器旧链路的尾效");
-            Check(HasContactForce(box, other) && HasContactForce(box, field), "来源停用不清其它实体或环境效果");
-            box.RefreshMotionState(origin);
-            Check(!HasContactForce(box, other) && HasContactForce(box, field), "显式恢复撤销自身接触而保留环境力");
-
-            config.groundLayer = 1 << 6;
-            config.boxCastH = new Vector2(.9f, .1f);
-            Collider2D floor = Solid(origin + Vector3.down * .6f, new Vector2(3f, .2f));
-            probe.position = origin + Vector3.down * .5f;
-            Physics2D.SyncTransforms();
-            box.Query();
-            Check(box.IsSupported, "箱子只读支撑沿用箱底几何探针");
-            box.SetMotionParticipation(false);
-            Check(box.IsSupported && !box.IsMotionParticipating, "暂停不把已有几何支撑解释成悬空");
-            floor.enabled = false;
-            Physics2D.SyncTransforms();
-            box.Query();
-            Check(!box.IsSupported, "移除支撑后箱子读口立即反映本次几何结果");
-            box.GetComponent<BoxCollider2D>().enabled = false;
-            box.SetMotionParticipation(true);
-            Check(box.IsMotionReady && box.IsMotionPermitted && !box.GetComponent<Rigidbody2D>().simulated,
-                "碰撞器未启用时就绪和许可不代表实际参与");
-            box.GetComponent<BoxCollider2D>().enabled = true;
-            box.SetMotionParticipation(true);
-            box.Query();
-            Check(box.IsMotionParticipating && box.GetComponent<Rigidbody2D>().simulated && !box.IsSupported,
-                "先启用 Collider 再同步参与及重采样恢复正确事实");
-        }
-        finally { solver.ForgetEntityContacts(box); solver.ForgetEntityContacts(pusher); Object.DestroyImmediate(config); }
-    }
-
-    private static bool HasContactForce(BasicEntity receiver, IDynamicAddForce source) =>
-        ((Dictionary<IDynamicAddForce, ForceData>)EffectField(receiver, "dynamicForces")).ContainsKey(source);
-
     private static void InvokePhysics(object target, string method)
     {
         Type owner = target is BasicEntity ? typeof(BasicEntity) : target.GetType();
@@ -809,11 +572,9 @@ public static class EnvironmentIntegrationChecks
         Check(body.EnvironmentContext.DebugSourceCount == 1 && PhysicsEditorEntityObservation.GetSnapshot(body).dynamicForceCount == 1,
             "复合碰撞体区域接入只登记一次");
         Check(EnvironmentCapabilities.FindEntity(second) == body, "子 Collider 仍正确识别动态实体身份");
-        body.RunForces();
-        Near(body.Force(field).speedStacking, -5f * Time.fixedDeltaTime, "力场使用预制体原有施力参数");
         first.enabled = false;
         Refresh(body);
-        Check(body.EnvironmentContext.DebugSourceCount == 0 && body.Force(field).type == E_PhyForceType.fadeAway,
+        Check(body.EnvironmentContext.DebugSourceCount == 0 && body.DebugDynamicForceCount == 0,
             "主碰撞体禁用后解除区域作用");
         first.enabled = true;
         Refresh(body);
@@ -830,7 +591,7 @@ public static class EnvironmentIntegrationChecks
         source.enabled = true;
         Refresh(body);
         Disable(field);
-        Check(body.EnvironmentContext.DebugSourceCount == 0 && body.Force(field).type == E_PhyForceType.fadeAway,
+        Check(body.EnvironmentContext.DebugSourceCount == 0 && body.DebugDynamicForceCount == 0,
             "力场禁用同时停止动态施力（旧遗漏修复）");
         field.enabled = true;
         Refresh(body);
@@ -855,14 +616,13 @@ public static class EnvironmentIntegrationChecks
         Refresh(body);
         Check(body.EnvironmentContext.DebugSourceCount == 2, "Pond 实际 ForceField 组件与另一环境独立叠加");
         Disable(field);
-        Check(body.EnvironmentContext.DebugSourceCount == 1 && body.Force(overlapping).type == E_PhyForceType.apply,
+        Check(body.EnvironmentContext.DebugSourceCount == 1 && body.DebugDynamicForceCount == 1,
             "退出一个环境不撤销另一个环境");
         Object.DestroyImmediate(overlapping.gameObject);
         body.RefreshSupport(null);
         Check(body.EnvironmentContext.DebugSourceCount == 0 && PhysicsEditorEntityObservation.GetSnapshot(body).stateVelocityCount == 0,
             "来源销毁后的无效绑定被实体清理");
-        body.RunForces();
-        Check(true, "已销毁来源的尾效不再回调施力者");
+        Check(body.DebugDynamicForceCount == 0, "来源销毁后撤销原生运动的环境施力");
     }
 
     private static void CheckCapabilities()
@@ -879,11 +639,6 @@ public static class EnvironmentIntegrationChecks
         body.RefreshSupport(collider);
         Check(body.Frame.platformDelta == platform.Delta && body.EnvironmentContext.DebugSourceCount == 1,
             $"单一环境宿主提供平台能力并建立一份来源关系 [{body.Frame.platformDelta} / {platform.Delta}, sources={body.EnvironmentContext.DebugSourceCount}]");
-        MethodInfo build = typeof(BasicEntity).GetMethod("BuildMotionFrame", BindingFlags.Static | BindingFlags.NonPublic);
-        EntityMotionFrame motion = (EntityMotionFrame)build.Invoke(null, new object[]
-            { body, new Vector2(2, 0), 0f, true, Vector2.up, body.Frame.platformDelta, .02f, false });
-        Near(motion.plannedWorldDelta.x, .04f + platform.Delta.x, "平台位移在实际运动快照中仅计一次 X");
-        Near(motion.plannedWorldDelta.y, platform.Delta.y, "平台位移在实际运动快照中仅计一次 Y");
         platform.enabled = false;
         body.RefreshSupport(collider);
         Check(body.Frame.platformDelta == Vector2.zero, "禁用平台能力不再提供位移");
@@ -1038,13 +793,6 @@ public static class EnvironmentIntegrationChecks
             box.Query();
             Check(character.Ground == cornerFloor && box.Ground == cornerFloor,
                 "墙角微小离地间隙仍保持支撑");
-            // 已有轻微交叠时，离开墙角的 X 不能被零距离命中反向锁住。
-            Solid(origin + new Vector3(.55f, 20f, 0), new Vector2(.2f, 2f));
-            Physics2D.SyncTransforms();
-            Check(character.CandidateAllowedX(-.02f) < 0f, "墙角允许向外退出");
-            Check(character.DebugCandidatePathCount > 0 && character.DebugCandidateFirstPathZeroDistance &&
-                character.DebugCandidateOverlapCount > 0, "墙角确有零距离路径及终点重叠");
-            Check(character.CandidateAllowedX(.02f) <= 0f, "墙角仍阻止向内穿入");
             ceiling.gameObject.SetActive(false);
             Physics2D.SyncTransforms();
             box.Query();
@@ -1122,124 +870,13 @@ public static class EnvironmentIntegrationChecks
             box.Query();
             Check(box.Grounded && box.Ground == ground && box.DebugGroundNormal.x > .2f,
                 $"冰面侧面接触不替换坡面支撑 [{box.Ground?.name} / {iceSide.name} / {box.DebugGroundNormal}]");
-            Vector2 request = box.CandidateRequest(new Vector2(-.08f, Mathf.Tan(slope) * .08f),
-                groundSlopeDeltaY: Mathf.Tan(slope) * .08f);
-            Check(Mathf.Abs(request.x) < .01f && Mathf.Abs(request.y) < .01f,
-                $"冰面侧挡使单个箱体的沿坡请求停止 [{request}]");
         }
         finally { Object.DestroyImmediate(config); }
     }
 
     // F_6.2_7-5：冰面侧挡裁掉箱体位移后，接触对须把推动者退到不重叠处，且不登记无效施力。
-    private static void CheckIceSideContactFeedback()
-    {
-        Vector3 origin = NextPosition();
-        SO_CPhysics boxConfig = ScriptableObject.CreateInstance<SO_CPhysics>();
-        SO_CPhysics pusherConfig = ScriptableObject.CreateInstance<SO_CPhysics>();
-        boxConfig.hideFlags = pusherConfig.hideFlags = HideFlags.DontSave;
-        boxConfig.groundLayer = boxConfig.wallLayer = 1 << 6;
-        boxConfig.maxClimbAngle = 45f;
-        boxConfig.boxCastH = new Vector2(.75f, .1f);
-        boxConfig.boxCastV = new Vector2(.02f, 1.6f);
-        // 推动者在此反例中无局部静态阻挡，隔离接触对反馈本身。
-        pusherConfig.groundLayer = pusherConfig.wallLayer = 0;
-        try
-        {
-            float slope = 30f * Mathf.Deg2Rad;
-            Collider2D ground = Solid(origin + Vector3.down *
-                (Mathf.Tan(slope) * .76f + .1f / Mathf.Cos(slope)), new Vector2(6f, .2f));
-            ground.transform.rotation = Quaternion.Euler(0f, 0f, -30f);
-            Collider2D iceSide = Solid(origin + new Vector3(-2.758f, .165f, 0f),
-                new Vector2(4f, .37f));
-            Transform foot = NewObject("feedback foot", origin + Vector3.down * .057f).transform;
-            Transform side = NewObject("feedback side", origin + Vector3.right * 10f).transform;
-            EnvironmentCheckBox box = ProbeBox(origin + Vector3.up * .77f, boxConfig, foot, side, side, side);
-            box.GetComponent<BoxCollider2D>().size = new Vector2(1.52f, 1.54f);
-            EnvironmentCheckBox pusher = ProbeBox(origin + new Vector3(1.255f, .77f, 0f),
-                pusherConfig, side, side, side, side);
-            Physics2D.SyncTransforms();
-            box.Query();
-            Check(box.Grounded && box.Ground == ground, "受阻接触对仍保留坡面支撑");
-            var solver = new PhysicsSolverMgr();
-            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f, Mathf.Tan(slope) * .08f));
-            solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
-            typeof(PhysicsSolverMgr).GetMethod("ContactForSolution", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(solver, null);
-            float overlap = box.GetComponent<BoxCollider2D>().bounds.extents.x +
-                pusher.GetComponent<BoxCollider2D>().bounds.extents.x -
-                Mathf.Abs((box.transform.position.x + box.Request.x) -
-                    (pusher.transform.position.x + pusher.Request.x));
-            Check(Mathf.Abs(box.Request.x) < .01f && box.BlockedDirection < 0f,
-                $"冰面侧挡继续约束箱体 [{box.Request}]");
-            Check(overlap <= .003f, $"回算后推动者与被挡箱体不再深度重叠 [{overlap}]");
-            Check(box.DebugDynamicForceCount == 0, "被冰面挡住时不登记不可行接触力");
-            iceSide.enabled = false;
-            Physics2D.SyncTransforms();
-            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f, Mathf.Tan(slope) * .08f));
-            solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
-            typeof(PhysicsSolverMgr).GetMethod("ContactForSolution", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(solver, null);
-            Check(box.DebugDynamicForceCount > 0, "无冰面侧挡时仍可登记推箱接触力");
-            // 其它来源可抵消净被动速度；仍须清除这条已不可行的接触来源。
-            box.SetContactStack(pusher, -2f);
-            iceSide.enabled = true;
-            Physics2D.SyncTransforms();
-            solver.AddPhyBoX(box.Prediction(new Vector2(-.08f, Mathf.Tan(slope) * .08f), -4f, Mathf.Tan(slope) * .08f));
-            solver.AddPhyBoX(pusher.Prediction(new Vector2(-.14f, 0f), -7f));
-            typeof(PhysicsSolverMgr).GetMethod("ContactForSolution", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(solver, null);
-            ForceData stopped = box.ContactForce(pusher);
-            Check(stopped.type == E_PhyForceType.fadeAway && Mathf.Abs(stopped.speedStacking) < .0001f,
-                "原有推箱力遇冰面侧挡后退出并清空朝障碍累计速度");
-        }
-        finally
-        {
-            Object.DestroyImmediate(boxConfig);
-            Object.DestroyImmediate(pusherConfig);
-        }
-    }
 
     // F_6.2_6-7：沿坡的基础 Y 若撞上坡顶平台底面，不能仍把该段上升交给引擎反复挤回。
-    private static void CheckSlopeCeilingConstraint()
-    {
-        Vector3 origin = NextPosition();
-        SO_CPhysics config = ScriptableObject.CreateInstance<SO_CPhysics>();
-        config.hideFlags = HideFlags.DontSave;
-        config.groundLayer = 1 << 6;
-        config.wallLayer = 1 << 6;
-        config.maxClimbAngle = 45f;
-        config.boxCastH = new Vector2(.75f, .1f);
-        config.boxCastV = new Vector2(.02f, 1.6f);
-        try
-        {
-            float slope = 30f * Mathf.Deg2Rad;
-            Collider2D ground = Solid(origin + Vector3.down *
-                (Mathf.Tan(slope) * .76f + .1f / Mathf.Cos(slope)), new Vector2(6f, .2f));
-            ground.transform.rotation = Quaternion.Euler(0f, 0f, 30f);
-            Collider2D platform = Solid(origin + Vector3.up * 1.65f, new Vector2(4f, .2f));
-            Transform foot = NewObject("blocked slope foot", origin + Vector3.down * .057f).transform;
-            Transform side = NewObject("blocked slope side", origin + Vector3.right * 10f).transform;
-            EnvironmentCheckBox box = ProbeBox(origin + Vector3.up * .77f, config, foot, side, side, side);
-            box.GetComponent<BoxCollider2D>().size = new Vector2(1.52f, 1.54f);
-            Physics2D.SyncTransforms();
-            box.Query();
-            Check(box.Grounded && box.Ground == ground, "坡顶平台下方仍由坡面提供支撑");
-            Vector2 verticalOffsetRequest = box.CandidateRequest(Vector2.zero, Vector2.up * .1f);
-            Check(verticalOffsetRequest.y < .02f,
-                $"坡顶平台底面限制实体间向上挤出 [{verticalOffsetRequest}]");
-            Vector2 requested = box.CandidateRequest(new Vector2(.3f, Mathf.Tan(slope) * .3f),
-                groundSlopeDeltaY: Mathf.Tan(slope) * .3f);
-            Check(requested.x < .04f && requested.y < .03f,
-                $"坡顶平台底面阻止沿坡上升 [{requested} / {platform.name}]");
-            platform.transform.position = origin + new Vector3(2.8f, 1.8f, 0f);
-            Physics2D.SyncTransforms();
-            requested = box.CandidateRequest(new Vector2(.3f, Mathf.Tan(slope) * .3f),
-                groundSlopeDeltaY: Mathf.Tan(slope) * .3f);
-            Check(requested.x < .27f && requested.y < .16f,
-                $"坡顶平台边缘限制进入后的上升 [{requested}]");
-        }
-        finally { Object.DestroyImmediate(config); }
-    }
 
     // 调用真实贴墙状态和角色限速，不使用把 VerticalTransmission 盖空的接触夹具。
     private static void CheckWallSlideBehavior()
@@ -1401,10 +1038,11 @@ public static class EnvironmentIntegrationChecks
             .GetField("bindings", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(context);
         context.RefreshEnvironment(collider, null);
         object binding = bindings[ice.EnvironmentRegistration];
-        body.SetStack(ice, 4f);
+        Rigidbody2D rigidbody = body.GetComponent<Rigidbody2D>();
+        rigidbody.velocity = Vector2.right * 4f;
         context.RefreshEnvironment(null, hits);
         Check(ReferenceEquals(binding, bindings[ice.EnvironmentRegistration]), "脚下转区域保留原绑定，不中途退出再进入");
-        Near(body.Force(ice).speedStacking, 4, "接入方式转换保留累计速度");
+        Check(rigidbody.velocity == Vector2.right * 4f, "接入方式转换保留原生惯性");
         Near(body.Frame.slowingMultiplier, 1, "仅区域命中不采样脚下阻力");
         context.RefreshEnvironment(collider, hits);
         Check(context.DebugSourceCount == 1 && ReferenceEquals(binding, bindings[ice.EnvironmentRegistration]),
@@ -1412,9 +1050,9 @@ public static class EnvironmentIntegrationChecks
         context.RefreshEnvironment(collider, null);
         Check(ReferenceEquals(binding, bindings[ice.EnvironmentRegistration]), "区域消失但脚下仍在时保持绑定");
         context.RefreshEnvironment(null, null);
-        Check(context.DebugSourceCount == 0 && body.Force(ice).type == E_PhyForceType.fadeAway,
-            "完整事实消失才解除，动态力进入尾效");
-        Near(body.Force(ice).speedStacking, 4, "完整退出不清零累计速度");
+        Check(context.DebugSourceCount == 0 && body.DebugDynamicForceCount == 0,
+            "完整事实消失才解除原来源和环境力");
+        Check(rigidbody.velocity == Vector2.right * 4f, "完整退出环境不清原生惯性");
         context.RefreshEnvironment(collider, hits);
         context.ReleaseAll();
         var sources = (HashSet<EnvironmentRegistration>)typeof(EntityEnvironmentContext)
@@ -1551,16 +1189,8 @@ public sealed class EnvironmentCheckBody : BasicEntity, ICanMove
         CollectRegionOverlapFacts();
         base.PhyFunUpdate();
     }
-    public void RunForces() => typeof(BasicEntity).GetMethod("UpdatePassiveEffectSpeed", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(this, null);
-    private Dictionary<IDynamicAddForce, ForceData> Forces =>
-        (Dictionary<IDynamicAddForce, ForceData>)EnvironmentIntegrationChecks.EffectField(this, "dynamicForces");
-    public ForceData Force(IDynamicAddForce source) => Forces[source];
-    public void SetStack(IDynamicAddForce source, float speed)
-    {
-        ForceData data = Forces[source];
-        data.speedStacking = speed;
-        Forces[source] = data;
-    }
+    public void RunForces() => typeof(BasicEntity).GetMethod("SpeedCalculation", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(this, null);
+
 }
 
 public sealed class EnvironmentCheckContact : BasicPhysicalObject, IMovementSpeedModifier, IWallSlideSurface, IGroundResponse
@@ -1607,21 +1237,7 @@ public sealed class EnvironmentCheckCharacter : BasePhysicsEntity
     public bool Grounded => nowGemetry.isGrounded;
     public Collider2D Left => nowGemetry.leftWallCollider;
     public bool OnLeft => nowGemetry.onLeftWall;
-    public float CandidateAllowedX(float x)
-    {
-        var bounds = boxCollider.bounds;
-        var frame = new EntityMotionFrame(Vector2.zero, Vector2.zero, new Vector2(x, 0f), Vector2.zero);
-        var sample = new PhysicalBoundingBox
-        {
-            point = (Vector2)bounds.center + frame.plannedWorldDelta,
-            size = bounds.extents,
-            motionFrame = frame,
-            myPhyBox = this
-        };
-        typeof(BasicEntity).GetMethod("ProbeCandidateEnvironment", BindingFlags.Instance | BindingFlags.NonPublic)
-            .Invoke(this, new object[] { sample });
-        return entitySolutionResult.allowedHorizontalDelta;
-    }
+
 }
 
 public sealed class EnvironmentCheckBox : PhysicalBox
@@ -1658,57 +1274,7 @@ public sealed class EnvironmentCheckBox : PhysicalBox
     public Collider2D Left => nowGemetry.leftWallCollider;
     public bool OnLeft => nowGemetry.onLeftWall;
     public bool Top => nowGemetry.istop;
-    public Vector2 Request => entitySolutionResult.requestedWorldDelta;
-    public float BlockedDirection => entitySolutionResult.blockedHorizontalDirection;
-    public ForceData ContactForce(BasicEntity source)
-    {
-        var forces = (Dictionary<IDynamicAddForce, ForceData>)EnvironmentIntegrationChecks.EffectField(this, "dynamicForces");
-        return forces[source];
-    }
-    public void SetContactStack(BasicEntity source, float speed)
-    {
-        var forces = (Dictionary<IDynamicAddForce, ForceData>)EnvironmentIntegrationChecks.EffectField(this, "dynamicForces");
-        ForceData data = forces[source];
-        data.speedStacking = speed;
-        forces[source] = data;
-    }
-    public PhysicalBoundingBox Prediction(Vector2 baseDelta, float horizontalSpeed, float groundSlopeDeltaY = 0f)
-    {
-        EntityMotionFrame frame = new EntityMotionFrame(Vector2.zero,
-            new Vector2(horizontalSpeed, 0f), baseDelta, Vector2.zero, groundSlopeDeltaY);
-        typeof(BasicEntity).GetField("motionFrame", BindingFlags.Instance | BindingFlags.NonPublic)
-            .SetValue(this, frame);
-        entitySolutionResult = default;
-        Bounds bounds = boxCollider.bounds;
-        return new PhysicalBoundingBox
-        {
-            point = (Vector2)bounds.center + frame.plannedWorldDelta,
-            size = bounds.extents,
-            motionFrame = frame,
-            myPhyBox = this
-        };
-    }
-    public Vector2 CandidateRequest(Vector2 baseDelta, Vector2 offset = default, float groundSlopeDeltaY = 0f)
-    {
-        // 合成输入必须明确哪些 Y 属于坡面；接触偏置和世界竖直位移仍保持独立。
-        EntityMotionFrame frame = new EntityMotionFrame(Vector2.zero, Vector2.zero, baseDelta, Vector2.zero, groundSlopeDeltaY);
-        typeof(BasicEntity).GetField("motionFrame", BindingFlags.Instance | BindingFlags.NonPublic)
-            .SetValue(this, frame);
-        entitySolutionResult.displacementOffset = offset;
-        Bounds bounds = boxCollider.bounds;
-        var sample = new PhysicalBoundingBox
-        {
-            point = (Vector2)bounds.center + frame.plannedWorldDelta,
-            size = bounds.extents,
-            motionFrame = frame,
-            myPhyBox = this
-        };
-        typeof(BasicEntity).GetMethod("ProbeCandidateEnvironment", BindingFlags.Instance | BindingFlags.NonPublic)
-            .Invoke(this, new object[] { sample });
-        typeof(BasicEntity).GetMethod("FinalizeRequestedDisplacement", BindingFlags.Instance | BindingFlags.NonPublic)
-            .Invoke(this, null);
-        return entitySolutionResult.requestedWorldDelta;
-    }
+
 }
 
 public sealed class EnvironmentCheckSlide : BasicPhysicalObject, IWallSlideSurface
@@ -1765,18 +1331,4 @@ public sealed class EnvironmentCheckSource : IEnvironmentSource
     public bool IsEnvironmentActive { get; set; } = true;
     public EnvironmentRegistration EnvironmentRegistration { get; }
     public EnvironmentCheckSource() => EnvironmentRegistration = new EnvironmentRegistration(this);
-}
-
-public sealed class EnvironmentCheckReceiver : MonoBehaviour, IForceAction
-{
-    public void StatePowerRegistration(EnvironmentRegistration id, float num) { }
-    public void StatePowerCancellation(EnvironmentRegistration id) { }
-    public void AddSpeedStatus(EnvironmentRegistration id, Vector2 value) { }
-    public void RemoveSpeedStatus(EnvironmentRegistration id) { }
-    public void AddTimeSpeed(float time, float value) { }
-    public void AddForce(IDynamicAddForce id, ForceData data) { }
-    public void SetOrUpdateDynamicForce(IDynamicAddForce id, DynamicForceParameters parameters) { }
-    public void ChangeForce(IDynamicAddForce id, float value) { }
-    public void ChangeType(IDynamicAddForce id, E_PhyForceType type) { }
-    public void RemoveForce(IDynamicAddForce id) { }
 }

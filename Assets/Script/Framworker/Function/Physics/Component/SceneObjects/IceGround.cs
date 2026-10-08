@@ -1,9 +1,9 @@
-﻿using PhyData;
+using PhyData;
 using UnityEngine;
 
 /// <summary>
 /// 踩上冰面时，按受力者是否能主动移动给出初始参数；在冰面内根据输入施力或受控减速。
-/// 职能：具体环境算法提供者。旧 OnPhyEnter 中的初始化搬到 ENV-05，登记与清理由 Context 处理。
+/// 职能：具体环境算法提供者。参数登记与清理由 Context 处理，实际惯性留在刚体。
 /// 第一遍只读 CreateEnvironmentForce；理解实体 ENV-06 的消费循环后，再回来看 ForceCalculation。
 /// </summary>
 public class IceGround : BaseGround, IDynamicEnvironmentForce, IMovementSpeedModifier, IStateVelocitySource
@@ -25,23 +25,27 @@ public class IceGround : BaseGround, IDynamicEnvironmentForce, IMovementSpeedMod
     {
         ForceData force = new ForceData();
         // 保留旧公式：speedChangeNum 同时参与主动修饰和冰面平衡速度。
-        // 无移动能力分支仍使用 slowingEffect / 零平衡速度，本轮不更改其算法语义。
+        // 自由箱以 Odex 与 slowingEffect 提供对称制动。
         // 算法分支：角色等有主动移动能力，使用其 Mobility；箱子走下方原无移动能力公式。
         if (receiver is ICanMove moving)
             force.Init(Idex, Odex, moving.Mobility * maxISpeed * speedChangeNum);
         else
-            force.Init(Idex, slowingEffect, 0);
+        {
+            // 自由箱双向滑动对称制动，保持原生接触带来的真实惯性。
+            force.Init(0f, Mathf.Max(0f, Odex * slowingEffect), 0f);
+            force.type = E_PhyForceType.controlRecovery;
+        }
         return force;
     }
 
-    /// <summary>相位 3 由实体 ENV-06 回调：修改该实体中的控制参数，随后实体自己积分 ForceData。</summary>
+    /// <summary>相位 3 由实体 ENV-06 回调：修改该实体中的控制参数，随后实体从实际刚体速度计算本步加速度。</summary>
     public void ForceCalculation(IForceAction receiver)
     {
         // 算法分支：无主动移动能力者不做输入控制，保留初始化状态。
         if (receiver is ICanMove moving)
         {
             float direction = moving.MovingDirection;
-            // 有方向输入则施力；松开输入则切受控减速。这与离开冰面后的 fadeAway 是两条分支。
+            // 有方向输入则施力；松开输入则切受控减速。离开后撤销环境控制，真实惯性保留。
             if (direction != 0)
             {
                 receiver.ChangeForce(this, direction * Idex);

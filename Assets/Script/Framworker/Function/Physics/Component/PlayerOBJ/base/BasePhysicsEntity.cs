@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks.Triggers;
+using Cysharp.Threading.Tasks.Triggers;
 using PhyData;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 /// </summary>
 public abstract class BasePhysicsEntity : BasicEntity
 {
+    protected override bool HasHorizontalDrive => true;
     #region 运行时数据
     //只读数据包装
     ReadOnly_GeometryPhysicsData readOnly_GeometryPhysicsData;
@@ -42,6 +43,8 @@ public abstract class BasePhysicsEntity : BasicEntity
     }
     protected override void GeometricQuery()
     {
+        // 角色顶头由本步原生接触补充，先清掉已经离开的旧接触。
+        nowGemetry.istop = false;
         // 接触查询在命中选择前排除 Trigger，避免区域遮住实心表面；不改全局查询开关。
         ContactFilter2D contactFilter = new ContactFilter2D { useTriggers = false };
         contactFilter.SetLayerMask(cPhysics.groundLayer);
@@ -49,7 +52,7 @@ public abstract class BasePhysicsEntity : BasicEntity
         ReleaseOneWayDropsIfClear();
         oneWayDropColliders = passingOneWays;
         PrepareOneWayDrops(contactFilter);
-        RaycastHit2D hit = FindGroundHit(groundV.position, cPhysics.boxCastH, 0f,
+        RaycastHit2D hit = FindGroundHit(ProbePosition(groundV), cPhysics.boxCastH, 0f,
             Vector2.down, contactFilter);
         //缓存贴地法线
         nowGemetry.groundNormal = hit.normal;
@@ -68,9 +71,9 @@ public abstract class BasePhysicsEntity : BasicEntity
         nowGemetry.groundCollider = onGroundNow ? hit.collider : null;
         //检测左右靠墙
         contactFilter.SetLayerMask(cPhysics.wallLayer);
-        RaycastHit2D hit1 = PhysicsWorld.BoxCast(leftV.position, cPhysics.boxCastV, 0,
+        RaycastHit2D hit1 = PhysicsWorld.BoxCast(ProbePosition(leftV), cPhysics.boxCastV, 0,
             Vector2.left, 0f, contactFilter);
-        RaycastHit2D hit2 = PhysicsWorld.BoxCast(rightV.position, cPhysics.boxCastV, 0,
+        RaycastHit2D hit2 = PhysicsWorld.BoxCast(ProbePosition(rightV), cPhysics.boxCastV, 0,
             Vector2.right, 0f, contactFilter);
         nowGemetry.onLeftWall = false;
         nowGemetry.leftWallCollider = null;
@@ -105,10 +108,10 @@ public abstract class BasePhysicsEntity : BasicEntity
         // 实际逻辑：覆盖下一相位可能产生的向下位移，避免先碰撞、下一帧才放开。
         // 这里只估查询范围，不写速度；真正的着地查询仍使用 GroundProbeDistance。
         float dt = Time.fixedDeltaTime;
-        float fallingSpeed = playerPhysicsData.verticalSpeed + playerPhysicsData.phyVSpeed + gravity * dt;
+        float fallingSpeed = GetPlanarVelocity().y + gravity * dt;
         float distance = GroundProbeDistance + Mathf.Max(0f, -fallingSpeed * dt);
         oneWayDropHits.Clear();
-        PhysicsWorld.BoxCast(groundV.position, probeSize, 0f, Vector2.down, distance, filter, oneWayDropHits);
+        PhysicsWorld.BoxCast(ProbePosition(groundV), probeSize, 0f, Vector2.down, distance, filter, oneWayDropHits);
         foreach (RaycastHit2D hit in oneWayDropHits)
         {
             // 安全：自身与无效命中不是环境支撑。
