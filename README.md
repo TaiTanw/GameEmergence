@@ -1,55 +1,35 @@
-# New2DObject — 2D 运动与接触框架
+# New2DObject
 
-Unity 2022.3.54f1c1 项目。自研逻辑负责动作、环境效果、预测接触与请求位移；当前仍保留 Unity Dynamic 接触响应。
+Unity 2022.3.54f1c1 项目。P5.4 操作与 K11 原生物理迁移已实现：角色与箱子同一步模拟，保留六相位和规则时序，删除重复接触解算。自动回归通过；人工手感与已知缺陷原场景仍待核。
 
-## 从哪里开始
+## 阅读入口
 
-- **做什么、还有什么问题：** [待办安排](Docs/待办安排.md)
-- **玩法循环、道具效果和轻/重刷新规则：** [玩法大纲](Docs/玩法大纲.md)
-- **分层与实现边界：** [工程原则](Docs/工程原则.md)
-- **为什么改成现在这样：** [历史回顾](Docs/历史回顾.md)
-- **文档维护规则：** [文档索引](Docs/README.md)
-- **人工操作和名称规则：** [注意事项](注意事项.md)
-
-F5.1–F5.8 已完成：运动快照与环境入口已收敛。F6.1 已整理实体效果数值状态；二维运动公式与多箱上坡仍在后续评估。
-
-当前推箱抖动据用户验证，已通过**角色和箱子的 Rigidbody2D 均启用 Interpolate**暂时解决；后续运动回归以此配置为基线。该结论不代表接触算法或多箱上坡已修复。
-
-## 代码阅读入口
-
-| 模块 | 从这里读 |
+| 要看什么 | 入口 |
 |---|---|
-| 公共调度 | [Main](Assets/Script/Framworker/Main.cs)、[物理解算器](Assets/Script/Framworker/Function/Physics/Mgr/PhysicsSolverMgr.cs) |
-| 输入与角色编排 | [Player](Assets/Script/Framworker/Function/Player/Player.cs)、[InputControlMgr](Assets/Script/Framworker/Function/Player/Mgr/InputControlMgr.cs) |
-| 行为策略 | [PlayerStateMachine](Assets/Script/Framworker/Function/Player/FSM/PlayerStateMachine.cs)、[状态类](Assets/Script/Framworker/Function/Player/FSM/BehavioralState.cs) |
-| 水与角色生命周期 | [WaterRegion](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/WaterRegion.cs)、[角色能力](Assets/Script/Framworker/Function/Player/PlayerCapabilities.cs)、[死亡/形态/刷新契约](Assets/Script/Framworker/Function/Player/PlayerLifecycleContracts.cs)、[阶段消费者](Assets/Script/Framworker/Function/Player/PlayerLifecycleRules.cs) |
-| 运动与提交 | [BasicEntity](Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs)、[EntityEffectState](Assets/Script/Framworker/Function/Physics/Data/EntityEffectState.cs)、[CharacterPhysics](Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs)、[PhysicalBox](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/PhysicalBox.cs) |
-| P5.4 框架前置：统一运动参与、接触立即清理与箱子支撑读口 | [实际接口与验证](Docs/待办具体事务文档集中/P_5.4-执行编排.md#9-框架前置整理结果2026-10-07)、[PhysicsSolverMgr](Assets/Script/Framworker/Function/Physics/Mgr/PhysicsSolverMgr.cs)；推拉与收纳玩法尚未开工 |
-| 环境来源与关系 | [能力接口](Assets/Script/Framworker/Function/Physics/Interface/IEnvironmentCapabilities.cs)、[EntityEnvironmentContext](Assets/Script/Framworker/Function/Physics/Base/EntityEnvironmentContext.cs)、[EnvironmentCapabilities](Assets/Script/Framworker/Function/Physics/Data/EntityEnvironmentFrame.cs) |
-| 数据与表现 | [Struct](Assets/Script/Framworker/Function/Physics/Data/Struct.cs)、[PresentationLayer](Assets/Script/Framworker/Function/Performance/Component/PresentationLayer.cs) |
-| Edit Mode 回归 | [EnvironmentIntegrationChecks](Assets/Script/Framworker/Editor/Tool/PhyDataTest/EnvironmentIntegrationChecks.cs) |
-| F8 观测与 Play Mode 自动回归 | [维护说明](Docs/待办具体事务文档集中/F_8-物理编辑器观测拆分.md)、[PhysicsEditorObservationChecks](Assets/Script/Framworker/Editor/Tool/PhyDataTest/PhysicsEditorObservationChecks.cs) |
-| P5.3 游泳连续运行与输入验证 | [PlayerSwimmingPlayModeChecks](Assets/Script/Framworker/Editor/Tool/PhyDataTest/PlayerSwimmingPlayModeChecks.cs) |
-| P5.3 水面泳姿与 V7 请求分量定向检查 | [PlayerSurfaceSwimmingChecks](Assets/Script/Framworker/Editor/Tool/PhyDataTest/PlayerSurfaceSwimmingChecks.cs) |
+| 当前问题与下一步 | [待办安排](Docs/待办安排.md)，优先看 K11 |
+| 游戏规则与数据所有权 | [玩法大纲](Docs/玩法大纲.md) |
+| 分层、当前时序与收束方向 | [工程原则](Docs/工程原则.md) |
+| 推拉／收纳已经实现什么 | [P5.4 摘要](Docs/待办具体事务文档集中/P_5.4-执行编排.md) |
+| 玩家能力与后续依赖 | [P5 交接](Docs/待办具体事务文档集中/P_5-玩家逻辑行为扩展.md) |
+| 验证记录／全部文档 | [历史回顾](Docs/历史回顾.md)、[文档索引](Docs/README.md) |
+| 人工操作与名称约束 | [注意事项](注意事项.md) |
 
-## 当前物理帧
+## 代码从哪里读
 
-| 相位 | 职责 |
+按要理解的行为读入口，不要求先通读整套物理。
+
+| 要理解什么 | 顺序 |
 |---|---|
-| 0 | 平台自运动产生 Delta，水按外部配置提交水位 |
-| 1 | 实际几何接触与区域重叠查询 |
-| 2 | 环境来源核对、脚下与水事实采样、角色左右墙能力解析 |
-| 3 | 速度计算，构建 EntityMotionFrame，预测 AABB |
-| 4 | 实体接触偏置、环境请求裁剪及有限残余回算；传播阻挡方向后生成后续动态力 |
-| 5 | 提交相位 4 已确定的请求位移，一次 MovePosition |
+| 箱子操作为何生效／被拒绝 | [PlayerBoxSelection](Assets/Script/Framworker/Function/Player/PlayerBoxSelection.cs) → [LevelBoxContext](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/LevelBoxContext.cs) → [PhysicalBox](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/PhysicalBox.cs) |
+| 每帧输入与规则 | [InputControlMgr](Assets/Script/Framworker/Function/Player/Mgr/InputControlMgr.cs) → [Player](Assets/Script/Framworker/Function/Player/Player.cs) → [PlayerStateMachine](Assets/Script/Framworker/Function/Player/FSM/PlayerStateMachine.cs) |
+| 六相位与角色／箱子运动 | [MonoPublicMgr](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/MonoPublicMgr.cs) → [BasicEntity](Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs) → [CharacterPhysics](Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs) |
+| 环境事实与水位 | [EntityEnvironmentContext](Assets/Script/Framworker/Function/Physics/Base/EntityEnvironmentContext.cs)、[WaterRegion](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/WaterRegion.cs) |
+| 提示与动画 | [PresentationLayer](Assets/Script/Framworker/Function/Performance/Component/PresentationLayer.cs)、[InteractionHintView](Assets/Script/Framworker/Function/Performance/Component/InteractionHintView.cs) |
 
-预测和提交共用 `plannedWorldDelta`，但接触偏置、静墙裁剪与引擎修正仍可能改变最终落点。当前接触速度传递主要沿 X 轴，箱链仍是 N=1 基线；不能把 F5 完成理解为多箱解算已完成。
+K11 顺序为平台／水并同步几何 → 原生接触与探针／区域事实 → 环境／能力／选中 → 合成并写入本步刚体速度 → 统一模拟一次 → 回读实际位置／速度。实际刚体速度是跨帧运动基准；跳跃／墙滑规则仍由行为与执行负责。推拉保留水平贴合与独立竖直运动，收纳和恢复沿用既有事务。
 
 ## 运行与验证
 
-- 使用项目指定的 Unity 版本及 New Input System。
-- 角色/箱体物理根节点按现有配置冻结旋转，自研重力与 Rigidbody2D 设置配套使用。
-- Edit Mode 菜单：`自定义工具/EPhy 验证环境接入（Edit Mode）`；批处理入口：`EnvironmentIntegrationChecks.RunForBatch`。
-- 既有完整验证记录：环境接入 148 项及两组共 1080 步单箱 Dynamic 回归通过；不运行输入 FSM 或表现层，也不证明有限箱链位置已闭环。
-- 2026-10-05：P_5.1 正常下平台已获用户确认；V_5 密集平台返工已完成，运行时/编辑器脚本离线编译、独立 Unity 项目 14 项定向检查及 12 组连续物理模拟通过。点按落地仍有短暂原生接触纠偏，原场景手感需复验；框架阅读入口与验证边界见 [P_5 专题](Docs/待办具体事务文档集中/P_5-玩家逻辑行为扩展.md)。
-- 2026-10-06：P_5.3 当前授权范围及独立水面泳姿已实现，V_6 耗氧周期与 V_7 水流误扣已修复；最新 257 项 Edit Mode、83 项真实 Play Mode（含新增 59 项）、22 项死亡周期、37 项隔离疾跑/改键回归通过。连续游泳使用原预制体 Dynamic/Interpolate、原相位管线和 Unity 2D 模拟；`PlayerSwimmingPlayModeChecks.RunForBatch` 使用临时空场景。水面动画有独立入口，专用素材仍占位；完整阶段、穿墙/认知、关卡/道具重刷新和人工泳感保留后续验收，详见 P_5 专题末节。
+使用项目版本与 New Input System；当前角色／箱子开启 Interpolate、物理根节点冻结旋转。冰面与推拉手感未最终定标，只要求可调结构。
+
+环境检查菜单为「自定义工具/EPhy 验证环境接入（Edit Mode）」，批处理入口 EnvironmentIntegrationChecks.RunForBatch；相关行为检查入口见专题。本轮环境、观测、游泳、真实 ICE 场景、箱子与死亡周期检查通过，证据集中在[历史回顾](Docs/历史回顾.md#近期完成与验证)。自动通过不等于人工手感或完整核心循环通过。
