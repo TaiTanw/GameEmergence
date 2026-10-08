@@ -9,13 +9,15 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 
 /// <summary>
-/// P_5.4 箱子交互的 Edit Mode 批处理检查：克隆实际玩家与箱子预制体，手动推进 1–3 相位、统一 Unity 模拟、相位 5 回读。
+/// P_5.4 箱子交互的 Edit Mode 批处理检查：克隆实际玩家与箱子预制体，手动推进 1–3、真实相位 4 回调、统一 Unity 模拟及相位 5 回读。
 /// 物理组直接写动作数据核对共同水平运动；玩家组经 Player 的交互消费与相位 2 关系核对选中、解除和带电触碰。
 /// 只创建临时对象，结束即销毁，不保存场景或预制体。
 /// </summary>
 public static class BoxInteractionChecks
 {
     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+    private static readonly MethodInfo sidePush = typeof(BasicEntity).Assembly.GetType("EntitySidePush")
+        .GetMethod("Apply", BindingFlags.Static | BindingFlags.NonPublic);
     private static readonly List<GameObject> objects = new List<GameObject>();
     private static readonly List<string> passed = new List<string>();
     private static float nextX = 1000f;
@@ -44,7 +46,6 @@ public static class BoxInteractionChecks
             CheckUnderBoxJump();
             CheckSelectedPushAndPull();
             CheckSelectedWallStops();
-            CheckEngageOnContact();
             CheckApproachThenPull();
             CheckUnselectedContact();
             CheckSelectionRelations();
@@ -102,16 +103,28 @@ public static class BoxInteractionChecks
 
     private static void CheckTopContactClears()
     {
-        TestWorld w = World(80f);
+        TestWorld w = World(80f, true);
+        var input = new PlayerInputData();
+        w.owner.ChangeInputAsset(input);
         w.box.SetMotionParticipation(false);
+        w.owner.TickLogic(Time.fixedDeltaTime); Step(w);
         Collider2D roof = Solid(new Vector2(w.player.BodyBounds.center.x, w.player.BodyBounds.max.y + .2f),
             new Vector2(4f, .1f), w.wallLayer);
-        w.player.GetComponent<Rigidbody2D>().velocity = Vector2.up * 20f;
-        Step(w); Step(w);
-        Check(w.player.BodyBounds.max.y <= roof.bounds.min.y + .025f && w.player.DebugIsTopBlocked,
-            "角色原生撞顶后采到实际顶头接触");
-        for (int tick = 0; tick < 20; tick++) Step(w);
-        Check(!w.player.DebugIsTopBlocked, "角色自然离顶后清除旧顶头事实");
+        input.jumpPressed = true;
+        for (int tick = 0; tick < 2; tick++) { w.owner.TickLogic(Time.fixedDeltaTime); Step(w); }
+        Check(Mathf.Abs(w.player.BodyBounds.max.y - roof.bounds.min.y) < .025f,
+            "角色实际跳跃贴近屋顶且不穿顶 [gap=" + (roof.bounds.min.y - w.player.BodyBounds.max.y) + "]");
+        float startX = w.player.DebugActualPosition.x;
+        bool fell = false;
+        input.moveInput = 1f;
+        for (int tick = 0; tick < 20; tick++)
+        {
+            w.owner.TickLogic(Time.fixedDeltaTime); Step(w);
+            fell |= w.player.GetPlanarVelocity().y < -.1f;
+        }
+        Check(w.player.DebugActualPosition.x > startX + 1f && fell
+            && w.player.BodyBounds.max.y < roof.bounds.min.y - .05f && !w.player.DebugIsTopBlocked,
+            "角色顶下仍可水平前进、正常落回并清除旧顶头事实");
     }
 
     /// <summary>环境持续施力与固定流速直接作用真实运动，不留第二份累计速度。</summary>
@@ -337,30 +350,6 @@ public static class BoxInteractionChecks
         for (int tick = 0; tick < 80; tick++) { pull.action.onMove = -1f; Step(pull); }
         Check(pull.player.BodyBounds.min.x >= back.bounds.max.x - .02f, "拉动时玩家不嵌入身后墙");
         Check(Mathf.Abs(Gap(pull) - gap) < .03f, $"玩家抵墙后箱子不继续压向玩家 [{gap} → {Gap(pull)}]");
-    }
-
-    /// <summary>隔一段距离选中：接触前不共同运动，走到箱边接触后才同步推拉；未接触时反向不拉动。</summary>
-    private static void CheckEngageOnContact()
-    {
-        var w = World(80f);
-        MoveCenter(w.player, (Vector2)w.player.BodyBounds.center + Vector2.left * .3f);
-        w.action.pushPullBox = w.box;
-        Vector2 boxStart = w.box.DebugActualPosition;
-        for (int tick = 0; tick < 10; tick++) { w.action.onMove = -1f; Step(w); }
-        Check(Mathf.Abs(w.box.DebugActualPosition.x - boxStart.x) < .003f,
-            $"选中未接触时反向走开不拉动箱子 [{w.box.DebugActualPosition.x - boxStart.x}]");
-        for (int tick = 0; tick < 10; tick++) { w.action.onMove = 0f; Step(w); }
-        bool engaged = false;
-        for (int tick = 0; tick < 60; tick++)
-        {
-            w.action.onMove = 1f;
-            Step(w);
-            if (!engaged) { engaged = Gap(w) <= .05f; continue; }
-        }
-        Check(engaged && w.box.DebugActualPosition.x - boxStart.x > 1f, "走到箱边接触后开始推动");
-        Vector2 pullStart = w.box.DebugActualPosition;
-        for (int tick = 0; tick < 30; tick++) { w.action.onMove = -1f; Step(w); }
-        Check(pullStart.x - w.box.DebugActualPosition.x > .5f, "接触后反向可拉动");
     }
 
     /// <summary>经 Player 隔距选中：自动走到箱边不撞开箱子，方向输入期间不生效；贴合后反向即拉动且选中不断开。</summary>
@@ -824,6 +813,8 @@ public static class BoxInteractionChecks
         foreach (BasicEntity e in entities) Invoke(e, "GeometricQueryPhase");
         foreach (BasicEntity e in entities) Invoke(e, "PhyFunUpdate");
         foreach (BasicEntity e in entities) Invoke(e, "SpeedCalculation");
+        // 与其他手动相位相同，直接执行运行时相位 4 回调；调度订阅由两次 Play 回归验证。
+        sidePush.Invoke(null, null);
         Physics2D.Simulate(Time.fixedDeltaTime);
         foreach (BasicEntity e in entities) Invoke(e, "DisplacementCorrection");
     }

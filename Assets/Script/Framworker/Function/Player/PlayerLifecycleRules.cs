@@ -54,7 +54,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver
             completed = refreshRules != null && refreshRules.TryRestartExploration(subject);
         }
         else
-            // 教学死亡结果尚无已确认规则，不能借探索/逃生分支猜测。
+            // 教学关死亡已定为重开当前关，不走逃生重刷新。此处尚未执行。
             return PlayerDeathStatus.Pending;
         if (!completed) return PlayerDeathStatus.Pending;
         handledCycles[subject] = request.cycle;

@@ -30,13 +30,19 @@ static class EntitySidePush
     const float ClosingEpsilon = 0.01f;
     static readonly List<BasicEntity> steps = new List<BasicEntity>();
     static readonly List<RaycastHit2D> hits = new List<RaycastHit2D>();
-    static bool registered;
+    static MonoPublicMgr registeredManager;
 
     public static void EnsureRegistered()
     {
-        if (registered || MonoPublicMgr.Instance == null) return;
-        MonoPublicMgr.Instance.AddPhysicalTimingUpdate(Apply, 4);
-        registered = true;
+        MonoPublicMgr manager = MonoPublicMgr.Instance;
+        // 实际逻辑：同一调度器只订阅一次；重进播放后跟随新调度器重新订阅。
+        if (manager == registeredManager) return;
+        // 安全：旧调度器尚未销毁时先移除订阅。
+        if (registeredManager != null) registeredManager.RemovePhysicalTimingUpdate(Apply, 4);
+        steps.Clear();
+        hits.Clear();
+        manager.AddPhysicalTimingUpdate(Apply, 4);
+        registeredManager = manager;
     }
 
     public static void Report(BasicEntity entity)

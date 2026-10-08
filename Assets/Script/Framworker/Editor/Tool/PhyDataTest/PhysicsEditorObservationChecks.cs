@@ -198,6 +198,52 @@ public static class PhysicsEditorObservationChecks
             PhysicsEditorContactObservation.StopObserving();
             if (item != null) Object.DestroyImmediate(item);
         }
+        CheckSidePush(manager);
+    }
+
+    // 每次播放都验证模拟前的真实推动，避免原生碰撞掩盖相位 4 订阅丢失。
+    private static void CheckSidePush(MonoPublicMgr manager)
+    {
+        var driverItem = new GameObject("K11 side push driver");
+        var boxItem = new GameObject("K11 side push box");
+        UnityAction sample = null;
+        try
+        {
+            driverItem.transform.position = new Vector2(2000, 1000);
+            boxItem.transform.position = driverItem.transform.position + Vector3.right * 1.01f;
+            Rigidbody2D driverBody = driverItem.AddComponent<Rigidbody2D>();
+            driverBody.freezeRotation = true;
+            driverItem.AddComponent<BoxCollider2D>();
+            var driver = driverItem.AddComponent<PhysicsObservationCheckBody>();
+            Rigidbody2D boxBody = boxItem.AddComponent<Rigidbody2D>();
+            boxBody.freezeRotation = true;
+            boxItem.AddComponent<BoxCollider2D>();
+            boxItem.AddComponent<PhysicsObservationCheckBody>().horizontalDrive = false;
+            driver.enabled = false;
+            driver.enabled = true;
+            int registrations = 0;
+            foreach (Delegate callback in manager.actionsLen[4]?.GetInvocationList() ?? Array.Empty<Delegate>())
+                if (callback.Method.DeclaringType?.Name == "EntitySidePush") registrations++;
+            Check(registrations == 1, $"多实体和重新启用仍只注册一次侧面推动 [count={registrations}]");
+            int samples = 0;
+            float driverVx = 0f, boxVx = 0f;
+            sample = () => { samples++; driverVx = driverBody.velocity.x; boxVx = boxBody.velocity.x; };
+            manager.AddPhysicalTimingUpdate(sample, 4);
+            Physics2D.SyncTransforms();
+            Vector2 driverOrigin = driverBody.position, boxOrigin = boxBody.position;
+            Tick(manager);
+            Check(samples == 1 && Mathf.Abs(driverVx - 2f) < .001f && Mathf.Abs(boxVx - driverVx) < .001f,
+                $"Unity 模拟前已执行侧面推动并写入双方水平速度 [samples={samples}, driver={driverVx}, box={boxVx}]");
+            Check(Mathf.Abs(driverBody.position.x - driverOrigin.x - 2f * Time.fixedDeltaTime) < .001f
+                && Mathf.Abs(boxBody.position.x - boxOrigin.x - 2f * Time.fixedDeltaTime) < .001f,
+                "侧面推动后双方只推进一个固定模拟步");
+        }
+        finally
+        {
+            if (sample != null) manager.RemovePhysicalTimingUpdate(sample, 4);
+            Object.DestroyImmediate(driverItem);
+            Object.DestroyImmediate(boxItem);
+        }
     }
 
     private static void Tick(MonoPublicMgr manager) => fixedUpdate.Invoke(manager, null);
@@ -221,6 +267,7 @@ public static class PhysicsEditorObservationChecks
 // 保留真实实体调度和 Unity 模拟，仅以固定意图替代角色输入和场景探针。
 public sealed class PhysicsObservationCheckBody : BasicEntity
 {
+    public bool horizontalDrive = true;
     protected override void Awake()
     {
         BindEffectReceiver();
@@ -231,7 +278,7 @@ public sealed class PhysicsObservationCheckBody : BasicEntity
         playerPhysicsData = new PhyData.PlayerPhysicsData();
         nowGemetry = new PhyData.GeometryPhysicsData();
     }
-    protected override bool HasHorizontalDrive => true;
+    protected override bool HasHorizontalDrive => horizontalDrive;
     protected override void GeometricQuery() { }
     protected override void HActiveSpeedOperation() => playerPhysicsData.horizontalSpeed = 2;
 }
