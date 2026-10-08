@@ -110,8 +110,8 @@ public static class PlayerSurfaceSwimmingChecks
         var presentation = actor.GetComponentInChildren<PresentationLayer>();
         typeof(PresentationLayer).GetMethod("Update", Hidden).Invoke(presentation, null);
         var animator = presentation.GetComponent<Animator>(); animator.Update(0f);
-        Check(animator.GetCurrentAnimatorStateInfo(0).fullPathHash == Animator.StringToHash("Base Layer.SurfaceSwim"),
-            "真实 Animator 从逻辑事实播放独立 SurfaceSwim 状态");
+        Check(animator.GetCurrentAnimatorStateInfo(0).fullPathHash == Animator.StringToHash("Base Layer.SurfaceSwimIdle"),
+            "真实 Animator 从零移动意图的水面事实播放 SurfaceSwimIdle 状态");
         Check(typeof(PresentationLayer).GetField("activeTrigger", Hidden).GetValue(presentation).ToString() == "None",
             "水面悬浮不制造跳跃或落地动画触发");
     }

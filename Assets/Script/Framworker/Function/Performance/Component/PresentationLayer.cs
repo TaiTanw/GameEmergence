@@ -15,18 +15,21 @@ public class PresentationLayer : MonoBehaviour
     private const float VerticalSpeedDeadZone = 0.01f;
     private const float JumpImpulseEpsilon = 0.01f;
 
-    // Animator Controller 当前没有连线，所有状态都由这里使用完整路径直接播放。
+    // 表现层使用完整路径直接播放状态，新增动画不需要 Transition 或参数连线。
     // “On” 是现有 Controller 中 idle 动画对应的状态名；“OnAir” 对应上升循环动画。
     private static readonly int IdleStateHash = Animator.StringToHash("Base Layer.On");
     private static readonly int MoveStateHash = Animator.StringToHash("Base Layer.move");
+    private static readonly int SprintStateHash = Animator.StringToHash("Base Layer.Sprint");
     private static readonly int JumpTriggerStateHash = Animator.StringToHash("Base Layer.Jump_Up");
     private static readonly int AirUpStateHash = Animator.StringToHash("Base Layer.OnAir");
     private static readonly int LandingTriggerStateHash = Animator.StringToHash("Base Layer.Jump_Down");
     private static readonly int AirDownStateHash = Animator.StringToHash("Base Layer.OnAir_Down");
     private static readonly int WallStateHash = Animator.StringToHash("Base Layer.Wall");
     private static readonly int SwimStateHash = Animator.StringToHash("Base Layer.Swim");
+    private static readonly int SwimIdleStateHash = Animator.StringToHash("Base Layer.SwimIdle");
     private static readonly int FlightStateHash = Animator.StringToHash("Base Layer.Flight");
     private static readonly int SurfaceSwimStateHash = Animator.StringToHash("Base Layer.SurfaceSwim");
+    private static readonly int SurfaceSwimIdleStateHash = Animator.StringToHash("Base Layer.SurfaceSwimIdle");
 
     private enum MotionMode
     {
@@ -50,14 +53,17 @@ public class PresentationLayer : MonoBehaviour
         None,
         Idle,
         Move,
+        Sprint,
         JumpTrigger,
         AirUp,
         LandingTrigger,
         AirDown,
         Wall,
         Swim,
+        SwimIdle,
         Flight,
-        SurfaceSwim
+        SurfaceSwim,
+        SurfaceSwimIdle
     }
 
     /// <summary>
@@ -162,8 +168,14 @@ public class PresentationLayer : MonoBehaviour
         if (behavior == MotionMode.Swim || behavior == MotionMode.Flight || behavior == MotionMode.SurfaceSwim)
         {
             ResetMotionHistory();
-            Play(behavior == MotionMode.Flight ? AnimationState.Flight
-                : behavior == MotionMode.SurfaceSwim ? AnimationState.SurfaceSwim : AnimationState.Swim);
+            if (behavior == MotionMode.Flight)
+            {
+                Play(AnimationState.Flight);
+            }
+            else
+            {
+                UpdateSwimmingAnimation(behavior);
+            }
             return;
         }
 
@@ -297,10 +309,28 @@ public class PresentationLayer : MonoBehaviour
         ResetAirState();
 
         // 地面行走表达的是玩家行为意图；环境带动但没有输入时仍保持待机，避免把平台位移误画成主动行走。
-        AnimationState desiredState = Mathf.Abs(actionData.onMove) > MoveInputDeadZone
-            ? AnimationState.Move
-            : AnimationState.Idle;
-        Play(desiredState);
+        if (Mathf.Abs(actionData.onMove) <= MoveInputDeadZone)
+        {
+            Play(AnimationState.Idle);
+            return;
+        }
+
+        // 状态机已结算疾跑许可与体力；只消费倍率，不从原始按键重新推断疾跑。
+        Play(actionData.speedScale > 1f ? AnimationState.Sprint : AnimationState.Move);
+    }
+
+    private void UpdateSwimmingAnimation(MotionMode motionMode)
+    {
+        // 四向输入已由逻辑层过滤；水流与水面追随不构成主动划水，零输入保持悬浮待机。
+        bool moving = Mathf.Abs(actionData.onMove) > MoveInputDeadZone
+            || Mathf.Abs(actionData.verticalInput) > MoveInputDeadZone;
+        if (motionMode == MotionMode.SurfaceSwim)
+        {
+            Play(moving ? AnimationState.SurfaceSwim : AnimationState.SurfaceSwimIdle);
+            return;
+        }
+
+        Play(moving ? AnimationState.Swim : AnimationState.SwimIdle);
     }
 
     private void UpdateWallAnimation()
@@ -458,6 +488,8 @@ public class PresentationLayer : MonoBehaviour
                 return IdleStateHash;
             case AnimationState.Move:
                 return MoveStateHash;
+            case AnimationState.Sprint:
+                return SprintStateHash;
             case AnimationState.JumpTrigger:
                 return JumpTriggerStateHash;
             case AnimationState.AirUp:
@@ -470,10 +502,14 @@ public class PresentationLayer : MonoBehaviour
                 return WallStateHash;
             case AnimationState.Swim:
                 return SwimStateHash;
+            case AnimationState.SwimIdle:
+                return SwimIdleStateHash;
             case AnimationState.Flight:
                 return FlightStateHash;
             case AnimationState.SurfaceSwim:
                 return SurfaceSwimStateHash;
+            case AnimationState.SurfaceSwimIdle:
+                return SurfaceSwimIdleStateHash;
             default:
                 return IdleStateHash;
         }
@@ -485,14 +521,17 @@ public class PresentationLayer : MonoBehaviour
         {
             IdleStateHash,
             MoveStateHash,
+            SprintStateHash,
             JumpTriggerStateHash,
             AirUpStateHash,
             LandingTriggerStateHash,
             AirDownStateHash,
             WallStateHash,
             SwimStateHash,
+            SwimIdleStateHash,
             FlightStateHash,
-            SurfaceSwimStateHash
+            SurfaceSwimStateHash,
+            SurfaceSwimIdleStateHash
         };
 
         for (int i = 0; i < requiredStates.Length; i++)
