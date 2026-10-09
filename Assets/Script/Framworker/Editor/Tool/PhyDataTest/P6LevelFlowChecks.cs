@@ -27,8 +27,8 @@ public static class P6LevelFlowChecks
     private static Player body, oldSpirit;
     private static PlayerLifecycleRules oldRules;
     private static int bodyId, spiritId;
-    private static ChangePanel panel;
-    private static Button modeButton;
+    private static GameplayPanel panel;
+    private static GameMenuPanel menu;
     private static float expectedCognition, formCost;
     private static int stage;
     private static double deadline, cooldownEnds;
@@ -46,7 +46,7 @@ public static class P6LevelFlowChecks
         previousOptions = EditorSettings.enterPlayModeOptions;
         previousSimulation = Physics2D.simulationMode;
         previousTimeScale = Time.timeScale;
-        passed.Clear(); stage = 0; failure = null; runtimeError = null; panel = null;
+        passed.Clear(); stage = 0; failure = null; runtimeError = null; panel = null; menu = null;
         EditorSettings.enterPlayModeOptionsEnabled = true;
         EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload;
         MonoPublicMgr.IsQuitting = false;
@@ -104,24 +104,27 @@ public static class P6LevelFlowChecks
                     expectedCognition = SceneLevelSetup.Current.InitialCognition;
                     formCost = SceneLevelSetup.Current.FormChangeCost;
                     Check(DataAndInitMgr.Instance.LoadLevelIndex() == 1, "跨关成功保存第二关序号");
-                    UIMgr.Instance.ShowOneUI<ChangePanel>(E_UILayer.Middle, value => panel = value);
+                    UIMgr.Instance.GetOnePanel<GameplayPanel>(value => panel = value);
                     stage = 3;
                     break;
                 case 3:
                     if (panel == null || !panel.gameObject.activeInHierarchy) return;
-                    modeButton = (Button)typeof(ChangePanel).GetField("simulationButton", Hidden).GetValue(panel);
-                    Check(modeButton != null && modeButton.gameObject.activeInHierarchy, "真实换关面板提供模拟模式按钮");
-                    Check(modeButton.GetComponentInChildren<Text>().text == "进入模拟", "漫游显示进入模拟提示");
-                    // 测试布置：避开关卡出生点附近的占用，检验实际按钮与规则链路；不写场景文件。
+                    Check(panel.transform.parent == UIMgr.Instance.GetUILayer(E_UILayer.Bottom), "游戏显示预设进入 Bottom 层");
+                    Check(panel.GetComponentsInChildren<Button>(true).Length == 0, "游戏显示面板不提供临时测试按钮");
+                    foreach (string reserved in new[] { "MapArea", "ActionArea", "MessageArea" })
+                        Check(panel.transform.Find(reserved) != null && !panel.transform.Find(reserved).gameObject.activeSelf,
+                            "实际预设安排并隐藏预留节点 " + reserved);
+                    GameMenuInputChecks.Capture("gameplay.png");
+                    // 测试布置：避开出生点附近的占用，检验实际场景模式入口；不写场景文件。
                     oldSpirit.GetComponent<CharacterPhysics>().RefreshMotionState(new Vector2(5000f, 5000f));
-                    modeButton.onClick.Invoke();
+                    Check(SceneChangeMgr.Instance.SetSimulation(true), "场景模式入口成功进入模拟");
                     Check(LevelStageMgr.Instance.IsSimulation && !oldSpirit._ActionData.isFlying,
-                        "点击真实 UI 按钮经场景入口提交模拟和行走");
+                        "场景入口同步提交模拟和行走");
                     expectedCognition = Mathf.Max(0f, expectedCognition - formCost);
                     Near(LevelStageMgr.Instance.CognitionRemaining, expectedCognition,
-                        "真实模式按钮成功进入模拟仅扣一次场景配置的转换费用");
+                        "进入模拟仅扣一次场景配置的转换费用");
                     Check(InputControlMgr.Instance.Player == oldSpirit && oldSpirit.GetInstanceID() == spiritId,
-                        "模式按钮保持精神体实例及唯一控制对象");
+                        "模式切换保持精神体实例及唯一控制对象");
                     Check(!WorldPaused(typeof(BasicEntity)) && !WorldPaused(typeof(Taijie)),
                         "模拟成功后恢复实体和平台世界运行许可");
                     Check(oldSpirit.FormCooldownRemaining > 0f
@@ -133,14 +136,17 @@ public static class P6LevelFlowChecks
                 case 4:
                     if (EditorApplication.timeSinceStartup < cooldownEnds) return;
                     Near(oldSpirit.FormCooldownRemaining, 0f, "TimeScale 为零时转换 CD 仍归零");
-                    UIMgr.Instance.ShowOneUI<ChangePanel>();
-                    Check(modeButton.GetComponentInChildren<Text>().text == "返回漫游", "模拟显示返回漫游提示");
-                    modeButton.onClick.Invoke();
+                    typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
+                    Check(panel.FindUIObj<Text>("StageText").text == "探索 · 模拟"
+                        && panel.FindUIObj<Text>("CognitionText").text == $"认知  {expectedCognition:0.##}"
+                        && panel.FindUIObj<Text>("FormCooldownText").text == "转换 CD  0.0 秒",
+                        "游戏显示消费当前阶段、认知和实际转换 CD");
+                    Check(SceneChangeMgr.Instance.SetSimulation(false), "场景模式入口成功返回漫游");
                     Check(!LevelStageMgr.Instance.IsSimulation && oldSpirit._ActionData.isFlying,
-                        "同一模式按钮在冷却结束后返回漫游飞行");
+                        "冷却结束后返回漫游飞行");
                     expectedCognition = Mathf.Max(0f, expectedCognition - formCost);
                     Near(LevelStageMgr.Instance.CognitionRemaining, expectedCognition,
-                        "真实模式按钮返回漫游再扣一次费用，沿用本关同一认知余额");
+                        "返回漫游再扣一次费用，沿用本关同一认知余额");
                     Check(WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
                         "返回漫游同步暂停世界运动");
                     cooldownEnds = EditorApplication.timeSinceStartup + SceneLevelSetup.Current.ManualFormCooldown + .1;
@@ -160,7 +166,22 @@ public static class P6LevelFlowChecks
                     Check(Rules() != oldRules, "重进关卡重新组装唯一规则对象");
                     Check(Rules().Cognition != oldRules.Cognition, "重进关卡重新创建本关共享认知记录");
                     CheckNonTeaching(replacement);
-                    Check(SceneChangeMgr.Instance.ReturnToMenu(), "真实返回入口开始加载菜单");
+                    Check(SceneChangeMgr.Instance.ToggleGameMenu(), "重进关卡后菜单可再次打开");
+                    UIMgr.Instance.GetOnePanel<GameMenuPanel>(value => menu = value);
+                    stage = 8;
+                    break;
+                case 8:
+                    if (menu == null || !menu.gameObject.activeInHierarchy) return;
+                    Check(menu.transform.parent == UIMgr.Instance.GetUILayer(E_UILayer.Top)
+                        && menu.GetComponentsInChildren<Button>(true).Length == 1,
+                        "真实游戏菜单位于 Top 层且只有一个按钮");
+                    Check(Object.FindObjectsOfType<GameMenuPanel>(true).Length == 1,
+                        "首次加载中快速开关后缓存复用同一个菜单实例");
+                    GameMenuInputChecks.Capture("game-menu.png");
+                    menu.FindUIObj<Button>("ReturnToMenuButton").onClick.Invoke();
+                    Check(!SceneChangeMgr.Instance.GameMenuOpen && !menu.gameObject.activeSelf
+                        && !panel.gameObject.activeSelf && Time.timeScale == 0f,
+                        "真实返回按钮关闭菜单与显示面板并恢复打开前时间");
                     Check(Actor("body") == null && Actor("spirit") == null && Rules() == null,
                         "返回菜单立即清除角色与本关规则引用");
                     Check(InputControlMgr.Instance.Player == null && !LevelStageMgr.Instance.HasExploration,
@@ -174,6 +195,7 @@ public static class P6LevelFlowChecks
                     Check(body == null && Players().Length == 0, "菜单加载完成实体和精神体均已销毁");
                     Check(SceneLevelSetup.Current == null, "菜单没有上一关遗留配置");
                     Check(DataAndInitMgr.Instance.LoadLevelIndex() == 1, "返回菜单保留关卡进度");
+                    Check(!SceneChangeMgr.Instance.ToggleGameMenu(), "开始场景不能打开关内菜单");
                     stage = 9;
                     EditorApplication.isPlaying = false;
                     break;
@@ -267,8 +289,8 @@ public static class P6LevelFlowChecks
         Physics2D.simulationMode = previousSimulation;
         EditorSettings.enterPlayModeOptions = previousOptions;
         EditorSettings.enterPlayModeOptionsEnabled = previousOptionsEnabled;
-        Directory.CreateDirectory(".utmp/P7Validation");
-        File.WriteAllLines(".utmp/P7Validation/level-flow-checks.txt", passed);
+        Directory.CreateDirectory(".utmp/GameUIValidation");
+        File.WriteAllLines(".utmp/GameUIValidation/level-flow-checks.txt", passed);
         Debug.Log("P6/P7 level flow Play Mode: " + passed.Count + " checks passed; success=" + (failure == null));
         EditorApplication.Exit(failure == null ? 0 : 1);
     }

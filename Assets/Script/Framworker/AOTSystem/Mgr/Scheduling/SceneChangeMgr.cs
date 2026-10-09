@@ -15,8 +15,38 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
     PlayerLifecycleRules levelRules;
     bool loading;
     int loadSerial;
+    public bool GameMenuOpen { get; private set; }
+    float timeScaleBeforeMenu;
 
-    /// <summary>模式按钮和区域规则调用同一入口；当前控制对象不变，失败留在原模式。</summary>
+    /// <summary>人工阅读：固定 ESC → 本关菜单 → 原世界暂停入口；关闭后按当前模式恢复，不重置现场。</summary>
+    public bool ToggleGameMenu()
+    {
+        if (GameMenuOpen) { CloseGameMenu(); return true; }
+        // 安全：菜单和关卡加载期间没有可暂停的游戏，不显示关内菜单。
+        if (loading || body == null || SceneLevelSetup.Current == null || InputControlMgr.Instance.Player == null)
+            return false;
+        GameMenuOpen = true;
+        timeScaleBeforeMenu = Time.timeScale;
+        InputControlMgr.Instance.SetMenuInputPaused(true);
+        Time.timeScale = 0f;
+        PlayerLifecycleRules.SetWorldPaused(true);
+        UIMgr.Instance.ShowOneUI<GameMenuPanel>(E_UILayer.Top);
+        return true;
+    }
+
+    void CloseGameMenu()
+    {
+        // 安全：未打开时不恢复一个并未由菜单保存的时间与输入状态。
+        if (!GameMenuOpen) return;
+        GameMenuOpen = false;
+        UIMgr.Instance.HideOneUI<GameMenuPanel>();
+        Time.timeScale = timeScaleBeforeMenu;
+        // 实际逻辑：漫游继续暂停世界；教学和模拟恢复，平台不会追赶菜单停留时间。
+        PlayerLifecycleRules.SetWorldPaused(levelRules != null && !levelRules.IsSimulation);
+        InputControlMgr.Instance.SetMenuInputPaused(false);
+    }
+
+    /// <summary>场景模式请求与区域规则调用同一入口；当前控制对象不变，失败留在原模式。</summary>
     public bool SetSimulation(bool simulation, PlayerFormChangeReason reason = PlayerFormChangeReason.Manual)
     {
         if (loading || levelRules == null || spirit == null) return false;
@@ -50,6 +80,8 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
     /// <summary>还在关卡里就结束本局并载回开始场景。人已经在菜单时返回 false，让界面自己退一层。</summary>
     public bool ReturnToMenu()
     {
+        CloseGameMenu();
+        UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;
         loading = false;
         ReleaseLevelRules();
@@ -102,6 +134,8 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
             return;
         }
         loading = true;
+        CloseGameMenu();
+        UIMgr.Instance.HideOneUI<GameplayPanel>();
         ReleaseLevelRules();
         // 实际逻辑：跨关加载时旧目标先交出操作，留下的实体停止运动，不能在加载途中继续控制。
         InputControlMgr.Instance.BindPlayer(null);
@@ -127,6 +161,7 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         {
             DataAndInitMgr.Instance.SaveLevelIndex(index);
             InputControlMgr.Instance.InputOpenOrClose(true);
+            UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom);
         }
     }
 

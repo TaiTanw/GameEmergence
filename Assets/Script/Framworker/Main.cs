@@ -27,8 +27,6 @@ public class Main : MonoBehaviour
 
         MonoPublicMgr.Instance.Init();
 
-        SceneLogicMgr.Instance.Init();
-
         UIMgr.Instance.Init();
         MusicMgr.Instance.Init();
 

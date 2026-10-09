@@ -48,6 +48,7 @@ public static class SpiritFormInputChecks
             float balance = rules.Cognition.Remaining;
             float cost = SceneLevelSetup.Current.FormChangeCost;
             Check(form.bindings[0].effectivePath == "<Keyboard>/q", "形态切换默认 Q", passed);
+            GameMenuInputChecks.Run(passed, keyboard, manager, spirit, rules);
             Send(keyboard, Key.Q);
             Check(rules.IsSimulation && !spirit._ActionData.isFlying && presses == 1,
                 "真实 Q 按下经当前角色提交模拟行走，重复绑定没有重复转换", passed);
@@ -62,6 +63,7 @@ public static class SpiritFormInputChecks
             Send(keyboard, Key.Q);
             Check(rules.IsSimulation && rules.Cognition.Remaining == balance,
                 "冷却内再次按下仍被原规则拒绝且不扣费", passed);
+            GameMenuInputChecks.Run(passed, keyboard, manager, spirit, rules);
             manager.BindPlayer(body);
             Send(keyboard); Send(keyboard, Key.Q);
             Check(rules.IsSimulation && rules.Cognition.Remaining == balance,
@@ -82,6 +84,11 @@ public static class SpiritFormInputChecks
             Transform content = panel.transform.Find("rebindScroll/viewport/rebindContent");
             Check(button.transform.parent.parent == content && content.childCount == 8
                 && button.transform.parent.GetSiblingIndex() == 7, "形态行排在滚动列表末尾，原七行完整保留", passed);
+            button.onClick.Invoke();
+            GameMenuInputChecks.Send(keyboard, manager, Key.Escape);
+            Check(!SceneChangeMgr.Instance.GameMenuOpen && native.currentActionMap.enabled,
+                "改键用 ESC 取消后不误开关内菜单", passed);
+            Send(keyboard);
             button.onClick.Invoke();
             CompleteRebind(manager, keyboard, Key.E);
             Check(manager.HasPlayerBindingConflict(out string conflict) && conflict.Contains("FormSwitch")

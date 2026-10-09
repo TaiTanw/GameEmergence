@@ -150,10 +150,7 @@ public class UIMgr : BaseMgr<UIMgr>
                 UIobj.ShowMe();
 
                 info.action?.Invoke(UIobj);
-            }
-            else
-            {
-                info.action += callBack;
+                info.action = null;
             }
         }
         else
@@ -178,6 +175,9 @@ public class UIMgr : BaseMgr<UIMgr>
                 }
                 if (info.onHide)
                 {
+                    // 隐藏发生在加载完成前时，仍缓存已生成的面板，下一次显示可直接复用。
+                    info.value = UIobj;
+                    info.action = null;
                     UIobj.HideMe();
                     return;
                 }

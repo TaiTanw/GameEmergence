@@ -24,6 +24,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     /// </summary>
     Player player;
     public Player Player => player;
+    public bool InputEnabled => input != null && input.currentActionMap != null && input.currentActionMap.enabled;
     /// <summary>
     /// 玩家美术资源所指向路径（名称）此处已经配置===========================================================
     /// </summary>
@@ -47,6 +48,9 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     bool gameplayActionsBound;
     InputActionRebindingExtensions.RebindingOperation rebindOperation;
     bool rebindMapWasEnabled;
+    int rebindFinishedFrame = -1;
+    bool menuInputPaused;
+    bool inputBeforeMenu;
     bool interactHolding;
     bool interactLongFired;
     float interactHoldStart;
@@ -115,6 +119,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
 
     void FinishRebind(InputActionRebindingExtensions.RebindingOperation operation, Action onComplete)
     {
+        // 实际逻辑：改键的取消键已用于本次操作，这一帧不再拿 ESC 打开游戏菜单。
+        rebindFinishedFrame = Time.frameCount;
         operation.Dispose();
         rebindOperation = null;
         // 实际逻辑：取消不写入新键，完成才保存覆盖。两种结束都恢复改键前的开关。
@@ -405,6 +411,32 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         AbortInteractHold();
         input.currentActionMap.Disable();
     }
+
+    /// <summary>菜单停用操作时仍观察疾跑键的真实释放，继续时只恢复持续输入，不补发点按。</summary>
+    public void SetMenuInputPaused(bool paused)
+    {
+        if (menuInputPaused == paused) return;
+        menuInputPaused = paused;
+        if (paused)
+        {
+            inputBeforeMenu = InputEnabled;
+            InputOpenOrClose(false);
+            inputData.jumpPressed = inputData.jumpRelease = false;
+            InputSystem.onEvent += OnRebindInputEvent;
+        }
+        else
+        {
+            InputSystem.onEvent -= OnRebindInputEvent;
+            if (inputBeforeMenu && player != null) InputOpenOrClose(true);
+        }
+    }
+
+    void OnDestroy()
+    {
+        InputSystem.onEvent -= OnRebindInputEvent;
+        rebindOperation?.Dispose();
+        UnbindGameplayActions();
+    }
     /// <summary>
     /// 外部组装选择唯一控制目标；切换不转交旧角色的点按或交互计时。
     /// </summary>
@@ -459,6 +491,10 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     }
     void Update()
     {
+        // 实际逻辑：ESC 固定为游戏菜单键，独立于可改键动作图；暂停输入后仍能关闭菜单。
+        if (player != null && rebindOperation == null && rebindFinishedFrame != Time.frameCount
+            && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            SceneChangeMgr.Instance.ToggleGameMenu();
         //摄像机与玩家均不为空
         if (mainCamera != null && player != null)
         {

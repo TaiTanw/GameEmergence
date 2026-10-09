@@ -17,6 +17,11 @@ MonoBehaviour:
     m_SerializedData: []
   m_GUID: 6b32e906d0427674c8fa5701f6165c0e
   m_SerializeEntries:
+  - m_GUID: 04dbb8af030ed284aa529f8f10963ebc
+    m_Address: GameplayPanel
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 1ad728ce54a4fae489597c88245d894a
     m_Address: ChangePanel
     m_ReadOnly: 0
@@ -32,13 +37,13 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c16951904f70e7d48be1fd21a05160ce
-    m_Address: InputChangePanel
+  - m_GUID: 6ba4379616d595345836b5a0806dc46c
+    m_Address: GameMenuPanel
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c35d9f4f00debd546b1a85b0173042af
-    m_Address: DialogBoxPanel
+  - m_GUID: c16951904f70e7d48be1fd21a05160ce
+    m_Address: InputChangePanel
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
