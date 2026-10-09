@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 摆在场景里的本关配置。只登记是否教学、两个出生点和精神体预设，不创建角色，不抢控制。
+/// 摆在场景里的本关配置。登记教学、出生点、精神体预设和转换参数，不创建角色，不抢控制。
 /// </summary>
 public class SceneLevelSetup : MonoBehaviour
 {
@@ -16,9 +16,18 @@ public class SceneLevelSetup : MonoBehaviour
     [Header("精神体")]
     [SerializeField, Tooltip("非教学关使用的精神体预设。教学关不会实例化它")]
     GameObject spiritPrefab;
+    [SerializeField, Min(0f), Tooltip("成功转换后下一次手动切换的冷却秒数；死亡和区域强制不检查冷却")]
+    float manualFormCooldown = 0.5f;
+    [SerializeField, Min(0f), Tooltip("非教学关开局认知余额；初始化召唤不扣形态费用")]
+    float initialCognition = 100f;
+    [SerializeField, Min(0f), Tooltip("每次成功的手动／死亡／区域强制转换都扣一次；失败不扣")]
+    float formChangeCost = 1f;
 
     public bool Teaching => teaching;
     public GameObject SpiritPrefab => spiritPrefab;
+    public float ManualFormCooldown => Mathf.Max(0f, manualFormCooldown);
+    public float InitialCognition => Mathf.Max(0f, initialCognition);
+    public float FormChangeCost => Mathf.Max(0f, formChangeCost);
     public Vector2 BodyPoint => Point(bodySpawn);
     public Vector2 SpiritPoint => Point(spiritSpawn);
 

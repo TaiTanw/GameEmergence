@@ -20,6 +20,14 @@ internal sealed class EntityEffectState
 #endif
     public void BindReceiver(IForceAction value) => receiver = value;
     public void ResetTransientMotion() { timedSpeeds.Clear(); isRecalculate = true; }
+    public void ClearMotionParameters()
+    {
+        movementModifiers.Clear();
+        stateVelocities.Clear();
+        dynamicForces.Clear();
+        forceSources.Clear();
+        ResetTransientMotion();
+    }
     public void RegisterMovementModifier(EnvironmentRegistration source, float offset) { movementModifiers[source] = offset; isRecalculate = true; }
     public void RemoveMovementModifier(EnvironmentRegistration source) { movementModifiers.Remove(source); isRecalculate = true; }
     public void UpdateMovementModifier(PlayerPhysicsData movement)

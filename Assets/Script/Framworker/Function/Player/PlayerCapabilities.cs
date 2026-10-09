@@ -29,6 +29,9 @@ public readonly struct PlayerCapabilityPermissions
     }
 
     public static PlayerCapabilityPermissions Walking => new PlayerCapabilityPermissions(true, true, false, true, true);
+    public static PlayerCapabilityPermissions Roaming => new PlayerCapabilityPermissions(true, false, true, true, true, false);
+    // 模拟仍保留转换许可；实际行走／飞行由规则和 FlightForm 一同提交。
+    public static PlayerCapabilityPermissions Simulation => new PlayerCapabilityPermissions(true, true, true, true, true);
     public static PlayerCapabilityPermissions Standby => default;
 }
 

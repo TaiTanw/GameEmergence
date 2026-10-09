@@ -303,6 +303,7 @@ MonoBehaviour:
   fourWaySpeed: 6
   upSpeed: 15
   pushPullEngageGap: 0.05
+  walkingRestoreTolerance: 0.02
 --- !u!1 &7743792163046834635
 GameObject:
   m_ObjectHideFlags: 0

@@ -12,8 +12,23 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
     const string MenuSceneName = "BeginScenes";
     Player body;
     Player spirit;
+    PlayerLifecycleRules levelRules;
     bool loading;
     int loadSerial;
+
+    /// <summary>模式按钮和区域规则调用同一入口；当前控制对象不变，失败留在原模式。</summary>
+    public bool SetSimulation(bool simulation, PlayerFormChangeReason reason = PlayerFormChangeReason.Manual)
+    {
+        if (loading || levelRules == null || spirit == null) return false;
+        return spirit.RequestSpiritForm(!simulation, reason);
+    }
+
+    void ReleaseLevelRules()
+    {
+        LevelStageMgr.Instance.BindRules(null);
+        levelRules = null;
+        PlayerLifecycleRules.SetWorldPaused(false);
+    }
 
     /// <summary>按已保存的关序号进入。没有存档时是第一关。</summary>
     public void EnterSavedLevel()
@@ -37,6 +52,7 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
     {
         int serial = ++loadSerial;
         loading = false;
+        ReleaseLevelRules();
         InputControlMgr.Instance.BindPlayer(null);
         InputControlMgr.Instance.InputOpenOrClose(false);
         // 实际逻辑：不在开始场景就结束本局。实体跨场景，必须显式销毁。
@@ -86,6 +102,11 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
             return;
         }
         loading = true;
+        ReleaseLevelRules();
+        // 实际逻辑：跨关加载时旧目标先交出操作，留下的实体停止运动，不能在加载途中继续控制。
+        InputControlMgr.Instance.BindPlayer(null);
+        body?.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        spirit?.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
         int serial = ++loadSerial;
         InputControlMgr.Instance.InputOpenOrClose(false);
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top);
@@ -139,7 +160,7 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
                 done?.Invoke(true);
                 return;
             }
-            // 实际逻辑：非教学关实体停在出生点，控制交给新的精神体。不打开飞行。
+            // 实际逻辑：非教学关实体停在出生点，控制交给初始飞行的本关精神体。
             body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
             done?.Invoke(SpawnSpirit(setup));
         });
@@ -167,7 +188,16 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         }
         InputControlMgr.Instance.BindPlayer(spirit);
         spirit.RefreshRuntime(setup.SpiritPoint);
-        spirit.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+        levelRules = new PlayerLifecycleRules(body, spirit,
+            cognition: new LevelCognition(setup.InitialCognition), formCost: setup.FormChangeCost);
+        if (!levelRules.BeginExploration(setup.ManualFormCooldown))
+        {
+            Debug.LogError("精神体飞行初始化失败。", spirit);
+            DestroyActor(ref spirit);
+            ReleaseLevelRules();
+            return false;
+        }
+        LevelStageMgr.Instance.BindRules(levelRules);
         return true;
     }
 

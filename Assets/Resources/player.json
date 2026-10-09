@@ -49,6 +49,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
+                },
+                {
+                    "name": "FormSwitch",
+                    "type": "Button",
+                    "id": "e12f6a38-4b2d-48a0-9c7f-20486ed32fb1",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -150,6 +159,17 @@
                     "action": "Vertical",
                     "isComposite": false,
                     "isPartOfComposite": true
+                },
+                {
+                    "name": "",
+                    "id": "591aeb3d-cf29-4796-b1a0-721d8d82a935",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "FormSwitch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         }

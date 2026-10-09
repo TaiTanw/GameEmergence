@@ -29,7 +29,7 @@ public interface IPlayerFormRules
 public interface IPlayerRunRefreshRules { bool TryRestartExploration(Player deadPlayer); }
 
 /// <summary>
-/// 精神体执行模块的接入口；成功开启须屏蔽重力、外部能力/效果、自定义接触和 Unity 原生阻挡，
-/// 退出须恢复碰撞并重采样环境。此协议留给第 6 组，不把普通四向游泳冒充穿墙飞行。
+/// 精神体执行模块的接入口；开启屏蔽重力、外部效果和实心阻挡，仍走统一原生模拟，
+/// 飞转行仅校验当前占用，通过后恢复碰撞并重采样环境。认知结算留在规则侧。
 /// </summary>
 public interface IPlayerFlightExecution { bool TrySetFlying(bool flying); }

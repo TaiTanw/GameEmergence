@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.VersionControl;
 using UnityEngine;
 
 /// <summary>
@@ -107,15 +106,15 @@ public class TaskSp : MonoBehaviour
 
         if (GUILayout.Button("返回开始界面"))
         {
-            UIMgr.Instance.ShowOneUI<LoadingPanel>();
-            SceneChangeMgr.Instance.LoadSceneAsync("BeginScenes", () =>
-            {
-                UIMgr.Instance.HideOneUI<LoadingPanel>();
-                InputControlMgr.Instance.InputOpenOrClose(false);
-                PoolMgr.Instance.ClearPoolObj();
-                //print("返回开始界面1");
-            });
+            SceneChangeMgr.Instance.ReturnToMenu();
         }
+
+        // 当前测试场景沿用已有按钮入口，正式面板也调用同一个模式规则。
+        if (LevelStageMgr.Instance.HasExploration)
+            GUILayout.Label($"认知：{LevelStageMgr.Instance.CognitionRemaining:0.##}");
+        if (LevelStageMgr.Instance.HasExploration
+            && GUILayout.Button(LevelStageMgr.Instance.IsSimulation ? "返回漫游" : "进入模拟"))
+            SceneChangeMgr.Instance.SetSimulation(!LevelStageMgr.Instance.IsSimulation);
 
         if (GUILayout.Button("打开对话框"))
         {

@@ -64,6 +64,9 @@ public class PlayerResourceWindow : EditorWindow
             EditorGUILayout.Toggle("运动更新许可", player.Permissions.motionUpdates);
             EditorGUILayout.Toggle("资源更新许可", player.Permissions.resourceUpdates);
             EditorGUILayout.Space();
+            GUILayout.Label("形态切换", EditorStyles.boldLabel);
+            EditorGUILayout.FloatField("转换 CD（秒）", player.FormCooldownRemaining);
+            EditorGUILayout.Space();
             GUILayout.Label("疾跑", EditorStyles.boldLabel);
             EditorGUILayout.Toggle("玩家按住", resources.sprintHeld);
             EditorGUILayout.Toggle("当前可疾跑", resources.canSprint);

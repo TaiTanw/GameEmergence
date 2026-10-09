@@ -130,6 +130,7 @@ public class Player : MonoBehaviour
     public PlayerDeathRequest? PendingDeath => pendingDeath;
     public PlayerDeathStatus DeathStatus { get; private set; } = PlayerDeathStatus.Handled;
     public PlayerIdentity Identity => identity;
+    public float FormCooldownRemaining => (formRules as PlayerLifecycleRules)?.ManualFormCooldownRemaining ?? 0f;
     public PlayerCapabilityPermissions Permissions => capabilities?.Permissions ?? PlayerCapabilityPermissions.Walking;
     public FourWayMode ResolveFourWayAbility() => capabilities?.ResolveFourWay(WaterFacts) ?? FourWayMode.None;
     internal Bounds BodyBounds => playPDate.BodyBounds;
@@ -177,15 +178,27 @@ public class Player : MonoBehaviour
 
     internal bool TryCommitSpiritForm(bool flying)
     {
-        // 依赖约束：穿墙与安全落点执行未接入时不把普通四向移动冒充飞行。
+        // 依赖约束：执行通过当前占用检查后才提交实际形态；失败保留操作和资源。
         if (Identity != PlayerIdentity.Spirit || (flying && !Permissions.flight)
             || flightExecution == null || !flightExecution.TrySetFlying(flying)) return false;
         if (!capabilities.SetFlightForm(flying)) return false;
+        inputOwner?.ClearPlayerInputEdges(this);
+        ReleaseBoxSelection();
+        ClearInteractHint();
+        ClearActionOutput();
         fsm.ResetMotionActions();
         playPDate.ClearPendingActions();
         fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
         if (!flying) ResetDeathCycle();
         return true;
+    }
+
+    /// <summary>人工阅读入口：规则绑定同一精神体的真实飞行执行；初始召唤不经过付费的手动转换。</summary>
+    internal void BindSpiritRules(PlayerLifecycleRules rules)
+    {
+        EnsureRuntimeReady();
+        BindFormRules(rules, playPDate as IPlayerFlightExecution);
+        BindDeathReceiver(rules);
     }
 
     public void ResetDeathCycle()
@@ -225,6 +238,8 @@ public class Player : MonoBehaviour
             playPDate.ClearPendingActions();
         }
         playPDate.SetMotionParticipation(permissions.motionUpdates);
+        // 实际逻辑：权限与当前水事实一同提交，当次从飞行恢复游泳，不等下一帧也不更新资源。
+        if (runtimeReady) fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
     }
 
     private void ClearActionOutput()

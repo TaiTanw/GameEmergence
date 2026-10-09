@@ -9,6 +9,36 @@ using UnityEngine.U2D;
 /// </summary>
 public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
 {
+    static readonly List<Taijie> activePlatforms = new List<Taijie>();
+    static bool worldPaused;
+    bool paused;
+    double pausedAt;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetWorldPause()
+    {
+        activePlatforms.Clear();
+        worldPaused = false;
+    }
+
+    /// <summary>规则暂停平台，保留当前位置和运行进度；恢复时不追赶暂停期间的时间。</summary>
+    public static void SetWorldPaused(bool value)
+    {
+        worldPaused = value;
+        foreach (Taijie platform in activePlatforms)
+            if (platform != null) platform.SetPaused(value);
+    }
+
+    void SetPaused(bool value)
+    {
+        if (paused == value) return;
+        double now = AudioSettings.dspTime;
+        if (value) pausedAt = now;
+        // 实际逻辑：从运行起点排除暂停时间，不移动平台来补进度。
+        else if (start) nowtime += now - pausedAt;
+        paused = value;
+        delta = Vector2.zero;
+    }
     /// <summary>平台在相位 0 记录的本帧位移；停止或禁用时清零，由平台自身持有。</summary>
     protected Vector2 delta;
     /// <summary>采样：通过 IPlatformMotion 供脚下实体读取，随后并入其运动快照。</summary>
@@ -53,6 +83,8 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
 
     protected override void OnSourceEnabled()
     {
+        if (!activePlatforms.Contains(this)) activePlatforms.Add(this);
+        SetPaused(worldPaused);
         MonoPublicMgr.Instance.AddPhysicalTimingUpdate(FixFun, 0);
     }
     /// <summary>
@@ -69,10 +101,11 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
         nowtime= AudioSettings.dspTime;
         //lastT = 0;
         start = true;
+        if (paused) pausedAt = nowtime;
     }
     void FixFun()
     {
-        if (!start)
+        if (!start || paused)
         {
             delta = Vector2.zero;
             return;
@@ -107,6 +140,7 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
 
     protected override void OnSourceDisabled()
     {
+        activePlatforms.Remove(this);
         delta = Vector2.zero;
         if (!MonoPublicMgr.IsQuitting)
         {

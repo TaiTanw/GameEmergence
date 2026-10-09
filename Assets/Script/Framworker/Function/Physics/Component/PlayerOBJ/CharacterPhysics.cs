@@ -7,7 +7,7 @@ using PhyData;
 /// <summary>
 /// 角色物理组件
 /// </summary>
-public class CharacterPhysics : BasePhysicsEntity, ICanMove
+public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecution
 {
     #region 玩家物理配置数据
     /// <summary>
@@ -51,10 +51,45 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove
     protected override bool MotionExecutionReady => playActionData != null;
     protected override bool MotionUpdatesEnabled => playActionData == null || playActionData.motionUpdates;
     protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
+    private bool flying;
+    protected override bool UsesCollisionFreeMovement => flying;
+    protected override bool ParticipatesInWorldPause => false;
+    protected override Vector2 CollisionFreeVelocity => playActionData == null ? Vector2.zero
+        : Vector2.ClampMagnitude(new Vector2(playActionData.onMove, playActionData.verticalInput), 1f) * fourWaySpeed;
     [SerializeField, Tooltip("选中箱与玩家碰撞框水平间隙不超过此值才开始共同推拉，开发期参数")]
     private float pushPullEngageGap = 0.05f;
 
     private SliderJoint2D pushPullJoint;
+    [SerializeField, Min(0f), Tooltip("飞转行允许的浅层重叠深度；通过后由原生物理处理接触，默认 0.02 个世界单位。")]
+    private float walkingRestoreTolerance = 0.02f;
+
+    /// <summary>
+    /// 人工阅读：Player 的统一形态提交调用这里。飞行保留原生模拟并把碰撞框改为 Trigger；
+    /// 飞转行先检查当前位置，允许配置范围内的浅重叠；通过后恢复实心并重采样，不补角色资源。
+    /// </summary>
+    public bool TrySetFlying(bool enabled)
+    {
+        // 安全：角色未完成组装时不能提交物理形态。
+        if (!IsMotionReady) return false;
+        if (flying == enabled) return true;
+        // 实际逻辑：只在这次请求检查一次；浅重叠留给统一模拟，深重叠拒绝，不另找安全点。
+        if (!enabled && TryFindWalkingRestoreBlocker(walkingRestoreTolerance, out Collider2D blocker))
+        {
+            string reason = blocker != null ? $"被「{blocker.name}」占用" : "碰撞框尚未就绪";
+            Debug.Log($"{name} 飞转行被拒绝：当前位置{reason}", this);
+            return false;
+        }
+        flying = enabled;
+        boxCollider.isTrigger = enabled;
+        // 实际逻辑：原下平台忽略对、选中约束和环境命令退出，不把旧水流或墙跳尾速留到恢复行走。
+        EndOneWayDrops();
+        ClearPendingActions();
+        ReleasePushPull();
+        ClearExternalMotionEffects();
+        playphyFunData.canLeftWall = playphyFunData.canRightWall = null;
+        RefreshMotionState(releaseEnvironmentEffects: true);
+        return true;
+    }
 
     /// <summary>选中退出立即关闭约束；原生实际惯性不被清零。</summary>
     internal void ReleasePushPull()

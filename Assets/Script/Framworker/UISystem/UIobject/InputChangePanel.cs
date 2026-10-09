@@ -18,9 +18,10 @@ public class InputChangePanel : BasePanel
     private Text FT;
     private Text interactT;
     private Text sprintT;
+    private Text formSwitchT;
     private Text conflictT;
 
-    static readonly string[] KnownRowOrder = { "left", "right", "up", "down", "ff", "interact", "sprint" };
+    static readonly string[] KnownRowOrder = { "left", "right", "up", "down", "ff", "interact", "sprint", "formSwitch" };
     const float FooterHeight = 168f;
 
 
@@ -36,6 +37,7 @@ public class InputChangePanel : BasePanel
         FT = FindUIObj<Text>("FT");
         interactT = FindUIObj<Text>("interactT");
         sprintT = FindUIObj<Text>("sprintT");
+        formSwitchT = FindUIObj<Text>("formSwitchT");
         conflictT = FindUIObj<Text>("conflictT");
         ArrangeRebindList();
         //初始化文本面板显示
@@ -217,6 +219,9 @@ public class InputChangePanel : BasePanel
             case "sprint":
                 InputControlMgr.Instance.StartRebind("Sprint", 0, UpdateUIvalue);
                 break;
+            case "formSwitch":
+                InputControlMgr.Instance.StartRebind("FormSwitch", 0, UpdateUIvalue);
+                break;
             case "out":
                 if (InputControlMgr.Instance.HasPlayerBindingConflict(out string conflict))
                 {
@@ -249,6 +254,8 @@ public class InputChangePanel : BasePanel
         interactT.text = asset.FindAction("Interact").bindings[0].effectivePath;
         if (sprintT != null)
             sprintT.text = asset.FindAction("Sprint").bindings[0].effectivePath;
+        if (formSwitchT != null)
+            formSwitchT.text = asset.FindAction("FormSwitch").bindings[0].effectivePath;
     }
 
     void StartCompositeRebind(string actionName, string partName)

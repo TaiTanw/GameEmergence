@@ -16,6 +16,9 @@ public class MonoPublicMgr : BaseAutoMonoMgr<MonoPublicMgr>
 
     public static bool IsQuitting;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetQuitState() => IsQuitting = false;
+
     private void OnApplicationQuit()
     {
         IsQuitting = true;

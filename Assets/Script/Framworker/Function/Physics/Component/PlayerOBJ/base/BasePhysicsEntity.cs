@@ -43,6 +43,7 @@ public abstract class BasePhysicsEntity : BasicEntity
     }
     protected override void GeometricQuery()
     {
+        if (UsesCollisionFreeMovement) { ClearEnvironmentFacts(); return; }
         // 角色顶头由本步原生接触补充，先清掉已经离开的旧接触。
         nowGemetry.istop = false;
         // 接触查询在命中选择前排除 Trigger，避免区域遮住实心表面；不改全局查询开关。
@@ -156,7 +157,7 @@ public abstract class BasePhysicsEntity : BasicEntity
             body.min.x > surface.max.x || body.min.y > surface.max.y + GroundProbeDistance;
     }
 
-    void EndOneWayDrops()
+    protected void EndOneWayDrops()
     {
         foreach (Collider2D platform in passingOneWays)
             if (platform != null && boxCollider != null)

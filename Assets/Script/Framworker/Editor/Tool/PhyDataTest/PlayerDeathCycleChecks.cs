@@ -127,7 +127,7 @@ public static class PlayerDeathCycleChecks
         PlayerDeathRequest first = form.lastDeath;
         Check(spirit._ActionData.isFlying && form.flightCommits == 1 && spirit.DeathStatus == PlayerDeathStatus.Handled && !spirit.PendingDeath.HasValue,
             "耗氧归零由实际形态提交契约确认转飞行");
-        Check(State(spirit).oxygen == 0f && rules.IsSimulation, "死亡转飞行不补氧或退出模拟");
+        Check(State(spirit).oxygen == 0f && !rules.IsSimulation, "死亡转飞行不补氧并同步退出模拟");
         spirit.TickLogic(0f);
         Check(form.flightCommits == 1 && State(spirit).oxygen == 0f, "零氧气飞行不再请求死亡");
         Check(spirit.RequestSpiritForm(false, PlayerFormChangeReason.Manual) && State(spirit).oxygen == 0f && spirit._ActionData.isSwimming,

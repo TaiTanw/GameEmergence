@@ -13,9 +13,15 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     protected virtual bool MotionUpdatesEnabled => true;
     protected virtual bool UsesWorldAxisMovement => false;
     protected virtual bool HasHorizontalDrive => false;
+    protected virtual bool UsesCollisionFreeMovement => false;
+    protected virtual Vector2 CollisionFreeVelocity => Vector2.zero;
+    protected virtual bool ParticipatesInWorldPause => true;
+    private static readonly HashSet<BasicEntity> activeEntities = new HashSet<BasicEntity>();
+    private static bool worldPaused;
     private bool motionParticipation = true;
     public bool IsMotionReady => rb != null && boxCollider != null && MotionExecutionReady;
-    public bool IsMotionPermitted => motionParticipation && MotionUpdatesEnabled;
+    public bool IsMotionPermitted => motionParticipation && MotionUpdatesEnabled
+        && !(worldPaused && ParticipatesInWorldPause);
     public bool IsMotionParticipating => isActiveAndEnabled && IsMotionReady && IsMotionPermitted && boxCollider.enabled;
     public Bounds BodyBounds => boxCollider != null ? PhysicsWorld.ReadAabb(boxCollider) : default;
     protected Rigidbody2D rb; //刚体
@@ -95,6 +101,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     private readonly List<RaycastHit2D> groundProbeHits = new List<RaycastHit2D>();
     private readonly List<RaycastHit2D> terrainHits = new List<RaycastHit2D>();
     private readonly List<ContactPoint2D> nativeContacts = new List<ContactPoint2D>();
+    private readonly List<Collider2D> walkingRestoreHits = new List<Collider2D>();
     protected const float GroundProbeDistance = 0.02f;
     internal IReadOnlyList<Collider2D> oneWayDropColliders;
 
@@ -102,6 +109,23 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     {
         motionParticipation = active;
         SynchronizeMotionParticipation();
+    }
+
+    /// <summary>规则侧暂停箱子、小车等世界实体；角色自身许可另管，暂停不清位置和速度。</summary>
+    public static void SetWorldPaused(bool paused)
+    {
+        // 实际逻辑：世界开关同值不重复切换原生参与，避免干扰插值和现场速度。
+        if (worldPaused == paused) return;
+        worldPaused = paused;
+        foreach (BasicEntity entity in activeEntities)
+            if (entity != null) entity.SynchronizeMotionParticipation();
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetWorldParticipation()
+    {
+        activeEntities.Clear();
+        worldPaused = false;
     }
 
     protected void SynchronizeMotionParticipation()
@@ -172,6 +196,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
 
     public void ResampleEnvironment()
     {
+        // 实际逻辑：穿墙期间不注入水、地面和墙事实；恢复行走才按当前位置重新采样。
+        if (UsesCollisionFreeMovement) { ClearEnvironmentFacts(); return; }
         GeometricQuery();
         SampleNativeContacts();
         CollectRegionOverlapFacts();
@@ -180,6 +206,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
 
     protected virtual void OnEnable()
     {
+        activeEntities.Add(this);
         SynchronizeMotionParticipation();
         hasMotionCommand = hasDisplacementObservation = false;
 #if UNITY_EDITOR
@@ -195,6 +222,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     protected abstract void GeometricQuery();
     private void GeometricQueryPhase()
     {
+        if (UsesCollisionFreeMovement) { ClearEnvironmentFacts(); return; }
         GeometricQuery();
         SampleNativeContacts();
         CollectRegionOverlapFacts();
@@ -291,10 +319,121 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
 
     protected virtual void PhyFunUpdate()
     {
+        if (UsesCollisionFreeMovement) return;
         Bounds bounds = BodyBounds;
         EnvironmentContext.RefreshEnvironment(nowGemetry.isGrounded ? nowGemetry.groundCollider : null,
             nowGemetry.regionOverlaps, new Vector2(bounds.center.x, bounds.max.y), bounds);
         self_resistanceCoefficient *= EnvironmentFrame.slowingMultiplier;
+    }
+
+    protected void ClearEnvironmentFacts()
+    {
+        // 安全：初始化尚未建立几何数据时，只撤销已有关系。
+        environmentContext?.ReleaseAll();
+        if (nowGemetry == null) return;
+        nowGemetry.isGrounded = nowGemetry.istop = nowGemetry.onLeftWall = nowGemetry.onRightWall = false;
+        nowGemetry.groundCollider = nowGemetry.leftWallCollider = nowGemetry.rightWallCollider = null;
+        nowGemetry.groundNormal = Vector2.zero;
+        nowGemetry.regionOverlaps.Clear();
+    }
+
+    protected void ClearExternalMotionEffects()
+    {
+        ClearEnvironmentFacts();
+        effectState.ClearMotionParameters();
+        playerPhysicsData.nowPhyNum = 0f;
+    }
+
+    /// <summary>
+    /// 人工阅读：飞转行只查本次当前位置的恢复形状。地形和暂停实体共用浅重叠容差，失败不移动角色。
+    /// </summary>
+    protected bool TryFindWalkingRestoreBlocker(float allowedPenetration, out Collider2D blocker)
+    {
+        blocker = null;
+        // 安全：没有角色碰撞框时不能承诺恢复实心成功。
+        if (boxCollider == null || rb == null || !boxCollider.enabled) return true;
+        float tolerance = Mathf.Max(0.0001f, allowedPenetration);
+        GetBoxShape(this, out Vector2 center, out Vector2 size, out float angle);
+        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
+        int layerMask = PhysicsWorld.GetLayerCollisionMask(gameObject.layer);
+        filter.SetLayerMask(layerMask);
+        walkingRestoreHits.Clear();
+        PhysicsWorld.OverlapBox(center, size, angle, filter, walkingRestoreHits);
+        foreach (Collider2D hit in walkingRestoreHits)
+        {
+            // 安全：排除自身、触发器与本来就不碰撞的对象。
+            if (hit == null || hit.attachedRigidbody == rb || hit.isTrigger
+                || PhysicsWorld.GetIgnoreCollision(boxCollider, hit)) continue;
+            // 实际逻辑：接触级浅嵌入允许恢复；继续检查其它命中，任何深嵌入仍拒绝。
+            if (hit is BoxCollider2D otherBox && boxCollider.edgeRadius == 0f && otherBox.edgeRadius == 0f
+                && (otherBox.attachedRigidbody == null || otherBox.attachedRigidbody.transform == otherBox.transform))
+            {
+                // 矩形统一按真实几何深度判定，避免原生距离的接触边缘与暂停盒判定不一致。
+                GetBoxShape(otherBox, out Vector2 otherCenter, out Vector2 otherSize, out float otherAngle);
+                if (!BoxesOverlap(center, size, angle, otherCenter, otherSize, otherAngle, tolerance)) continue;
+            }
+            else
+            {
+                // 圆角、刚体子物体上的碰撞框和其它形状保留原生距离，不用外包矩形放行。
+                ColliderDistance2D distance = boxCollider.Distance(hit);
+                if (!distance.isOverlapped || distance.distance >= -tolerance) continue;
+            }
+            blocker = hit;
+            return true;
+        }
+        // 实际逻辑：simulated=false 的箱子和待机本体对原生查询不可见，只在本次退出补查盒形状。
+        foreach (BasicEntity entity in activeEntities)
+        {
+            if (entity == null || entity == this || entity.rb == null || entity.rb.simulated
+                || entity.boxCollider == null || !entity.boxCollider.enabled || entity.boxCollider.isTrigger
+                || (layerMask & (1 << entity.gameObject.layer)) == 0
+                || PhysicsWorld.GetIgnoreCollision(boxCollider, entity.boxCollider)) continue;
+            GetBoxShape(entity, out Vector2 otherCenter, out Vector2 otherSize, out float otherAngle);
+            if (!BoxesOverlap(center, size, angle, otherCenter, otherSize, otherAngle, tolerance)) continue;
+            blocker = entity.boxCollider;
+            return true;
+        }
+        return false;
+    }
+
+    private static void GetBoxShape(BasicEntity entity, out Vector2 center, out Vector2 size, out float angle)
+        => GetBoxShape(entity.boxCollider, out center, out size, out angle);
+
+    private static void GetBoxShape(BoxCollider2D box, out Vector2 center, out Vector2 size, out float angle)
+    {
+        Vector2 scale = box.transform.lossyScale;
+        size = Vector2.Scale(box.size, new Vector2(Mathf.Abs(scale.x), Mathf.Abs(scale.y)));
+        Rigidbody2D body = box.attachedRigidbody;
+        angle = body != null ? body.rotation : box.transform.eulerAngles.z;
+        float radians = angle * Mathf.Deg2Rad;
+        Vector2 right = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+        Vector2 up = new Vector2(-right.y, right.x);
+        Vector2 offset = Vector2.Scale(box.offset, scale);
+        Vector2 origin = body != null ? body.position : (Vector2)box.transform.position;
+        center = origin + right * offset.x + up * offset.y;
+    }
+
+    private static bool BoxesOverlap(Vector2 center, Vector2 size, float angle,
+        Vector2 otherCenter, Vector2 otherSize, float otherAngle, float tolerance)
+    {
+        float a = angle * Mathf.Deg2Rad, b = otherAngle * Mathf.Deg2Rad;
+        Vector2 right = new Vector2(Mathf.Cos(a), Mathf.Sin(a)), up = new Vector2(-right.y, right.x);
+        Vector2 otherRight = new Vector2(Mathf.Cos(b), Mathf.Sin(b)), otherUp = new Vector2(-otherRight.y, otherRight.x);
+        Vector2 offset = otherCenter - center;
+        Vector2 half = size * 0.5f, otherHalf = otherSize * 0.5f;
+        // 四个盒轴分别判深重叠，允许沿任一分离轴在容差内恢复，不用旋转盒的外包矩形代替。
+        return OverlapsOnAxis(right, offset, half, right, up, otherHalf, otherRight, otherUp, tolerance)
+            && OverlapsOnAxis(up, offset, half, right, up, otherHalf, otherRight, otherUp, tolerance)
+            && OverlapsOnAxis(otherRight, offset, half, right, up, otherHalf, otherRight, otherUp, tolerance)
+            && OverlapsOnAxis(otherUp, offset, half, right, up, otherHalf, otherRight, otherUp, tolerance);
+    }
+
+    private static bool OverlapsOnAxis(Vector2 axis, Vector2 offset, Vector2 half, Vector2 right, Vector2 up,
+        Vector2 otherHalf, Vector2 otherRight, Vector2 otherUp, float tolerance)
+    {
+        float span = half.x * Mathf.Abs(Vector2.Dot(right, axis)) + half.y * Mathf.Abs(Vector2.Dot(up, axis))
+            + otherHalf.x * Mathf.Abs(Vector2.Dot(otherRight, axis)) + otherHalf.y * Mathf.Abs(Vector2.Dot(otherUp, axis));
+        return Mathf.Abs(Vector2.Dot(offset, axis)) < span - tolerance;
     }
 
     /// <summary>自由箱保留真实推动惯性。静墙、坡面和头顶先收进本步速度，实体之间仍交给原生模拟。</summary>
@@ -304,6 +443,21 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         if (!IsMotionParticipating) return;
         float dt = Time.fixedDeltaTime;
         if (dt <= 0f) return;
+        // 实际逻辑：飞行仍走本相位写速度及公共模拟，仅消费主动四向命令，零输入即悬停。
+        if (UsesCollisionFreeMovement)
+        {
+            submittedVelocity = plannedVelocity = CollisionFreeVelocity;
+            prescribedVelocity = acceptedPrescribedVelocity = Vector2.zero;
+            activeHorizontalVelocity = submittedVelocity.x;
+            commandedVerticalSpeed = submittedVelocity.y;
+            playerPhysicsData.horizontalSpeed = submittedVelocity.x;
+            playerPhysicsData.verticalSpeed = submittedVelocity.y;
+            playerPhysicsData.phyHSpeed = playerPhysicsData.phyVSpeed = 0f;
+            requestOrigin = rb.position;
+            rb.velocity = submittedVelocity;
+            hasMotionCommand = true;
+            return;
+        }
         Vector2 actual = rb.velocity;
         Vector2 free = actual - acceptedPrescribedVelocity;
         if (HasHorizontalDrive) free.x -= activeHorizontalVelocity;
@@ -634,18 +788,23 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         return 0f;
     }
 
-    public void StatePowerRegistration(EnvironmentRegistration source, float offset) => effectState.RegisterMovementModifier(source, offset);
+    public void StatePowerRegistration(EnvironmentRegistration source, float offset)
+    { if (!UsesCollisionFreeMovement) effectState.RegisterMovementModifier(source, offset); }
     public void StatePowerCancellation(EnvironmentRegistration source) => effectState.RemoveMovementModifier(source);
-    public void AddTimeSpeed(float duration, float speed) => effectState.AddTimedSpeed(duration, speed, envImpact);
-    public void AddSpeedStatus(EnvironmentRegistration source, Vector2 velocity) => effectState.AddStateVelocity(source, velocity);
+    public void AddTimeSpeed(float duration, float speed)
+    { if (!UsesCollisionFreeMovement) effectState.AddTimedSpeed(duration, speed, envImpact); }
+    public void AddSpeedStatus(EnvironmentRegistration source, Vector2 velocity)
+    { if (!UsesCollisionFreeMovement) effectState.AddStateVelocity(source, velocity); }
     public void RemoveSpeedStatus(EnvironmentRegistration source) => effectState.RemoveStateVelocity(source);
-    public void AddForce(IDynamicAddForce source, ForceData force) => effectState.AddDynamicForce(source, force);
+    public void AddForce(IDynamicAddForce source, ForceData force)
+    { if (!UsesCollisionFreeMovement) effectState.AddDynamicForce(source, force); }
     public void ChangeForce(IDynamicAddForce source, float force) => effectState.ChangeDynamicForce(source, force);
     public void ChangeType(IDynamicAddForce source, E_PhyForceType type) => effectState.ChangeDynamicType(source, type);
     public void RemoveForce(IDynamicAddForce source) => effectState.RemoveDynamicForce(source);
 
     protected virtual void OnDisable()
     {
+        activeEntities.Remove(this);
         SynchronizeMotionParticipation();
         EntitySidePush.Forget(this);
         hasMotionCommand = hasDisplacementObservation = false;

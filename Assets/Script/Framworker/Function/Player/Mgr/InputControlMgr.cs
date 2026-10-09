@@ -43,6 +43,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     InputAction jumpAction;
     InputAction interactAction;
     InputAction sprintAction;
+    InputAction formSwitchAction;
     bool gameplayActionsBound;
     InputActionRebindingExtensions.RebindingOperation rebindOperation;
     bool rebindMapWasEnabled;
@@ -52,7 +53,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     const float InteractLongPressSeconds = 0.4f;
     #endregion
     /// <summary>
-    /// 把基础动作资产接到 PlayerInput，并订上移动、跳跃和交互。
+    /// 把基础动作资产接到 PlayerInput，并订上运动、交互和形态切换。
     /// 资产对象不变时重复调用会先卸订阅再订上，避免改键后再绑一次就触发两次。
     /// </summary>
     public void BindInputAsset()
@@ -67,6 +68,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         jumpAction = player1["Jump"];
         interactAction = player1["Interact"];
         sprintAction = player1["Sprint"];
+        formSwitchAction = player1["FormSwitch"];
 
         moveAction.performed += OnMovePerformed;
         moveAction.canceled += OnMoveCanceled;
@@ -78,6 +80,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         interactAction.canceled += OnInteractCanceled;
         sprintAction.started += OnSprintStarted;
         sprintAction.canceled += OnSprintCanceled;
+        formSwitchAction.performed += OnFormSwitchPerformed;
         gameplayActionsBound = true;
 
         input.SwitchCurrentActionMap("player");
@@ -210,6 +213,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
             sprintAction.started -= OnSprintStarted;
             sprintAction.canceled -= OnSprintCanceled;
         }
+        if (formSwitchAction != null)
+            formSwitchAction.performed -= OnFormSwitchPerformed;
         if (inputData != null)
             inputData.sprintHeld = false;
         interactHolding = false;
@@ -220,6 +225,15 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     void OnMovePerformed(InputAction.CallbackContext ctx)
     {
         inputData.moveInput = ctx.ReadValue<float>();
+    }
+
+    /// <summary>人工阅读入口：形态按键 → 当前精神体 → 原模式规则；与模式按钮共用费用、冷却和安全退出。</summary>
+    void OnFormSwitchPerformed(InputAction.CallbackContext ctx)
+    {
+        // 安全：无人受控或正在控制实体时，不发精神体形态请求。
+        if (player == null || player.Identity != PlayerIdentity.Spirit) return;
+        // 实际逻辑：一次按下切换一次；改键结束或控制交接不补发此点按。
+        player.RequestSpiritForm(player.ResolveFourWayAbility() != FourWayMode.Flying, PlayerFormChangeReason.Manual);
     }
 
     void OnMoveCanceled(InputAction.CallbackContext ctx)

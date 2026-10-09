@@ -68,6 +68,8 @@ public class SceneProp : MonoBehaviour
     bool TryAcquire()
     {
         if (used) return false;
+        // 实际逻辑：探索模拟统一禁止领取；回漫游后仍使用同一未领取记录。
+        if (LevelStageMgr.Instance.HasExploration && LevelStageMgr.Instance.IsSimulation) return false;
         if (clearsLevel)
         {
             SceneLevelSetup setup = SceneLevelSetup.Current;
