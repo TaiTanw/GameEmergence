@@ -84,6 +84,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         InputControlMgr.Instance.BindPlayer(null);
         PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
         body.RefreshRuntime(setup.BodyPoint);
+        PlaceDepth(body, setup.BodyPose);
         bool affordable = false;
         foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
             affordable |= levelRules.Cognition.Remaining >= offer.Cost;
@@ -132,6 +133,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         LevelBoxContext.Resample(setup.gameObject.scene);
         body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
         body.RefreshRuntime(setup.BodyPoint);
+        PlaceDepth(body, setup.BodyPose);
         setup.RisingWater?.SetRisingAllowed(true);
         DestroyActor(ref spirit);
         InputControlMgr.Instance.InputOpenOrClose(true);
@@ -160,6 +162,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             levelRules.MapRecord?.Reset();
             effects.ResetCurrentLevel();
             body.RefreshRuntime(setup.BodyPoint, true);
+            PlaceDepth(body, setup.BodyPose);
             ReleaseLevelRules();
             if (!SpawnSpirit(setup)) return false;
             InputControlMgr.Instance.InputOpenOrClose(true);
@@ -252,6 +255,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;
         loading = false;
+        Time.timeScale = 1f;
         ReleaseLevelRules();
         effects.ResetCurrentLevel();
         InputControlMgr.Instance.BindPlayer(null);
@@ -314,6 +318,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         DestroyActor(ref spirit);
         int serial = ++loadSerial;
         InputControlMgr.Instance.InputOpenOrClose(false);
+        // 实际逻辑：加载页盖住画面时停住物理，新关物体不会在安置前先动。
+        Time.timeScale = 0f;
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top);
         LoadSceneAsync(order.scenes[index], () =>
         {
@@ -325,17 +331,28 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     void FinishEnter(int index, int serial, bool placed, bool confirmPrevious)
     {
         // 实际逻辑：返回或新的进入已经作废这一轮时，不再写进度、也不再打开输入。
-        if (serial != loadSerial) return;
+        if (serial != loadSerial)
+        {
+            // 安全：这次加载已被返回菜单作废时恢复时间；新的一次进入仍由它自己暂停。
+            if (!loading) Time.timeScale = 1f;
+            return;
+        }
+        Time.timeScale = 1f;
+        if (!placed)
+        {
+            // 安全：新关已经换上，安置失败不能停在没有操作的场景里。上一关进度和效果确认都未写入。
+            loading = false;
+            Debug.LogError("关卡安置失败，返回菜单。");
+            ReturnToMenu();
+            return;
+        }
+        InputControlMgr.Instance.SnapCameraToPlayer();
         loading = false;
         UIMgr.Instance.HideOneUI<LoadingPanel>();
-        if (placed)
-        {
-            // 结算边界：本次换关仍有效且角色安置成功，才确认上一关效果；失败保留本局记录。
-            if (confirmPrevious) effects.CommitLevel();
-            DataAndInitMgr.Instance.SaveLevelIndex(index);
-            InputControlMgr.Instance.InputOpenOrClose(true);
-            UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom);
-        }
+        if (confirmPrevious) effects.CommitLevel();
+        DataAndInitMgr.Instance.SaveLevelIndex(index);
+        InputControlMgr.Instance.InputOpenOrClose(true);
+        UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom);
     }
 
     /// <summary>人工阅读入口：场景配置 → 留下的实体 → 本关精神体 → 唯一输入目标；成功后才确认效果并保存进度。</summary>
@@ -363,6 +380,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             InputControlMgr.Instance.BindPlayer(body);
             body.BindEffectLedger(effects);
             body.RefreshRuntime(setup.BodyPoint);
+            PlaceDepth(body, setup.BodyPose);
             if (setup.Teaching)
             {
                 levelRules = new PlayerLifecycleRules(body, null, this, new LevelCognition(0f));
@@ -394,7 +412,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             Debug.LogError("非教学关没有指定精神体预设。", setup);
             return false;
         }
-        GameObject created = Object.Instantiate(setup.SpiritPrefab, setup.SpiritPoint, Quaternion.identity);
+        GameObject created = Object.Instantiate(setup.SpiritPrefab, setup.SpiritPose, Quaternion.identity);
         spirit = created.GetComponent<Player>();
         // 安全：预设身份不对时不把实体的控制权交出去。
         if (spirit == null || spirit.Identity != PlayerIdentity.Spirit)
@@ -407,6 +425,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         InputControlMgr.Instance.BindPlayer(spirit);
         spirit.BindEffectLedger(effects);
         spirit.RefreshRuntime(setup.SpiritPoint);
+        PlaceDepth(spirit, setup.SpiritPose);
         levelRules = new PlayerLifecycleRules(body, spirit, this,
             cognition: new LevelCognition(setup.InitialCognition), formCost: setup.FormChangeCost,
             simulationCognitionPerSecond: setup.SimulationCognitionPerSecond);
@@ -431,12 +450,24 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         Vector2 spiritPoint = setup.SpiritPoint, bodyPoint = setup.BodyPoint;
         return configured != null && configured.Identity == PlayerIdentity.Spirit
             && Finite(spiritPoint) && Finite(bodyPoint)
+            && Finite(setup.SpiritPose.z) && Finite(setup.BodyPose.z)
             && (setup.RisingWater == null || (setup.RisingWater.gameObject.scene == setup.gameObject.scene
                 && setup.RisingWater.CanPrepareRun(setup.WaterRiseSpeed)));
     }
 
     static bool Finite(Vector2 point) => !float.IsNaN(point.x) && !float.IsInfinity(point.x)
         && !float.IsNaN(point.y) && !float.IsInfinity(point.y);
+
+    static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+    /// <summary>出生标记的深度只写角色根节点，平面坐标仍走原来的刷新。</summary>
+    static void PlaceDepth(Player actor, Vector3 pose)
+    {
+        if (actor == null || !Finite(pose.z)) return;
+        Vector3 position = actor.transform.position;
+        position.z = pose.z;
+        actor.transform.position = position;
+    }
 
     static void DestroyActor(ref Player actor)
     {

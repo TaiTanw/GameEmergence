@@ -39,9 +39,11 @@ public class SceneLevelSetup : MonoBehaviour
     public float InitialCognition => Mathf.Max(0f, initialCognition);
     public float FormChangeCost => Mathf.Max(0f, formChangeCost);
     public float SimulationCognitionPerSecond => Mathf.Max(0f, simulationCognitionPerSecond);
-    public Vector2 BodyPoint => Point(bodySpawn);
-    public Vector2 SpiritPoint => Point(spiritSpawn);
-    public Vector2 TrialPoint => Point(trialStart);
+    public Vector2 BodyPoint => Pose(bodySpawn);
+    public Vector2 SpiritPoint => Pose(spiritSpawn);
+    public Vector2 TrialPoint => Pose(trialStart);
+    public Vector3 BodyPose => FullPose(bodySpawn);
+    public Vector3 SpiritPose => FullPose(spiritSpawn);
     public bool MapEnabled => mapEnabled;
     public IReadOnlyList<MapCell> MapCells => mapCells;
 
@@ -73,9 +75,11 @@ public class SceneLevelSetup : MonoBehaviour
         if (Current == this) Current = null;
     }
 
-    Vector2 Point(Transform mark)
+    Vector2 Pose(Transform mark) => FullPose(mark);
+
+    Vector3 FullPose(Transform mark)
     {
-        // 安全：没摆出生点时用配置物体自己的位置，避免空引用。
-        return mark != null ? (Vector2)mark.position : transform.position;
+        // 安全：没摆出生点时用配置物体自己的位置，避免空引用。深度只留给角色根节点遮挡。
+        return mark != null ? mark.position : transform.position;
     }
 }

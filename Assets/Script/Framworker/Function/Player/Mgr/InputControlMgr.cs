@@ -503,4 +503,11 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         }
         UpdateInteractHold();
     }
+
+    /// <summary>换关揭开遮罩前调用：镜头直接到当前控制角色，不从上一关缓动。</summary>
+    public void SnapCameraToPlayer()
+    {
+        if (mainCamera == null || player == null) return;
+        mainCamera.SnapTo(player.transform.position);
+    }
 }
