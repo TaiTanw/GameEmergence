@@ -36,6 +36,8 @@ public static class EnvironmentCapabilities
         // 安全：接口引用不会自动执行 Unity 判空，先处理 CLR null，再识别已销毁的 Unity 对象。
         if (capability == null) return false;
         if (capability is ConfiguredWallSlideSurface wallView) return wallView.IsActive;
+        if (capability is ConfiguredWaterRegion waterView) return waterView.IsActive;
+        if (capability is Wall wall) return wall.IsEnvironmentActive && wall.TryGetWallSlideMultiplier(out _);
         // 生命周期规则：Behaviour 还必须启用；其它 Unity 对象只核对存活。
         if (capability is Behaviour behaviour) return behaviour != null && behaviour.isActiveAndEnabled;
         if (capability is Object unityObject) return unityObject != null;
@@ -56,13 +58,61 @@ public static class EnvironmentCapabilities
     public static T Find<T>(Collider2D collider) where T : class
     {
         IEnvironmentSource source = FindHost(collider);
-        if (typeof(T) == typeof(IWallSlideSurface) && source is BasicPhysicalObject host && !(host is Wall))
+        if (typeof(T) == typeof(IWallSlideSurface) && source is BasicPhysicalObject host)
         {
             IWallSlideSurface configured = host.GetConfiguredWallSlideSurface();
-            if (configured != null) return configured as T;
+            // 原 Wall 保持接口身份，但抽取墙项或转成触发器后不再提供墙能力。
+            if (configured != null) return host is Wall ? source as T : configured as T;
+            if (host is Wall || !host.IsNativeGeometryMode) return null;
         }
-        // 旧 Wall 的 getter 已读取生效配置，保留其原接口身份；其它未配置接口也继续兼容。
+        if (typeof(T) == typeof(IWaterRegion)) return ResolveWater(source) as T;
+        // 自定义旧宿主的固有接口保留；可移除有限项由上面的有效配置覆盖。
         return source as T;
+    }
+
+    internal static IWaterRegion ResolveWater(IEnvironmentSource source)
+    {
+        if (source is BasicPhysicalObject host)
+        {
+            IWaterRegion configured = host.GetConfiguredWaterRegion();
+            if (configured != null) return configured;
+            if (host is WaterRegion || !host.IsNativeGeometryMode) return null;
+        }
+        return source as IWaterRegion;
+    }
+
+    internal static bool TryGetMovement(IEnvironmentSource source, out float value)
+    {
+        value = 0f;
+        if (source is BasicPhysicalObject host)
+        {
+            if (host.TryGetMovementSpeedOffset(out value)) return true;
+            // 水／区域旧数值已经进入可移除列表，不再从旧接口回补抽走的项。
+            if (host is WaterWithEffects || host is ForceField || !host.IsNativeGeometryMode) return false;
+        }
+        if (!(source is IMovementSpeedModifier movement)) return false;
+        value = movement.MovementSpeedOffset;
+        return true;
+    }
+
+    internal static bool TryGetStateVelocity(IEnvironmentSource source, out Vector2 value)
+    {
+        value = Vector2.zero;
+        if (source is BasicPhysicalObject host)
+        {
+            if (host.TryGetPassiveVelocity(out value)) return true;
+            if (host is WaterWithEffects || !host.IsNativeGeometryMode) return false;
+        }
+        if (!(source is IStateVelocitySource velocity)) return false;
+        value = velocity.StateVelocity;
+        return true;
+    }
+
+    internal static IDynamicEnvironmentForce ResolveDynamicForce(IEnvironmentSource source)
+    {
+        // 固有算法不随意赠送给转换后的材料；源键和已有惯性仍归原物理入口。
+        if (source is BasicPhysicalObject host && !host.IsNativeGeometryMode) return null;
+        return source as IDynamicEnvironmentForce;
     }
 
     public static BasicEntity FindEntity(Collider2D collider)
@@ -83,4 +133,31 @@ internal sealed class ConfiguredWallSlideSurface : IWallSlideSurface
     internal ConfiguredWallSlideSurface(BasicPhysicalObject source) => host = source;
     internal bool IsActive => host != null && host.IsEnvironmentActive && host.TryGetWallSlideMultiplier(out _);
     public float WallSlideMultiplier => host != null && host.TryGetWallSlideMultiplier(out float value) ? value : 1f;
+}
+
+/// <summary>有限水性质的只读视图；水范围和有效开关始终读取同一个宿主。</summary>
+internal sealed class ConfiguredWaterRegion : IWaterRegion
+{
+    private readonly BasicPhysicalObject host;
+    internal ConfiguredWaterRegion(BasicPhysicalObject source) => host = source;
+    internal bool IsActive => host != null && host.IsEnvironmentActive && host.TryGetWaterSwimming(out _);
+    public bool SwimmingEnabled => IsActive && host.TryGetWaterSwimming(out bool enabled) && enabled;
+    public bool ContainsWaterPoint(Collider2D region, Vector2 point)
+    {
+        // 安全：失效、不同宿主或实心几何不发布水事实。
+        if (!IsActive || region == null || !region.enabled || !region.isTrigger
+            || region.gameObject != host.gameObject) return false;
+        return region.OverlapPoint(point);
+    }
+    public bool TryGetSurfaceY(Collider2D region, float worldX, out float surfaceY)
+    {
+        surfaceY = 0f;
+        // 水面动作首版仅支持水平矩形；其它形状仍可按原几何提供淹没。
+        if (!IsActive || !(region is BoxCollider2D) || !region.enabled || !region.isTrigger
+            || region.gameObject != host.gameObject || Mathf.Abs(region.transform.up.y) < .9999f) return false;
+        Bounds bounds = region.bounds;
+        if (worldX < bounds.min.x || worldX > bounds.max.x || bounds.size.y <= 0f) return false;
+        surfaceY = bounds.max.y;
+        return ContainsWaterPoint(region, new Vector2(worldX, surfaceY - Mathf.Min(.001f, bounds.size.y * .5f)));
+    }
 }

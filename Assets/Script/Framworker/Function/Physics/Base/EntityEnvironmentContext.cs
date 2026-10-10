@@ -66,13 +66,19 @@ public sealed class EntityEnvironmentContext
             // 同来源仅在真正改值后的正常相位重写参数；不退源、不清刚体真实动量。
             if (source.Source is IEnvironmentParameterSource parameters
                 && existing.parameterVersion != parameters.EnvironmentParameterVersion)
+            {
                 RegisterEffects(source, existing);
+                // 最后一个持续项被抽走后不留下空绑定；表面／水事实仍独立采样。
+                if (!existing.hasMovement && !existing.hasStateVelocity && existing.dynamicForce == null)
+                    Detach(source);
+            }
             return;
         }
         // 能力选择：三类持续能力都缺席时不建绑定；零值仍是有效能力，表面采样独立进行。
         IEnvironmentSource provider = source.Source;
-        if (!(provider is IMovementSpeedModifier) && !(provider is IStateVelocitySource)
-            && !(provider is IDynamicEnvironmentForce)) return;
+        if (!EnvironmentCapabilities.TryGetMovement(provider, out _)
+            && !EnvironmentCapabilities.TryGetStateVelocity(provider, out _)
+            && EnvironmentCapabilities.ResolveDynamicForce(provider) == null) return;
         //首次接入
         var binding = new Binding();
         bindings.Add(source, binding);
@@ -88,24 +94,31 @@ public sealed class EntityEnvironmentContext
     private void RegisterEffects(EnvironmentRegistration source, Binding binding)
     {
         IEnvironmentSource provider = source.Source;
-        // 能力选择：有移速修饰就登记，即使值为零也有效；缺席由“没实现接口”表示。
-        if (provider is IMovementSpeedModifier movement)
+        // 同源只撤销已经缺席的单项，其余来源关系和刚体真实动量保持。
+        bool hasMovement = EnvironmentCapabilities.TryGetMovement(provider, out float movement);
+        if (hasMovement)
         {
-            receiver.StatePowerRegistration(source, movement.MovementSpeedOffset);
-            binding.hasMovement = true;
+            receiver.StatePowerRegistration(source, movement);
         }
+        else if (binding.hasMovement) receiver.StatePowerCancellation(source);
+        binding.hasMovement = hasMovement;
         // 能力选择：持续速度独立于移速修饰，以 Registration 为稳定来源键。
-        if (provider is IStateVelocitySource velocity)
+        bool hasVelocity = EnvironmentCapabilities.TryGetStateVelocity(provider, out Vector2 velocity);
+        if (hasVelocity)
         {
-            receiver.AddSpeedStatus(source, velocity.StateVelocity);
-            binding.hasStateVelocity = true;
+            receiver.AddSpeedStatus(source, velocity);
         }
+        else if (binding.hasStateVelocity) receiver.RemoveSpeedStatus(source);
+        binding.hasStateVelocity = hasVelocity;
         // 能力选择：仅动态施力需要具体组件按受力者产生参数；动态键仍是该组件接口。
-        if (provider is IDynamicEnvironmentForce dynamicForce)
+        IDynamicEnvironmentForce dynamicForce = EnvironmentCapabilities.ResolveDynamicForce(provider);
+        if (binding.dynamicForce != null && binding.dynamicForce != dynamicForce)
+            receiver.RemoveForce(binding.dynamicForce);
+        if (dynamicForce != null)
         {
             receiver.AddForce(dynamicForce, dynamicForce.CreateEnvironmentForce(receiver));
-            binding.dynamicForce = dynamicForce;
         }
+        binding.dynamicForce = dynamicForce;
         binding.parameterVersion = provider is IEnvironmentParameterSource parameters
             ? parameters.EnvironmentParameterVersion : 0;
     }
@@ -157,7 +170,8 @@ public sealed class EntityEnvironmentContext
             {
                 IEnvironmentSource source = EnvironmentCapabilities.FindHost(region);
                 // 实际逻辑：在同一有效水源内核对淹没和游泳，禁止跨来源拼接条件。
-                if (!(source is IWaterRegion water) || !source.IsEnvironmentActive) continue;
+                IWaterRegion water = EnvironmentCapabilities.ResolveWater(source);
+                if (water == null || !source.IsEnvironmentActive) continue;
                 // 上缘入水独立决定淹没，氧气不读取水面动作或按键。
                 if (water.ContainsWaterPoint(region, point.Value))
                 {
@@ -222,6 +236,8 @@ public sealed class EntityEnvironmentContext
         // 新列表也可挂在普通唯一宿主上；只有当前脚下来源的项参与支撑采样。
         if (source is BasicPhysicalObject host)
         {
+            // 旧地面项一旦抽走就使用中性值，不从旧接口重新补回。
+            if (host is BaseGround || host.IsTriggerEnvironment) { slowing = 1f; jumpOffset = 0f; }
             if (host.TryGetGroundSlowingMultiplier(out float configuredSlowing)) slowing = configuredSlowing;
             if (host.TryGetGroundJumpMultiplier(out float configuredJump)) jumpOffset = configuredJump - 1f;
         }

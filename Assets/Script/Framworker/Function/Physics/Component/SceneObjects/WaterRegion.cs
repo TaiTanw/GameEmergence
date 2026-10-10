@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// 职能：水域的唯一环境宿主，提供水事实并在原相位 0 提交已配置的矩形水位。
@@ -8,7 +9,9 @@ using UnityEngine;
 public class WaterRegion : BasicPhysicalObject, IWaterRegion
 {
     [SerializeField] private bool swimmingEnabled = true;
-    public bool SwimmingEnabled => swimmingEnabled;
+    public bool SwimmingEnabled => TryGetWaterSwimming(out bool enabled) && enabled;
+    protected override void AddLegacyEnvironmentParameters(List<EnvironmentParameter> parameters) =>
+        AddLegacyEnvironmentParameter(parameters, new WaterSwimmingParameter(swimmingEnabled));
     private bool hasWaterLevel;
     private bool risingAllowed;
     private float bottomY;
@@ -106,13 +109,13 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
         Physics2D.SyncTransforms();
     }
 
-    public void SetSwimmingEnabled(bool enabled) => swimmingEnabled = enabled;
+    public void SetSwimmingEnabled(bool enabled) => SetWaterSwimmingState(enabled);
 
     public bool TryGetSurfaceY(Collider2D region, float worldX, out float surface)
     {
         surface = 0f;
         // 安全与首版范围：只发布同宿主、有效 Trigger 的水平矩形水面。
-        if (!IsEnvironmentActive || !(region is BoxCollider2D) || !region.enabled
+        if (!IsEnvironmentActive || !TryGetWaterSwimming(out _) || !(region is BoxCollider2D) || !region.enabled
             || region.gameObject != gameObject || !region.isTrigger
             || Mathf.Abs(region.transform.up.y) < .9999f) return false;
         Bounds bounds = region.bounds;
@@ -125,7 +128,7 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     public bool ContainsWaterPoint(Collider2D region, Vector2 point)
     {
         // 安全：失效、不同宿主或实心几何不能作为本水源的区域。
-        if (!IsEnvironmentActive || region == null || !region.enabled
+        if (!IsEnvironmentActive || !TryGetWaterSwimming(out _) || region == null || !region.enabled
             || region.gameObject != gameObject || !region.isTrigger) return false;
         // 实际逻辑：按实际 Collider 形状判断，不以名字或包围框交叠代替淹没。
         return region.OverlapPoint(point);

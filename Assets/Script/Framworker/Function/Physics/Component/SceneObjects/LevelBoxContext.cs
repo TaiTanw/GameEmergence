@@ -13,6 +13,50 @@ public static class LevelBoxContext
     public static void Register(PhysicalBox box) { if (!boxes.Contains(box)) boxes.Add(box); }
     public static void Unregister(PhysicalBox box) => boxes.Remove(box);
 
+    /// <summary>面板的占用提示：读已登记箱子的实际矩形，暂停未模拟仍可查到；不决定转换许可。</summary>
+    public static int CountPushableOverlaps(BasicPhysicalObject region)
+    {
+        if (region == null || !region.gameObject.activeInHierarchy) return 0;
+        Collider2D[] geometry = region.GetComponents<Collider2D>();
+        int count = 0;
+        foreach (PhysicalBox box in boxes)
+        {
+            // 收纳不在物理世界；带电外部箱仍能被推动，和普通暂停箱一样计入提示。
+            if (box == null || box.IsStored || !box.isActiveAndEnabled
+                || box.gameObject.scene != region.gameObject.scene) continue;
+            BoxCollider2D boxGeometry = box.GetComponent<BoxCollider2D>();
+            if (boxGeometry == null || !boxGeometry.enabled) continue;
+            Bounds body = ReadBoxGeometry(boxGeometry);
+            foreach (Collider2D collider in geometry)
+            {
+                if (collider == null || !collider.enabled) continue;
+                Bounds area = collider is BoxCollider2D rectangle ? ReadBoxGeometry(rectangle) : collider.bounds;
+                float overlapX = Mathf.Min(body.max.x, area.max.x) - Mathf.Max(body.min.x, area.min.x);
+                float overlapY = Mathf.Min(body.max.y, area.max.y) - Mathf.Max(body.min.y, area.min.y);
+                // 两轴正重合才在范围内；一个箱子碰到多个同源形状只计一次。
+                if (overlapX <= OverlapEpsilon || overlapY <= OverlapEpsilon) continue;
+                count++;
+                break;
+            }
+        }
+        return count;
+    }
+
+    private static Bounds ReadBoxGeometry(BoxCollider2D collider)
+    {
+        // 暂停刚体可能退出原生查询；直接从制作形状与实际刚体位置计算矩形。
+        Vector2 half = collider.size * .5f;
+        Vector3 first = collider.transform.TransformPoint(collider.offset - half);
+        Bounds bounds = new Bounds(first, Vector3.zero);
+        bounds.Encapsulate(collider.transform.TransformPoint(collider.offset + half));
+        bounds.Encapsulate(collider.transform.TransformPoint(collider.offset + new Vector2(half.x, -half.y)));
+        bounds.Encapsulate(collider.transform.TransformPoint(collider.offset + new Vector2(-half.x, half.y)));
+        Rigidbody2D body = collider.attachedRigidbody;
+        // 使用实际物理位置，避免显示插值的位置成为占用依据。
+        if (body != null) bounds.center += (Vector3)(body.position - (Vector2)body.transform.position);
+        return bounds;
+    }
+
     /// <summary>规则显式恢复当前关的全部箱子；格子不裁剪刷新范围，不另存一份箱子清单。</summary>
     public static void RestoreDefaults(UnityEngine.SceneManagement.Scene scene)
     {

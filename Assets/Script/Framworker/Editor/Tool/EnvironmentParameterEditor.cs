@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>有限配置工具：只添加三类表面项；运行中只读，正式修改交给阶段规则入口。</summary>
+/// <summary>有限性质制作工具；运行中只读，正式修改交给整面板确认入口。</summary>
 [CustomEditor(typeof(BasicPhysicalObject), true)]
 [CanEditMultipleObjects]
 public sealed class EnvironmentParameterEditor : Editor
@@ -22,7 +22,7 @@ public sealed class EnvironmentParameterEditor : Editor
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("环境参数", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("接触条件固定，每类最多一项。对应显式项优先；缺项沿用旧字段，制作数据不会自动迁移。", MessageType.Info);
+            EditorGUILayout.HelpBox("实心／触发器列表各自占槽、共用上限。接触条件固定，每类最多一项；显式项优先，缺项沿旧字段。独特触发器性质由碰撞器默认几何确定。", MessageType.Info);
             for (int i = 0; i < parameters.arraySize; i++)
             {
                 SerializedProperty element = parameters.GetArrayElementAtIndex(i);
@@ -40,6 +40,9 @@ public sealed class EnvironmentParameterEditor : Editor
                 new GroundJumpMultiplierParameter(1f + (legacyJump != null ? legacyJump.floatValue : 0f)));
             AddButton(parameters, EnvironmentParameterKind.WallSlideMultiplier,
                 new WallSlideMultiplierParameter(legacyWall != null ? legacyWall.floatValue : 1f));
+            AddButton(parameters, EnvironmentParameterKind.WaterSwimming, new WaterSwimmingParameter());
+            AddButton(parameters, EnvironmentParameterKind.MovementSpeedOffset, new MovementSpeedOffsetParameter());
+            AddButton(parameters, EnvironmentParameterKind.PassiveVelocity, new PassiveVelocityParameter());
         }
         serializedObject.ApplyModifiedProperties();
 
@@ -49,10 +52,20 @@ public sealed class EnvironmentParameterEditor : Editor
 
         if (!Application.isPlaying || targets.Length != 1) return;
         var runtimeHost = (BasicPhysicalObject)target;
-        for (int i = 0; i < runtimeHost.EnvironmentParameterCount; i++)
-            if (runtimeHost.TryGetEnvironmentParameter(i, out EnvironmentParameter parameter))
-                EditorGUILayout.LabelField(parameter.DisplayName,
-                    $"生效 {parameter.Value:g}／默认 {parameter.DefaultValue:g}（{parameter.ContactCondition}）");
+        DrawRuntime(runtimeHost, false);
+        DrawRuntime(runtimeHost, true);
+    }
+
+    private static void DrawRuntime(BasicPhysicalObject host, bool trigger)
+    {
+        EditorGUILayout.LabelField(trigger ? "触发器列表" : "实心列表", EditorStyles.boldLabel);
+        EnvironmentParameter[] slots = host.CopyEnvironmentSlots(trigger);
+        for (int i = 0; i < slots.Length; i++)
+        {
+            EnvironmentParameter parameter = slots[i];
+            EditorGUILayout.LabelField($"槽 {i + 1}：{parameter?.DisplayName ?? "空"}", parameter == null ? ""
+                : $"{parameter.ValueText}（{parameter.CalculationPoint?.DisplayName ?? "未附加计算点"}）");
+        }
     }
 
     private void AddButton(SerializedProperty parameters, EnvironmentParameterKind kind, EnvironmentParameter value)

@@ -1,5 +1,6 @@
 ﻿using PhyData;
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// 实体进入力场区域时，用 add / maxSpeed 给出动态力初值；后续每帧沿用这组参数。
@@ -8,7 +9,9 @@ using UnityEngine;
 public class ForceField : BasicPhysicalObject, IDynamicEnvironmentForce, IMovementSpeedModifier
 {
     [SerializeField] protected float speedChangeNum; // 主动速度加性修饰，旧序列化名称保留。
-    public float MovementSpeedOffset => speedChangeNum;
+    public float MovementSpeedOffset => TryGetMovementSpeedOffset(out float value) ? value : 0f;
+    protected override void AddLegacyEnvironmentParameters(List<EnvironmentParameter> parameters) =>
+        AddLegacyEnvironmentParameter(parameters, new MovementSpeedOffsetParameter(speedChangeNum));
 
     [SerializeField] protected float maxSpeed;
     [SerializeField] protected float add;
