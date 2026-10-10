@@ -9,7 +9,7 @@ public class PlayerResourceWindow : EditorWindow
 {
     Vector2 scrollPosition;
 
-    [MenuItem("自定义工具/角色资源")]
+    [MenuItem("自定义工具/测试工具/运行观察/角色资源")]
     public static void ShowWindow()
     {
         GetWindow<PlayerResourceWindow>("角色资源");

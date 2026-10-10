@@ -6,7 +6,7 @@ using UnityEngine;
 
 public class FileTool 
 {
-    [MenuItem("自定义工具/动态加载路径自检")]
+    [MenuItem("自定义工具/测试工具/验证/动态加载路径自检")]
     private static void DataFiledetection()
     {
         if (!Directory.Exists(Application.dataPath + "/Resources/" +DataAndInitMgr.Instance.resourcesNecessaryAssetsPath))

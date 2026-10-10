@@ -18,7 +18,7 @@ public static class SpiritFlightChecks
         .GetMethod("Apply", BindingFlags.Static | BindingFlags.NonPublic);
     private static int group;
 
-    [MenuItem("自定义工具/P7 验证精神体飞行（Edit Mode）")]
+    [MenuItem("自定义工具/测试工具/验证/P7 验证精神体飞行（Edit Mode）")]
     public static void Run()
     {
         if (Application.isPlaying) throw new InvalidOperationException("请在 Edit Mode 执行 P7 检查。");

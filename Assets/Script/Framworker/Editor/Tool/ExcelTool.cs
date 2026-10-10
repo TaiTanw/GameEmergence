@@ -42,7 +42,7 @@ public class ExcelTool
     public static string eInfoCollection = Application.dataPath + "/Script/Data/Collection/";
 
 
-    [MenuItem("自定义工具/加载Excel数据")]
+    [MenuItem("自定义工具/开发工具/数据/加载Excel数据")]
     private static void CreateExcelInfo()
     { 
         //找到文件夹信息

@@ -12,7 +12,7 @@ public class PlayerDataWindow : EditorWindow
     BasicEntity targetEntity;
     Vector2 scrollPosition;
 
-    [MenuItem("自定义工具/EPhy 实时数据显示")]
+    [MenuItem("自定义工具/测试工具/运行观察/EPhy 实时数据显示")]
     public static void ShowWindow()
     {
         GetWindow<PlayerDataWindow>("EPhy Debug");

@@ -29,7 +29,7 @@ public static class BoxInteractionChecks
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
-    [MenuItem("自定义工具/EPhy 验证箱子交互（Edit Mode）")]
+    [MenuItem("自定义工具/测试工具/验证/EPhy 验证箱子交互（Edit Mode）")]
     public static void Run()
     {
         if (Application.isPlaying) throw new InvalidOperationException("请在 Edit Mode 执行验证。");

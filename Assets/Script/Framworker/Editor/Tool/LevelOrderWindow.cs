@@ -11,10 +11,10 @@ public class LevelOrderWindow : EditorWindow
     ReorderableList list;
     const string OutputPath = "Assets/Resources/LevelOrder.json";
 
-    [MenuItem("自定义工具/关卡顺序")]
+    [MenuItem("自定义工具/开发工具/关卡/关卡顺序")]
     static void Open() => GetWindow<LevelOrderWindow>("关卡顺序");
 
-    [MenuItem("自定义工具/清空关卡进度")]
+    [MenuItem("自定义工具/测试工具/进度/清空关卡进度")]
     static void ClearProgress()
     {
         DataAndInitMgr.Instance.ClearLevelProgress();

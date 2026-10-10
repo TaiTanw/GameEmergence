@@ -26,7 +26,7 @@ public static class EnvironmentIntegrationChecks
             .GetValue(state);
     }
 
-    [MenuItem("自定义工具/EPhy 验证环境接入（Edit Mode）")]
+    [MenuItem("自定义工具/测试工具/验证/EPhy 验证环境接入（Edit Mode）")]
     public static void Run()
     {
         if (Application.isPlaying) throw new InvalidOperationException("请在 Edit Mode 执行验证。");
