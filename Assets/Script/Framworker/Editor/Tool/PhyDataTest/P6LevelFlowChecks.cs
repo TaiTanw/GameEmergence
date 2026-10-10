@@ -454,8 +454,14 @@ public static class P6LevelFlowChecks
             "非教学开局认知等于当前场景初始配置，首次召唤不扣费");
         Near(LevelStageMgr.Instance.CognitionRemaining, Rules().Cognition.Remaining,
             "阶段只读出口代理唯一规则持有的认知余额");
-        Check(InputControlMgr.Instance.Player == spirit && !body.Permissions.motionUpdates
-            && !body.GetComponent<Rigidbody2D>().simulated, "控制转交精神体，留下的实体暂停运动");
+        Rigidbody2D waiting = body.GetComponent<Rigidbody2D>();
+        Check(InputControlMgr.Instance.Player == spirit && body.Permissions.motionUpdates
+            && !body.Permissions.movement && body._ActionData.HoldIdle
+            && waiting.simulated && waiting.bodyType == RigidbodyType2D.Kinematic
+            && body.gameObject.layer == Player.PlayerLayer && spirit.gameObject.layer == Player.PlayerLayer
+            && Physics2D.GetIgnoreLayerCollision(Player.PlayerLayer, Player.PlayerLayer)
+            && !body.TryRequestDeath(PlayerDeathCause.Abyss),
+            "控制转交精神体，留下的实体锁定实心碰撞、不与精神体互撞且不发死亡");
         CheckCamera(spirit);
         Check(WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
             "非教学开局暂停箱子与平台世界运动");

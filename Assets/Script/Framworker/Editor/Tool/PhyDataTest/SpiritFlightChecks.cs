@@ -175,12 +175,13 @@ public static class SpiritFlightChecks
         Check(!w.spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion), "暂停箱子的碰撞体仍参与退出飞行占用拒绝");
         MoveCenter(box, (Vector2)w.physics.BodyBounds.center + Vector2.right * 20f);
         MoveCenter(w.body.GetComponent<CharacterPhysics>(), w.physics.BodyBounds.center);
-        Check(!w.body.GetComponent<Rigidbody2D>().simulated, "探索本体待机不参加原生模拟");
-        Check(!w.spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion), "待机本体碰撞范围同样阻止恢复行走");
-        MoveCenter(w.body.GetComponent<CharacterPhysics>(), (Vector2)w.physics.BodyBounds.center + Vector2.left * 20f);
-        Check(w.spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion), "仅剩自身且暂停实体已退开时恢复行走");
-        Check(box.GetComponent<Rigidbody2D>().simulated && !w.body.GetComponent<Rigidbody2D>().simulated,
-            "进入模拟恢复箱子运动，待机本体保持暂停");
+        Check(w.body.GetComponent<Rigidbody2D>().simulated
+            && w.body.GetComponent<Rigidbody2D>().bodyType == RigidbodyType2D.Kinematic
+            && w.body._ActionData.HoldIdle, "探索本体锁定为实心且保持待机画面");
+        Check(w.spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion),
+            "精神体与实体不碰撞，重叠待命实体不拒绝恢复行走");
+        Check(box.GetComponent<Rigidbody2D>().simulated && w.body.GetComponent<Rigidbody2D>().simulated,
+            "进入模拟恢复箱子运动，待命实体保持锁定碰撞");
     }
 
     private static void CheckRestoreTolerance()
@@ -278,8 +279,9 @@ public static class SpiritFlightChecks
         PlayerStateMachine state = State(w.spirit);
         state.stamina = 37f; state.oxygen = 23f;
         Check(w.spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion), "进入模拟经同一规则提交行走和世界恢复");
-        Check(w.rules.IsSimulation && w.spirit.Permissions.pushPull && !w.body.Permissions.motionUpdates,
-            "模拟权限允许精神体推拉，本体仍待机");
+        Check(w.rules.IsSimulation && w.spirit.Permissions.pushPull && w.body.Permissions.motionUpdates
+            && !w.body.Permissions.movement && w.body._ActionData.HoldIdle,
+            "模拟权限允许精神体推拉，本体继续受物理并保持待机");
         Near(state.stamina, 37f, .001f, "普通模式切换不补体力");
         Near(state.oxygen, 23f, .001f, "普通模式切换不补氧气");
         box.GetComponent<Rigidbody2D>().velocity = new Vector2(4f, -2f);

@@ -33,6 +33,8 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     private float MovementMultiplier => effectLedger?.MovementMultiplier ?? 1f;
     /// <summary>只绑定共享记录；消费时从角色自身基础值重算，不回写配置或积累加成。</summary>
     internal void BindEffectLedger(PlayerEffectLedger ledger) => effectLedger = ledger;
+    const float SpawnGroundSearchDistance = 4f;
+    readonly List<RaycastHit2D> spawnDropHits = new List<RaycastHit2D>();
     #endregion
 
 
@@ -324,5 +326,39 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
 
         playerPhysicsData.verticalSpeed = Mathf.Max(playerPhysicsData.verticalSpeed,
             -wallDownSpeed * wall.WallSlideMultiplier);
+    }
+
+    /// <summary>
+    /// 进探索时从当前碰撞框向下找一段地面并贴上。没有命中就留在出生点。
+    /// 不改每帧脚下探针的贴肤距离。
+    /// </summary>
+    internal bool TrySnapDownToGround()
+    {
+        // 安全：没有碰撞框或地面层时不能查询。
+        if (cPhysics == null || rb == null || boxCollider == null || !boxCollider.enabled) return false;
+        Physics2D.SyncTransforms();
+        Bounds bounds = PhysicsWorld.ReadAabb(boxCollider);
+        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
+        filter.SetLayerMask(cPhysics.groundLayer);
+        spawnDropHits.Clear();
+        PhysicsWorld.BoxCast(bounds.center, bounds.size, 0f, Vector2.down, SpawnGroundSearchDistance, filter, spawnDropHits);
+        float best = SpawnGroundSearchDistance;
+        bool found = false;
+        float drop = 0f;
+        foreach (RaycastHit2D hit in spawnDropHits)
+        {
+            // 安全：自身和陡面不是这次可贴的地面。
+            if (hit.collider == null || hit.collider.attachedRigidbody == rb) continue;
+            if (Vector2.Dot(hit.normal, Vector2.up) <= 0.7f || hit.distance > best) continue;
+            best = hit.distance;
+            drop = hit.distance;
+            found = true;
+        }
+        if (!found) return false;
+        // 实际逻辑：碰撞框底贴到命中面，并留出与每帧探针相同的贴肤间隙。
+        Vector2 center = (Vector2)bounds.center + Vector2.down * drop;
+        center.y += GroundProbeDistance;
+        RefreshMotionState(GetPositionForBodyCenter(center));
+        return true;
     }
 }

@@ -39,6 +39,8 @@ public class MovementData
     /// </summary>
     public float speedScale = 1f;
     public bool motionUpdates = true;
+    /// <summary>探索待命实体保持待机画面；表现只读，不从空中物理自行改播下落。</summary>
+    public bool holdIdle;
     public bool surfaceJumpInProgress; // 行为层拥有：跃出期间等待冲量消费和上升结束
     /// <summary>当前选中关系托起推拉能力的箱子；无选中为空。由 Player 写入，执行与表现只读。</summary>
     public PhysicalBox pushPullBox;
@@ -65,6 +67,7 @@ public class ReadOnly_ActionData
     public float verticalInput => _data.verticalInput;
     public float speedScale => _data.speedScale;
     public bool motionUpdates => _data.motionUpdates;
+    public bool HoldIdle => _data.holdIdle;
     public PlayerStateMachine.E_playerState NowState =>_data.nowState;
     public bool isSurfaceSwimming => NowState == PlayerStateMachine.E_playerState.surfaceSwimming;
     public bool isSwimming => NowState == PlayerStateMachine.E_playerState.swimming || isSurfaceSwimming;
@@ -113,6 +116,8 @@ public readonly struct PlayerResourceFacts
 
 public class Player : MonoBehaviour
 {
+    /// <summary>玩家层。同层不互相碰撞，所以精神体、待命实体和以后推箱的小车都走这一层。</summary>
+    public const int PlayerLayer = 8;
     [SerializeField] private PlayerIdentity identity;
     [SerializeField, Tooltip("选中外部箱的最大水平碰撞框间隙；选中后须接触才开始共同推拉，开发期参数")] private float interactContactGap = 0.5f;
     [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除；须大于选中间隙，开发期参数")] private float interactReleaseGap = 0.8f;
@@ -154,7 +159,9 @@ public class Player : MonoBehaviour
     public bool TryRequestDeath(PlayerDeathCause cause)
     {
         // 玩法约束：飞行免死；同周期的氧气和深渊请求只保留第一次。
+        // 玩法约束：飞行免死。探索待命的实体即使参与物理也不发死亡，无敌不靠关掉刚体。
         if (ResolveFourWayAbility() == FourWayMode.Flying || deathCycleClosed
+            || (Identity == PlayerIdentity.Body && !Permissions.movement)
             || (!Permissions.motionUpdates && !Permissions.resourceUpdates)) return false;
         deathCycleClosed = true;
         pendingDeath = new PlayerDeathRequest(this, cause, ++deathCycle);
@@ -245,6 +252,8 @@ public class Player : MonoBehaviour
     {
         capabilities.ApplyPermissions(permissions);
         actionData.motionUpdates = permissions.motionUpdates;
+        // 实际逻辑：只有「物理开着、操作关着」的待命实体锁待机画面。
+        actionData.holdIdle = permissions.motionUpdates && !permissions.movement;
         // 实际逻辑：暂停运动立即撤销操作输出，但不伪造玩家松键或撤销环境数值。
         if (!permissions.movement || !permissions.motionUpdates) ClearActionOutput();
         if (!permissions.movement || !permissions.motionUpdates)
@@ -254,8 +263,30 @@ public class Player : MonoBehaviour
             playPDate.ClearPendingActions();
         }
         playPDate.SetMotionParticipation(permissions.motionUpdates);
+        // 实际逻辑：探索待命实体锁定成推不动的实心体；恢复操作时改回动态刚体。
+        playPDate.SetImmovableCollision(permissions.motionUpdates && !permissions.movement);
+        UsePlayerLayer(gameObject);
         // 实际逻辑：权限与当前水事实一同提交，当次从飞行恢复游泳，不等下一帧也不更新资源。
         if (runtimeReady) fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
+    }
+
+    /// <summary>出生点只需在地面上方有限距离内。只在进入探索时贴一次，不开启重力积分。</summary>
+    internal void SnapSpawnToGround()
+    {
+        EnsureRuntimeReady();
+        playPDate.TrySnapDownToGround();
+    }
+
+    static void UsePlayerLayer(GameObject root)
+    {
+        Physics2D.IgnoreLayerCollision(PlayerLayer, PlayerLayer, true);
+        SetLayer(root);
+    }
+
+    static void SetLayer(GameObject item)
+    {
+        item.layer = PlayerLayer;
+        for (int i = 0; i < item.transform.childCount; i++) SetLayer(item.transform.GetChild(i).gameObject);
     }
 
     private void ClearActionOutput()
@@ -307,7 +338,7 @@ public class Player : MonoBehaviour
 
     void Awake()
     {
-
+        UsePlayerLayer(gameObject);
         capabilities = new PlayerCapabilityContext(identity);
         boxSelection = new PlayerBoxSelection(this);
 

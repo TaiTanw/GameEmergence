@@ -133,7 +133,8 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
         spirit.ApplyCapabilities(PlayerCapabilityPermissions.Simulation);
         spirit.BindSpiritRules(this);
         if (!spirit.TryCommitSpiritForm(true)) return false;
-        body?.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        body?.ApplyCapabilities(PlayerCapabilityPermissions.Waiting);
+        body?.SnapSpawnToGround();
         ConfigureStage(PlayerGameplayStage.Exploration);
         spirit.ApplyCapabilities(PlayerCapabilityPermissions.Roaming);
         SetWorldPaused(true);

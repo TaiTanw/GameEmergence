@@ -119,6 +119,15 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         SynchronizeMotionParticipation();
     }
 
+    /// <summary>实心但不被推动。解除后恢复由脚本积分的动态刚体。</summary>
+    public void SetImmovableCollision(bool locked)
+    {
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (rb == null) return;
+        rb.bodyType = locked ? RigidbodyType2D.Kinematic : RigidbodyType2D.Dynamic;
+        if (locked) rb.velocity = Vector2.zero;
+    }
+
     /// <summary>规则侧暂停箱子、小车等世界实体；角色自身许可另管，暂停不清位置和速度。</summary>
     public static void SetWorldPaused(bool paused)
     {
@@ -477,6 +486,13 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     {
         SynchronizeMotionParticipation();
         if (!IsMotionParticipating) return;
+        // 实际逻辑：锁定碰撞的实体保持实心，不积分速度，箱子撞上会被挡住且推不动它。
+        if (rb.bodyType == RigidbodyType2D.Kinematic)
+        {
+            rb.velocity = Vector2.zero;
+            hasMotionCommand = false;
+            return;
+        }
         float dt = Time.fixedDeltaTime;
         if (dt <= 0f) return;
         // 实际逻辑：飞行仍走本相位写速度及公共模拟，仅消费主动四向命令，零输入即悬停。

@@ -166,6 +166,13 @@ public class PresentationLayer : MonoBehaviour
         }
 
         UpdateFacing();
+        // 实际逻辑：探索待命实体固定待机，不因下落或着地改播。
+        if (actionData.HoldIdle)
+        {
+            ResetMotionHistory();
+            Play(AnimationState.Idle);
+            return;
+        }
 
         MotionMode behavior = ResolveMotionMode();
         // 行为事实优先：上浮不是跳跃，水底几何着地也不能选择行走动画。

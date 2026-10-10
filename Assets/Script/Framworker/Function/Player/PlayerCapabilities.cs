@@ -33,6 +33,8 @@ public readonly struct PlayerCapabilityPermissions
     // 模拟仍保留转换许可；实际行走／飞行由规则和 FlightForm 一同提交。
     public static PlayerCapabilityPermissions Simulation => new PlayerCapabilityPermissions(true, true, true, true, true);
     public static PlayerCapabilityPermissions Standby => default;
+    /// <summary>探索中留在起点的实体：参与物理，不接收操作、不耗资源、不推拉。</summary>
+    public static PlayerCapabilityPermissions Waiting => new PlayerCapabilityPermissions(false, false, false, true, false, false);
 }
 
 /// <summary>
