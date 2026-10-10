@@ -33,6 +33,19 @@ public class SceneLevelSetup : MonoBehaviour
     [SerializeField, Tooltip("手工关联本关全部地图格子，允许边界相接，不允许面积重叠或漏引用")]
     MapCell[] mapCells = new MapCell[0];
 
+    [Header("认知背包")]
+    [SerializeField, Min(0), Tooltip("两种形态共用同一背包；初始装载与失败恢复不收取获取费用。")]
+    int cognitionBackpackCapacity = 12;
+    [SerializeField, Min(0f)] float cognitionPropertyCost = 1f;
+    [SerializeField, Min(0f)] float cognitionCalculationCost = 1f;
+    [SerializeReference, Tooltip("本关初始携带的有限性质，可留空；触发器性质为独立内容物。")]
+    List<EnvironmentParameter> initialCognitionProperties = new List<EnvironmentParameter>();
+    [SerializeField, Tooltip("本关初始计算点。每个数字产生一个独立点；必须为有限非负倍率。")]
+    float[] initialCognitionCalculations = { 2f, .2f };
+
+    public CognitionBackpack CreateCognitionBackpack() => new CognitionBackpack(cognitionBackpackCapacity,
+        cognitionPropertyCost, cognitionCalculationCost, initialCognitionProperties, initialCognitionCalculations);
+
     public bool Teaching => teaching;
     public GameObject SpiritPrefab => spiritPrefab;
     public float ManualFormCooldown => Mathf.Max(0f, manualFormCooldown);

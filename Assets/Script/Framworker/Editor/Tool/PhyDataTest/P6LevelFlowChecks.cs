@@ -33,7 +33,7 @@ public static class P6LevelFlowChecks
     private static int bodyId, spiritId;
     private static GameplayPanel panel;
     private static GameMenuPanel menu;
-    private static float expectedCognition, formCost;
+    private static float expectedCognition, formCost, editedEnvironmentValue;
     private static int stage;
     private static double deadline, cooldownEnds;
     private static Exception failure;
@@ -185,12 +185,15 @@ public static class P6LevelFlowChecks
                     if (panel == null || !panel.gameObject.activeInHierarchy) return;
                     Check(panel.transform.parent == UIMgr.Instance.GetUILayer(E_UILayer.Bottom), "游戏显示预设进入 Bottom 层");
                     Button resetButton = panel.transform.Find("ActionArea/ResetTrialButton")?.GetComponent<Button>();
-                    Button applyButton = panel.transform.Find("ActionArea/EnvironmentEditArea/ApplyEnvironmentButton")?.GetComponent<Button>();
+                    Transform environmentArea = panel.transform.Find("ActionArea/EnvironmentEditArea");
+                    EnvironmentEditView environmentView = environmentArea?.GetComponent<EnvironmentEditView>();
+                    if (environmentView != null && environmentArea.Find("EnvironmentEditorContent") == null)
+                        typeof(EnvironmentEditView).GetMethod("Awake", Hidden).Invoke(environmentView, null);
+                    Button applyButton = environmentArea?.Find("EnvironmentEditorContent/ConfirmEnvironmentButton")?.GetComponent<Button>();
                     Check(resetButton != null && applyButton != null,
-                        "游戏显示预设包含正式试验重置与环境应用按钮");
-                    Check(panel.transform.Find("ActionArea/EnvironmentEditArea/EnvironmentValueInput")?.GetComponent<InputField>() != null
-                        && panel.transform.Find("ActionArea/EnvironmentEditArea")?.GetComponent<EnvironmentEditView>() != null,
-                        "环境输入与编辑显示位于实际操作区预设");
+                        "游戏显示预设包含正式试验重置与整面板确认按钮");
+                    Check(environmentView != null && panel.transform.Find("CognitionBackpackArea") != null,
+                        "环境槽编辑与右侧认知背包来自实际游戏显示预设");
                     Check(panel.transform.Find("MapArea").gameObject.activeSelf == SceneChangeMgr.Instance.CanViewMap,
                         "实际地图区域按本关已启用地图显示，暂停不冒充未接地图");
                     foreach (string reserved in new[] { "ActionArea", "MessageArea" })
@@ -373,12 +376,25 @@ public static class P6LevelFlowChecks
             float balance = oldRules.Cognition.Remaining;
             EnvironmentEditView view = editorArea.GetComponent<EnvironmentEditView>();
             typeof(EnvironmentEditView).GetMethod("SelectAt", Hidden).Invoke(view, new object[] { (Vector2)item.transform.position });
-            InputField value = editorArea.Find("EnvironmentValueInput").GetComponent<InputField>();
-            value.text = "0.5";
-            Button apply = editorArea.Find("ApplyEnvironmentButton").GetComponent<Button>();
-            Check(value.interactable && apply.interactable, "选中本关实际地面后可输入并提交有限倍率");
+            Transform editorContent = editorArea.Find("EnvironmentEditorContent");
+            Button slot = editorContent.Find("EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0").GetComponent<Button>();
+            Check(slot.interactable && view.DisplayedDraft != null, "选中本关实际地面后显示可计算的性质槽");
+            slot.onClick.Invoke();
+            CognitionBackpackItem point = null;
+            foreach (CognitionBackpackItem itemPoint in oldRules.CognitionBackpack.Items)
+                if (itemPoint.IsCalculation) { point = itemPoint; break; }
+            Check(point != null, "本关制作背包提供真实计算点");
+            editedEnvironmentValue = ground.SlowingEffect * point.CalculationPoint.Multiplier;
+            Button bagPoint = panel.transform.Find("CognitionBackpackArea/CognitionBackpackScroll/Viewport/Content/CognitionBackpackItem_" + point.Id).GetComponent<Button>();
+            Check(bagPoint.interactable && view.IsBackpackOpen && !view.IsBackpackReadOnly,
+                "点击环境性质槽联动打开右侧背包且兼容计算点可点击");
+            bagPoint.onClick.Invoke();
+            Near(ground.SlowingEffect, 1f, "实际计算点点击只预览，未提前修改来源");
+            Near(view.DisplayedDraft.GetSlot(false, 0).Value, editedEnvironmentValue, "环境槽展示真实计算结果");
+            Button apply = editorContent.Find("ConfirmEnvironmentButton").GetComponent<Button>();
+            Check(apply.interactable, "存在草稿时整面板确认按钮可用");
             apply.onClick.Invoke();
-            Near(ground.SlowingEffect, .5f, "真实环境应用按钮改值交给原环境来源");
+            Near(ground.SlowingEffect, editedEnvironmentValue, "真实整面板确认按钮改值交给原环境来源");
             Check(physics.DebugActualPosition == spiritPosition && physics.GetPlanarVelocity() == spiritVelocity
                 && oldSpirit._ActionData.isFlying, "漫游编辑不改精神体运动或形态");
             Near(oldRules.Cognition.Remaining, balance, "当前环境改值不另扣转换或模拟认知");
@@ -424,7 +440,7 @@ public static class P6LevelFlowChecks
                 && !input.PlayerInputData.interactLongPressed, "试验刷新恢复原输入开关且不补发旧跳跃或交互点按");
             Check(!WorldPaused(typeof(BasicEntity)) && !WorldPaused(typeof(Taijie)) && physics.IsMotionParticipating,
                 "试验刷新恢复当前模拟的角色与世界参与许可");
-            Near(editedGround.SlowingEffect, .5f, "真实试验轻刷新保留已经提交的环境改值");
+            Near(editedGround.SlowingEffect, editedEnvironmentValue, "真实试验轻刷新保留已经提交的环境改值");
             Near(LevelStageMgr.Instance.CognitionRemaining, expectedCognition,
                 "真实认知显示出口继续代理同一规则余额");
             GameMenuInputChecks.Capture("trial-reset.png");

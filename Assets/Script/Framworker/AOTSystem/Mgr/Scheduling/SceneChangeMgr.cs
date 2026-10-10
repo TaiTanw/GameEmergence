@@ -184,6 +184,23 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     public bool CanEditEnvironment => !loading && !GameMenuOpen && Time.timeScale > 0f
         && levelRules != null && levelRules.CanEditEnvironment && InputControlMgr.Instance.Player == spirit;
 
+    public CognitionBackpack CurrentCognitionBackpack => levelRules?.CognitionBackpack;
+
+    public EnvironmentEditDraft BeginEnvironmentEdit(BasicPhysicalObject source) =>
+        CanEditEnvironment ? levelRules.BeginEnvironmentEdit(source) : null;
+
+    public void CancelEnvironmentEdit() => levelRules?.CancelEnvironmentEdit();
+
+    public bool ConfirmEnvironmentEdit(EnvironmentEditDraft draft, out string error)
+    {
+        error = null;
+        if (!CanEditEnvironment) { error = "当前不能确认环境修改。"; return false; }
+        return levelRules.ConfirmEnvironmentEdit(draft, out error);
+    }
+
+    public int GetPushableEnvironmentOverlapCount(BasicPhysicalObject source) =>
+        CanEditEnvironment && source != null ? LevelBoxContext.CountPushableOverlaps(source) : 0;
+
     public bool EditEnvironmentParameter(BasicPhysicalObject source, int index, float value)
     {
         if (!CanEditEnvironment) return false;
@@ -228,7 +245,12 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (loading || GameMenuOpen || levelRules == null || Time.timeScale <= 0f) return;
         levelRules.AdvanceSimulationTime(Time.deltaTime);
         levelRules.AdvanceExplorationMap();
-        if (levelRules.CognitionExhaustionRequested && !levelRules.EscapeSelectionPending) StartEscape();
+        if (levelRules.CognitionExhaustionRequested && !levelRules.EscapeSelectionPending)
+        {
+            // 耗尽优先结束探索；未确认的预览取消，已确认配置和背包仍保留。
+            levelRules.CancelEnvironmentEdit();
+            StartEscape();
+        }
     }
 
     /// <summary>按已保存的关序号进入。没有存档时是第一关。</summary>
@@ -429,6 +451,12 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         levelRules = new PlayerLifecycleRules(body, spirit, this,
             cognition: new LevelCognition(setup.InitialCognition), formCost: setup.FormChangeCost,
             simulationCognitionPerSecond: setup.SimulationCognitionPerSecond);
+        if (!levelRules.BindCognitionBackpack(setup))
+        {
+            DestroyActor(ref spirit);
+            ReleaseLevelRules();
+            return false;
+        }
         if (!levelRules.BeginExploration(setup.ManualFormCooldown))
         {
             Debug.LogError("精神体飞行初始化失败。", spirit);

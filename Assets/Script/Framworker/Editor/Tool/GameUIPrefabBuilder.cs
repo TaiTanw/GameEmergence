@@ -56,7 +56,7 @@ public static class GameUIPrefabBuilder
 
             // 预留容器只安排位置，不把开发占位文字显示给玩家。
             BuildMapArea(root);
-            RectTransform actions = Region(root, "ActionArea", new Vector2(.5f, 0), new Vector2(0, 32), new Vector2(720, 176));
+            RectTransform actions = Region(root, "ActionArea", new Vector2(.5f, 0), new Vector2(0, 32), new Vector2(720, 64));
             RectTransform resetRect = Region(actions, "ResetTrialButton", new Vector2(.5f, 0), new Vector2(0, 8), new Vector2(260, 64));
             Image resetImage = Background(resetRect, new Color(.13f, .32f, .37f), true);
             Button reset = resetRect.gameObject.AddComponent<Button>();
@@ -70,35 +70,14 @@ public static class GameUIPrefabBuilder
             Text startLabel = Label(startRect, "Label", "开始逃生", Vector2.zero, new Vector2(260, 64), 27, Ink);
             Stretch(startLabel.rectTransform); startLabel.alignment = TextAnchor.MiddleCenter;
             RectTransform environment = NewRect("EnvironmentEditArea", actions);
-            Stretch(environment); Background(environment, Card, true);
-            Label(environment, "EnvironmentObjectText", "环境参数", new Vector2(20, -12), new Vector2(500, 30), 24, Ink);
-            RectTransform nextRect = Region(environment, "NextEnvironmentParameterButton", new Vector2(0, 1), new Vector2(540, -10), new Vector2(160, 34));
-            Image nextImage = Background(nextRect, new Color(.13f, .32f, .37f), true);
-            Button next = nextRect.gameObject.AddComponent<Button>(); next.targetGraphic = nextImage;
-            Text nextLabel = Label(nextRect, "Label", "切换参数", Vector2.zero, new Vector2(160, 34), 20, Ink);
-            Stretch(nextLabel.rectTransform); nextLabel.alignment = TextAnchor.MiddleCenter;
-            Label(environment, "EnvironmentParameterText", "选择物体后显示可调整参数。", new Vector2(20, -46), new Vector2(680, 30), 21, Muted);
-            RectTransform valueRect = Region(environment, "EnvironmentValueInput", new Vector2(0, 1), new Vector2(20, -88), new Vector2(410, 48));
-            Image valueImage = Background(valueRect, new Color(.1f, .16f, .2f), true);
-            Text valueText = Label(valueRect, "Text (Legacy)", "", new Vector2(12, 0), new Vector2(386, 48), 23, Ink);
-            valueText.rectTransform.anchorMin = valueText.rectTransform.anchorMax = new Vector2(0, 1);
-            Text placeholder = Label(valueRect, "Placeholder", "输入大于或等于 0 的数", new Vector2(12, 0), new Vector2(386, 48), 20, Muted);
-            InputField valueInput = valueRect.gameObject.AddComponent<InputField>();
-            valueInput.targetGraphic = valueImage; valueInput.textComponent = valueText; valueInput.placeholder = placeholder;
-            valueInput.contentType = InputField.ContentType.Standard; valueInput.lineType = InputField.LineType.SingleLine;
-            RectTransform applyRect = Region(environment, "ApplyEnvironmentButton", new Vector2(0, 1), new Vector2(450, -88), new Vector2(250, 48));
-            Image applyImage = Background(applyRect, new Color(.13f, .32f, .37f), true);
-            Button apply = applyRect.gameObject.AddComponent<Button>(); apply.targetGraphic = applyImage;
-            Text applyLabel = Label(applyRect, "Label", "应用", Vector2.zero, new Vector2(250, 48), 25, Ink);
-            Stretch(applyLabel.rectTransform); applyLabel.alignment = TextAnchor.MiddleCenter;
-            Label(environment, "EnvironmentEditHintText", "点击环境物体，查看并调整参数。", new Vector2(20, -140), new Vector2(680, 28), 19, Muted);
+            EnvironmentEditLayout.Ensure(environment, root);
             environment.gameObject.AddComponent<EnvironmentEditView>();
             environment.gameObject.SetActive(false);
             startRect.SetParent(root, false);
             startRect.anchorMin = startRect.anchorMax = startRect.pivot = Vector2.one;
             startRect.anchoredPosition = new Vector2(-32, -100);
             actions.gameObject.SetActive(false);
-            RectTransform message = Region(root, "MessageArea", new Vector2(.5f, 0), new Vector2(0, 140), new Vector2(720, 80));
+            RectTransform message = Region(root, "MessageArea", new Vector2(.5f, 0), new Vector2(0, 560), new Vector2(720, 80));
             Background(message, Card, false);
             Text messageText = Label(message, "RefreshMessageText", "", Vector2.zero, new Vector2(680, 64), 24, Ink);
             Stretch(messageText.rectTransform); messageText.alignment = TextAnchor.MiddleCenter;

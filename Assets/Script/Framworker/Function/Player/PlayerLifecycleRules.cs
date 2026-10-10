@@ -20,6 +20,42 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     public PlayerGameplayStage Stage { get; private set; }
     public bool IsSimulation { get; private set; }
     public LevelMapRecord MapRecord { get; private set; }
+    public CognitionBackpack CognitionBackpack { get; private set; }
+    public EnvironmentEditDraft ActiveEnvironmentEdit { get; private set; }
+
+    /// <summary>关卡创建新探索时装载背包；失败重开重新组装，模式切换与轻刷新不重建。</summary>
+    public bool BindCognitionBackpack(SceneLevelSetup setup)
+    {
+        if (setup == null || setup.Teaching) return false;
+        try { CognitionBackpack = setup.CreateCognitionBackpack(); return true; }
+        catch (ArgumentException error) { Debug.LogError(error.Message, setup); return false; }
+    }
+
+    public EnvironmentEditDraft BeginEnvironmentEdit(BasicPhysicalObject source)
+    {
+        // 安全：同关、唯一来源与漫游资格在规则层检查，界面的高光不授予权限。
+        if (!CanEditEnvironment || CognitionBackpack == null || source == null || !source.AllowsEnvironmentEditing
+            || source.gameObject.scene != spirit.gameObject.scene) return null;
+        // 操作归属：有待确认的草稿时，先结束它，再打开其它环境。
+        if (ActiveEnvironmentEdit != null && !ActiveEnvironmentEdit.IsCompleted && ActiveEnvironmentEdit.HasChanges)
+            return ActiveEnvironmentEdit.Source == source ? ActiveEnvironmentEdit : null;
+        return ActiveEnvironmentEdit = new EnvironmentEditDraft(source, CognitionBackpack);
+    }
+
+    public void CancelEnvironmentEdit() => ActiveEnvironmentEdit = null;
+
+    public bool ConfirmEnvironmentEdit(EnvironmentEditDraft draft, out string error)
+    {
+        error = null;
+        if (!CanEditEnvironment || draft == null || draft != ActiveEnvironmentEdit
+            || draft.Source == null || draft.Source.gameObject.scene != spirit.gameObject.scene)
+        { error = "当前不能确认环境修改。"; return false; }
+        if (!draft.TryCommit(Cognition, out error)) return false;
+        ActiveEnvironmentEdit = null;
+        // 全部内容及几何提交后才请求耗尽；不会在扣费一半时交出控制目标。
+        RequestCognitionExhaustion();
+        return true;
+    }
 
     /// <summary>本关性质配置提供手工格子；教学与未启用地图的旧关卡不建立记录。</summary>
     public bool BindExplorationMap(SceneLevelSetup setup)
@@ -61,14 +97,14 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     }
     public bool EscapeSelectionPending { get; private set; }
     public bool CanEditEnvironment => Stage == PlayerGameplayStage.Exploration && !IsSimulation && !EscapeSelectionPending
-        && spirit != null && spirit.ResolveFourWayAbility() == FourWayMode.Flying;
+        && !CognitionExhaustionRequested && spirit != null && spirit.ResolveFourWayAbility() == FourWayMode.Flying;
 
     /// <summary>只在漫游修改本关环境来源；不向角色效果容器写值，后续正常采样读取。</summary>
     public bool TryEditEnvironmentParameter(BasicPhysicalObject source, int index, float value)
     {
         // 安全：来源必须属于本关，不能编辑其它已加载场景或已停用的物体。
         if (source == null || spirit == null || source.gameObject.scene != spirit.gameObject.scene) return false;
-        if (!CanEditEnvironment) return false;
+        if (!CanEditEnvironment || !source.AllowsEnvironmentEditing) return false;
         return source.TrySetEnvironmentParameter(index, value);
     }
     /// <summary>只读剩余手动转换冷却；沿用规则的非缩放时间，不另建计时器。</summary>
@@ -106,6 +142,9 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     {
         if (Stage != PlayerGameplayStage.Exploration || EscapeSelectionPending || spirit == null || body == null)
             return false;
+        if (ActiveEnvironmentEdit != null && !ActiveEnvironmentEdit.IsCompleted && ActiveEnvironmentEdit.HasChanges)
+            return false;
+        CancelEnvironmentEdit();
         EscapeSelectionPending = true;
         spirit.PrepareRuntimeRefresh();
         spirit.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
@@ -168,6 +207,12 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     {
         // 安全：只有本关探索中的精神体有这条入口。
         if (subject == null || subject != spirit || Stage != PlayerGameplayStage.Exploration || EscapeSelectionPending) return false;
+        if (reason == PlayerFormChangeReason.Manual && ActiveEnvironmentEdit != null
+            && !ActiveEnvironmentEdit.IsCompleted && ActiveEnvironmentEdit.HasChanges)
+        {
+            Debug.Log("模式切换被拒绝：请先确认或取消环境修改。", subject);
+            return false;
+        }
         // 实际逻辑：相同模式不再执行碰撞校验、冷却或重复结算。
         if (IsSimulation == !flying && (subject.ResolveFourWayAbility() == FourWayMode.Flying) == flying)
             return true;
@@ -178,6 +223,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
         }
         // 实际逻辑：失败不先恢复世界，也不提前撤销权限，保证重叠拒绝没有旁路效果。
         if (!subject.TryCommitSpiritForm(flying)) return false;
+        CancelEnvironmentEdit();
         IsSimulation = !flying;
         subject.ApplyCapabilities(flying ? PlayerCapabilityPermissions.Roaming : PlayerCapabilityPermissions.Simulation);
         SetWorldPaused(flying);

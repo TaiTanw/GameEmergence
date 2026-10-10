@@ -6,6 +6,8 @@ public class GameplayPanel : BasePanel
     Text cognitionText, staminaText, oxygenText, formCooldownText, stageText, refreshMessageText;
     UnityEngine.GameObject actionArea, environmentEditArea, escapeChoiceArea, mapArea;
     Button resetTrialButton, startEscapeButton;
+    UnityEngine.RectTransform messageArea;
+    UnityEngine.GameObject backpackArea, openBackpackButton;
 
     protected override void OtherInit()
     {
@@ -21,6 +23,9 @@ public class GameplayPanel : BasePanel
         escapeChoiceArea = transform.Find("EscapeChoiceArea").gameObject;
         mapArea = transform.Find("MapArea").gameObject;
         refreshMessageText = FindUIObj<Text>("RefreshMessageText");
+        messageArea = transform.Find("MessageArea").GetComponent<UnityEngine.RectTransform>();
+        // 环境卡保持中下位置，底部单独留出重置按钮，不与右侧背包和地图重叠。
+        actionArea.GetComponent<UnityEngine.RectTransform>().sizeDelta = new UnityEngine.Vector2(720f, 64f);
     }
 
     protected override void OnClickButton(string name)
@@ -47,6 +52,15 @@ public class GameplayPanel : BasePanel
         bool editAllowed = SceneChangeMgr.Instance.CanEditEnvironment;
         bool startAllowed = SceneChangeMgr.Instance.CanStartEscape;
         bool choosing = SceneChangeMgr.Instance.EscapeSelectionPending;
+        messageArea.anchoredPosition = new UnityEngine.Vector2(0f, editAllowed ? 560f : 140f);
+        // 新预设侧栏已存在，旧预设稍后补齐；非漫游阶段始终不留下背包入口。
+        if (backpackArea == null) backpackArea = transform.Find("CognitionBackpackArea")?.gameObject;
+        if (openBackpackButton == null) openBackpackButton = transform.Find("OpenCognitionBackpackButton")?.gameObject;
+        if (!editAllowed)
+        {
+            if (backpackArea != null) backpackArea.SetActive(false);
+            if (openBackpackButton != null) openBackpackButton.SetActive(false);
+        }
         resetTrialButton.gameObject.SetActive(resetAllowed);
         startEscapeButton.gameObject.SetActive(startAllowed);
         startEscapeButton.interactable = startAllowed;

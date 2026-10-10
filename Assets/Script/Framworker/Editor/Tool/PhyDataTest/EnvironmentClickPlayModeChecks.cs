@@ -87,18 +87,38 @@ public static class EnvironmentClickPlayModeChecks
             }
             finally { Object.DestroyImmediate(selectedMesh); }
             CaptureScene(view, "environment-selected.png");
-            InputField valueInput = view.transform.Find("EnvironmentValueInput").GetComponent<InputField>();
-            Button apply = view.transform.Find("ApplyEnvironmentButton").GetComponent<Button>();
-            Check(valueInput.interactable && apply.interactable, "点选后真实输入框和应用按钮可用", passed);
-            valueInput.text = "0.5";
+            Transform editor = view.transform.Find("EnvironmentEditorContent");
+            Button slot = editor.Find("EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0").GetComponent<Button>();
+            Check(slot.interactable && view.DisplayedDraft != null, "点选后真实能力槽与编辑草稿可用", passed);
+            slot.onClick.Invoke();
+            CognitionBackpackItem point = null;
+            foreach (CognitionBackpackItem candidatePoint in rules.CognitionBackpack.Items)
+                if (candidatePoint.IsCalculation) { point = candidatePoint; break; }
+            Check(point != null, "真实关卡认知背包具有制作计算点", passed);
+            Button bagPoint = panel.transform.Find("CognitionBackpackArea/CognitionBackpackScroll/Viewport/Content/CognitionBackpackItem_" + point.Id).GetComponent<Button>();
+            Check(view.IsBackpackOpen && !view.IsBackpackReadOnly && bagPoint.interactable,
+                "点击已有能力槽联动打开侧栏并启用兼容计算点", passed);
+            bagPoint.onClick.Invoke();
+            Check(Mathf.Abs(ground.SlowingEffect - 1f) < .0001f
+                && Mathf.Abs(view.DisplayedDraft.GetSlot(false, 0).Value - point.CalculationPoint.Multiplier) < .0001f,
+                "点击背包计算点只在环境槽展示结果，真实来源保持默认", passed);
+            Button apply = editor.Find("ConfirmEnvironmentButton").GetComponent<Button>();
+            Check(apply.interactable, "计算预览使整个环境面板确认按钮可用", passed);
+            CaptureScene(view, "environment-backpack-preview.png");
             apply.onClick.Invoke();
-            Check(Mathf.Abs(ground.SlowingEffect - .5f) < .0001f, "输入 0.5 并通过实际应用按钮修改原环境来源", passed);
+            Check(Mathf.Abs(ground.SlowingEffect - point.CalculationPoint.Multiplier) < .0001f,
+                "真实整面板确认按钮提交计算结果到原环境来源", passed);
+            Check(ground.CopyEnvironmentSlots(false)[0].CalculationPoint == point.CalculationPoint,
+                "确认后环境槽保存所用计算点记录", passed);
+            foreach (CognitionBackpackItem remaining in rules.CognitionBackpack.Items)
+                Check(remaining.Id != point.Id, "统一确认后所用计算点实际移出背包", passed);
             Check((spirit.transform.position - beforePosition).sqrMagnitude < .00000001f,
                 "点选与应用不搬移精神体", passed);
             Check((physics.GetPlanarVelocity() - beforeVelocity).sqrMagnitude < .00000001f,
                 "点选与应用不改写精神体运动速度", passed);
             Check(Mathf.Abs(rules.Cognition.Remaining - beforeCognition) < .0001f,
                 "点选与应用不扣本关认知", passed);
+            CheckReadOnlyBackpack(panel, view, passed);
         }
         finally
         {
@@ -118,6 +138,26 @@ public static class EnvironmentClickPlayModeChecks
         File.WriteAllLines(".utmp/EnvironmentClickValidation/checks.txt", passed);
         Debug.Log("Environment click Play Mode: " + passed.Count + " checks passed.");
         return passed.Count;
+    }
+
+    static void CheckReadOnlyBackpack(GameplayPanel panel, EnvironmentEditView view, List<string> passed)
+    {
+        Button open = panel.transform.Find("OpenCognitionBackpackButton").GetComponent<Button>();
+        open.onClick.Invoke();
+        Transform bag = panel.transform.Find("CognitionBackpackArea");
+        Check(view.IsBackpackOpen && view.IsBackpackReadOnly && bag.gameObject.activeSelf,
+            "主动打开背包显示只读侧栏", passed);
+        foreach (Button item in bag.Find("CognitionBackpackScroll/Viewport/Content").GetComponentsInChildren<Button>())
+            Check(!item.interactable, "独立背包内容槽不可点击", passed);
+        Check(!bag.Find("SplitBackpackCalculationButton").GetComponent<Button>().interactable,
+            "独立背包拆点按钮不可点击", passed);
+        RectTransform rect = (RectTransform)bag;
+        RectTransform environment = (RectTransform)view.transform;
+        Check(rect.anchorMin.x == 1f && rect.anchorMax.x == 1f && rect.pivot.x == 1f
+            && environment.anchorMin.x == .5f && environment.pivot.y == 0f,
+            "实际环境面板位于中下区域，背包锚定右侧", passed);
+        bag.Find("CloseCognitionBackpackButton").GetComponent<Button>().onClick.Invoke();
+        Check(!view.IsBackpackOpen && !bag.gameObject.activeSelf, "背包真实关闭按钮结束只读查看", passed);
     }
 
     static void CheckFrames(GameplayPanel panel, EnvironmentEditView view, BaseGround ground, List<string> passed)
@@ -153,9 +193,10 @@ public static class EnvironmentClickPlayModeChecks
             new Plane(Vector3.forward, Vector3.zero).Raycast(ray, out float distance);
             typeof(EnvironmentEditView).GetMethod("SelectAt", Hidden).Invoke(view, new object[] { (Vector2)ray.GetPoint(distance) });
             Check((BasicPhysicalObject)typeof(EnvironmentEditView).GetField("selected", Hidden).GetValue(view) == extra
-                && !view.transform.Find("EnvironmentValueInput").GetComponent<InputField>().interactable
-                && !view.transform.Find("ApplyEnvironmentButton").GetComponent<Button>().interactable,
-                "无数值项的环境可以选中，但不会开启不存在的数值修改", passed);
+                && view.DisplayedDraft != null && view.DisplayedDraft.GetSlot(false, 0) == null
+                && view.transform.Find("EnvironmentEditorContent/EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0").GetComponent<Button>().interactable
+                && !view.transform.Find("EnvironmentEditorContent/ConfirmEnvironmentButton").GetComponent<Button>().interactable,
+                "无性质的环境仍有固定空槽，但未修改时不启用确认", passed);
             typeof(EnvironmentEditView).GetMethod("ClearSelection", Hidden).Invoke(view, new object[] { "点击环境物体，查看并调整参数。" });
             Vector3[] before = mesh.vertices;
             Object.DestroyImmediate(mesh);
