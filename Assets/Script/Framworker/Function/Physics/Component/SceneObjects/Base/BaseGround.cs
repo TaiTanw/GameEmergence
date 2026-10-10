@@ -14,12 +14,17 @@ public class BaseGround : BasicPhysicalObject, IGroundResponse
     /// </summary>
     [SerializeField]
     protected float slowingEffect = 1;
-    public float SlowingEffect=>slowingEffect;
+    public float SlowingEffect => TryGetGroundSlowingMultiplier(out float value) ? value : 1f;
+    protected override void AddLegacyEnvironmentParameters(List<EnvironmentParameter> parameters)
+    {
+        AddLegacyEnvironmentParameter(parameters, new GroundSlowingParameter(slowingEffect));
+        AddLegacyEnvironmentParameter(parameters, new GroundJumpMultiplierParameter(1f + jumpHeightNum));
+    }
     /// <summary>
     /// 跳跃高度速度影响百分比
     /// </summary>
     [SerializeField]
     protected float jumpHeightNum ;
-    public float JumpHeightNum=>jumpHeightNum;
+    public float JumpHeightNum => TryGetGroundJumpMultiplier(out float value) ? value - 1f : 0f;
 
 }

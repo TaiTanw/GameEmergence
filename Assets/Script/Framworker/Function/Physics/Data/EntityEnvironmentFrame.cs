@@ -35,6 +35,7 @@ public static class EnvironmentCapabilities
     {
         // 安全：接口引用不会自动执行 Unity 判空，先处理 CLR null，再识别已销毁的 Unity 对象。
         if (capability == null) return false;
+        if (capability is ConfiguredWallSlideSurface wallView) return wallView.IsActive;
         // 生命周期规则：Behaviour 还必须启用；其它 Unity 对象只核对存活。
         if (capability is Behaviour behaviour) return behaviour != null && behaviour.isActiveAndEnabled;
         if (capability is Object unityObject) return unityObject != null;
@@ -51,8 +52,18 @@ public static class EnvironmentCapabilities
         return IsActive(host) ? host as IEnvironmentSource : null;
     }
 
-    /// <summary>只询问唯一宿主是否实现该能力；接口缺席时返回 null，由消费方使用默认规则。</summary>
-    public static T Find<T>(Collider2D collider) where T : class => FindHost(collider) as T;
+    /// <summary>从唯一宿主解析现有接口或有限墙配置；普通宿主没有墙项时仍返回缺席。</summary>
+    public static T Find<T>(Collider2D collider) where T : class
+    {
+        IEnvironmentSource source = FindHost(collider);
+        if (typeof(T) == typeof(IWallSlideSurface) && source is BasicPhysicalObject host && !(host is Wall))
+        {
+            IWallSlideSurface configured = host.GetConfiguredWallSlideSurface();
+            if (configured != null) return configured as T;
+        }
+        // 旧 Wall 的 getter 已读取生效配置，保留其原接口身份；其它未配置接口也继续兼容。
+        return source as T;
+    }
 
     public static BasicEntity FindEntity(Collider2D collider)
     {
@@ -63,4 +74,13 @@ public static class EnvironmentCapabilities
             collider.attachedRigidbody.TryGetComponent(out BasicEntity body)) return body;
         return collider.GetComponent<BasicEntity>();
     }
+}
+
+/// <summary>只读墙能力视图，参数和存活状态始终归原宿主；不创建第二份环境来源。</summary>
+internal sealed class ConfiguredWallSlideSurface : IWallSlideSurface
+{
+    private readonly BasicPhysicalObject host;
+    internal ConfiguredWallSlideSurface(BasicPhysicalObject source) => host = source;
+    internal bool IsActive => host != null && host.IsEnvironmentActive && host.TryGetWallSlideMultiplier(out _);
+    public float WallSlideMultiplier => host != null && host.TryGetWallSlideMultiplier(out float value) ? value : 1f;
 }

@@ -60,3 +60,9 @@ public interface IWaterRegion
     /// <summary>在指定世界 X 读取可用的水平水面；不支持的形状返回 false。</summary>
     bool TryGetSurfaceY(Collider2D region, float worldX, out float surfaceY);
 }
+
+/// <summary>已开放来源配置的变化版本；Context 在原采样相位覆盖参数，不同步真实动量。</summary>
+public interface IEnvironmentParameterSource
+{
+    int EnvironmentParameterVersion { get; }
+}

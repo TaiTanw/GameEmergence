@@ -14,8 +14,48 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     private float bottomY;
     private float surfaceY;
     private float riseSpeed;
+    private bool defaultsCaptured;
+    private float defaultBottom, defaultSurface;
     public float SurfaceY => GetComponent<BoxCollider2D>().bounds.max.y;
     public bool RisingAllowed => hasWaterLevel && risingAllowed;
+
+    /// <summary>关卡就绪时从制作矩形保存上涨水的默认范围；普通池不主动调用此入口。</summary>
+    public bool PrepareRun(float speed)
+    {
+        if (!CanPrepareRun(speed)) return false;
+        if (!defaultsCaptured)
+        {
+            Bounds bounds = GetComponent<BoxCollider2D>().bounds;
+            if (bounds.size.y <= 0f) return false;
+            defaultBottom = bounds.min.y; defaultSurface = bounds.max.y;
+            defaultsCaptured = true;
+        }
+        if (!ConfigureWaterLevel(defaultBottom, defaultSurface, speed, false)) return false;
+        CommitWaterGeometry();
+        return true;
+    }
+
+    public bool CanPrepareRun(float speed)
+    {
+        BoxCollider2D box = GetComponent<BoxCollider2D>();
+        // 所有配置先读后验；拒绝时不捕获默认或改变水位。
+        return IsEnvironmentActive && box.enabled && box.isTrigger && IsFinite(speed) && speed >= 0f
+            && box.bounds.size.y > 0f && Mathf.Abs(transform.lossyScale.y) >= .0001f
+            && Mathf.Abs(transform.up.y) >= .9999f;
+    }
+
+    public void SetRisingAllowed(bool allowed)
+    {
+        // 未配置的普通池不取得上涨许可。
+        if (hasWaterLevel) risingAllowed = allowed;
+    }
+
+    public void RestoreRunDefaults()
+    {
+        if (!defaultsCaptured) return;
+        bottomY = defaultBottom; surfaceY = defaultSurface; risingAllowed = false;
+        CommitWaterGeometry();
+    }
 
     protected override void OnSourceEnabled() => MonoPublicMgr.Instance.AddPhysicalTimingUpdate(AdvanceWaterLevel, 0);
     protected override void OnSourceDisabled()

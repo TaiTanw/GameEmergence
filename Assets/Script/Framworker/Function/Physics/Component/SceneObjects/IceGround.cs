@@ -32,7 +32,7 @@ public class IceGround : BaseGround, IDynamicEnvironmentForce, IMovementSpeedMod
         else
         {
             // 自由箱双向滑动对称制动，保持原生接触带来的真实惯性。
-            force.Init(0f, Mathf.Max(0f, Odex * slowingEffect), 0f);
+            force.Init(0f, Mathf.Max(0f, Odex * SlowingEffect), 0f);
             force.type = E_PhyForceType.controlRecovery;
         }
         return force;

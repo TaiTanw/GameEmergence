@@ -143,10 +143,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e5a69c10bb792b4591723c2dd52d2e1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speedChangeNum: 0
-  jumpHeightNum: 0
-  phySpeed: {x: 0, y: 0}
+  environmentParameters: []
   canClimb: 0
   wallJumpDistance: 0
   wallJumpHeight: 0
   wallFriction: 1
+  references:
+    version: 2
+    RefIds: []

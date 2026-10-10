@@ -30,6 +30,8 @@ public class Wall : BasicPhysicalObject, IWallSlideSurface
     [SerializeField]
     float wallFriction=1f;
 
-    public float WallFRICTION => wallFriction;
-    public float WallSlideMultiplier => wallFriction;
+    public float WallFRICTION => WallSlideMultiplier;
+    public float WallSlideMultiplier => TryGetWallSlideMultiplier(out float value) ? value : 1f;
+    protected override void AddLegacyEnvironmentParameters(List<EnvironmentParameter> parameters) =>
+        AddLegacyEnvironmentParameter(parameters, new WallSlideMultiplierParameter(wallFriction));
 }

@@ -21,6 +21,7 @@ public sealed class EntityEnvironmentContext
         public bool hasMovement;
         public bool hasStateVelocity;
         public IDynamicEnvironmentForce dynamicForce;
+        public int parameterVersion;
     }
 
     // 写入端指向实体自身。通过既有窄口更新数值，不直接接管实体的字典。
@@ -60,7 +61,14 @@ public sealed class EntityEnvironmentContext
         // 生命周期保护：禁用或已销毁的双方不能新建关系。
         if (!IsActive || !source.IsActive) return;
         // 接入逻辑：持续命中的来源不重复登记，保留实体已积累的运动状态。
-        if (bindings.ContainsKey(source)) return;
+        if (bindings.TryGetValue(source, out Binding existing))
+        {
+            // 同来源仅在真正改值后的正常相位重写参数；不退源、不清刚体真实动量。
+            if (source.Source is IEnvironmentParameterSource parameters
+                && existing.parameterVersion != parameters.EnvironmentParameterVersion)
+                RegisterEffects(source, existing);
+            return;
+        }
         // 能力选择：三类持续能力都缺席时不建绑定；零值仍是有效能力，表面采样独立进行。
         IEnvironmentSource provider = source.Source;
         if (!(provider is IMovementSpeedModifier) && !(provider is IStateVelocitySource)
@@ -74,7 +82,7 @@ public sealed class EntityEnvironmentContext
     }
 
     /// <summary>
-    /// [ENV-04] 首次接入时按能力写入实体的三类原有容器，并在 Binding 上留下撤销凭据。
+    /// [ENV-04] 首次接入或来源配置改值后，按能力写入原有参数容器，Binding 保留撤销凭据。
     /// 冰面的动态参数去 ENV-05；下一物理速度阶段如何消费这些容器去 ENV-06。
     /// </summary>
     private void RegisterEffects(EnvironmentRegistration source, Binding binding)
@@ -98,6 +106,8 @@ public sealed class EntityEnvironmentContext
             receiver.AddForce(dynamicForce, dynamicForce.CreateEnvironmentForce(receiver));
             binding.dynamicForce = dynamicForce;
         }
+        binding.parameterVersion = provider is IEnvironmentParameterSource parameters
+            ? parameters.EnvironmentParameterVersion : 0;
     }
 
     /// <summary>
@@ -207,7 +217,15 @@ public sealed class EntityEnvironmentContext
         // 能力仍从发现到的同一个环境来源读取；没有相应接口时采用中性采样值。
         IGroundResponse response = source as IGroundResponse;
         IPlatformMotion platform = source as IPlatformMotion;
-        Frame = new EntityEnvironmentFrame(response?.SlowingEffect ?? 1f, response?.JumpHeightNum ?? 0f,
+        float slowing = response?.SlowingEffect ?? 1f;
+        float jumpOffset = response?.JumpHeightNum ?? 0f;
+        // 新列表也可挂在普通唯一宿主上；只有当前脚下来源的项参与支撑采样。
+        if (source is BasicPhysicalObject host)
+        {
+            if (host.TryGetGroundSlowingMultiplier(out float configuredSlowing)) slowing = configuredSlowing;
+            if (host.TryGetGroundJumpMultiplier(out float configuredJump)) jumpOffset = configuredJump - 1f;
+        }
+        Frame = new EntityEnvironmentFrame(slowing, jumpOffset,
             platform?.Delta ?? Vector2.zero);
     }
 
