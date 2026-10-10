@@ -1,0 +1,237 @@
+<mxfile host="Electron" compressed="false" pages="4">
+  <diagram id="call-overview" name="01 · 上层调用">
+    <mxGraphModel background="#FFFFFF" connect="1" tooltips="1" dy="1500" math="0" grid="1" page="1" pageHeight="1500" guides="1" gridSize="10" fold="1" pageScale="1" shadow="0" arrows="1" dx="1400" pageWidth="1400">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="p1-title" label="01 · 从场景到物理的调用&#xA;只画当前已接入的物理与逻辑状态机。完整逃生和世界刷新尚未实现，图中不把它画成已有管线。" link="../工程原则.md">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=16;fontSize=22;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="30" width="1300" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-scene" label="场景宿主&#xA;SceneChangeMgr 按关卡配置安置本体；教学关给行走许可。非教学关本体待机，再建本关精神体，并交给阶段规则开始探索。" link="../../Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="170" width="900" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-rules" label="阶段规则&#xA;PlayerLifecycleRules 是漫游／模拟和死亡的唯一规则入口。它写入能力许可，并按飞行与否暂停或恢复世界运动。场景只组装和调用，不自己改状态机。" link="../../Assets/Script/Framworker/Function/Player/PlayerLifecycleRules.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="330" width="900" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-input" label="输入&#xA;InputControlMgr 只绑定当前唯一控制目标。逻辑更新读这一帧的操作；状态机消费后清掉跳跃和交互边沿。" link="../../Assets/Script/Framworker/Function/Player/Mgr/InputControlMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="500" width="900" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-player" label="玩家组装&#xA;Player.TickLogic 先处理交互和选中，再把许可后的输入、四向原因和资源开关交给状态机。玩家不编排整关阶段。" link="../../Assets/Script/Framworker/Function/Player/Player.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="650" width="900" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-fsm" label="逻辑状态机&#xA;决定这一帧能不能动、处于哪种行为、要不要起跳或贴墙。只写动作事实，不写刚体，不积分重力。详见第 2 页。" link="../../Assets/Script/Framworker/Function/Player/FSM/PlayerStateMachine.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="810" width="900" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-physics" label="物理执行&#xA;固定步由公共调度按相位 0 到 5 调用。状态机给出的动作在相位 3 才变成速度。详见第 3、4 页。" link="../../Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/MonoPublicMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F4F3;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="970" width="900" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p1-view" label="表现只读&#xA;PresentationLayer 读取状态、着地和竖直速度来选动画。不回写速度、选中或阶段。" link="../../Assets/Script/Framworker/Function/Performance/Component/PresentationLayer.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="250" y="1130" width="900" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="e1" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p1-scene" target="p1-rules"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p1-rules" target="p1-input"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p1-input" target="p1-player"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p1-player" target="p1-fsm"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p1-fsm" target="p1-physics"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p1-physics" target="p1-view"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="fsm-capabilities" name="02 · 状态机与能力注入">
+    <mxGraphModel background="#FFFFFF" connect="1" tooltips="1" dy="1500" math="0" grid="1" page="1" pageHeight="1500" guides="1" gridSize="10" fold="1" pageScale="1" shadow="0" arrows="1" dx="1400" pageWidth="1400">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="p2-title" label="02 · 阶段能力如何进入逻辑状态机&#xA;许可是外部注入的开关。水事实和身份再解析出四向原因。状态机只消费结果。" link="../../Assets/Script/Framworker/Function/Player/PlayerCapabilities.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=16;fontSize=22;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="30" width="1300" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-teach" label="教学&#xA;本体行走。可移动、游泳、推拉。不能飞行。" link="../../Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="170" width="300" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-roam" label="探索／漫游&#xA;精神体飞行。世界运动暂停。推拉关闭。游泳关闭。" link="../../Assets/Script/Framworker/Function/Player/PlayerLifecycleRules.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="380" y="170" width="300" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-sim" label="探索／模拟&#xA;同一精神体改为行走。恢复世界运动。可游泳、可推拉。" link="../../Assets/Script/Framworker/Function/Player/PlayerLifecycleRules.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="710" y="170" width="300" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-stand" label="待机本体&#xA;非教学关的实体停在出生点。运动与资源许可关闭。" link="../../Assets/Script/Framworker/Function/Player/PlayerCapabilities.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="1040" y="170" width="310" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-perm" label="能力许可&#xA;PlayerCapabilityPermissions：移动、游泳、飞行、运动更新、资源更新、推拉。ApplyCapabilities 只替换这一份开关，不改输入设备，也不直接改刚体。" link="../../Assets/Script/Framworker/Function/Player/Player.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="340" width="1300" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-four" label="四向原因&#xA;精神体且允许飞行、当前为飞行形态：飞行。否则看水事实：淹没且允许游泳为游泳；未淹没但可水面游为水面。飞行优先于水。水撤销不关掉已经启用的飞行。" link="../../Assets/Script/Framworker/Function/Player/PlayerCapabilities.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F4F3;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="490" width="1300" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-fsm" label="状态机一次更新&#xA;无移动许可时输入当零，资源和环境判断仍可继续。已有四向原因时进入飞行、游泳或水面，高于着地和墙滑。没有四向时，离水按当前几何回到地面或空中。然后当前状态响应跳跃、贴墙和移动。" link="../../Assets/Script/Framworker/Function/Player/FSM/PlayerStateMachine.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="640" width="1300" height="130" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-ground" label="地面／空中／贴墙&#xA;着地可走、可跳。空中保留跳跃规则。贴墙要朝有墙滑能力的一侧按住。这些状态写 onMove 和跳跃事件。" link="../../Assets/Script/Framworker/Function/Player/FSM/BehavioralState.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="820" width="420" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-water" label="游泳／水面／飞行&#xA;四向状态覆盖普通跳跃和墙滑。飞行不接受重力、推拉和外部运动注入。" link="../../Assets/Script/Framworker/Function/Player/FSM/FourWayMovementState.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="490" y="820" width="420" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-out" label="交给物理的事实&#xA;移动方向、竖直输入、疾跑倍率、跳跃／松手／墙跳事件、当前状态。资源计数留在状态机。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=12;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="930" y="820" width="420" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p2-note" label="死亡只向规则层发一次周期请求。探索中的精神体死亡回到漫游并暂停世界；逃生死亡要等刷新规则，当前不把它画成已完成流程。推拉许可关闭时，选中在逻辑更新里解除。" link="../玩法大纲.md">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="1010" width="1300" height="90" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="e2a" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p2-teach" target="p2-perm"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2b" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p2-roam" target="p2-perm"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2c" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p2-sim" target="p2-perm"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2d" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p2-stand" target="p2-perm"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2e" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p2-perm" target="p2-four"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2f" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p2-four" target="p2-fsm"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="physics-phases" name="03 · 物理六相位">
+    <mxGraphModel background="#FFFFFF" connect="1" tooltips="1" dy="1560" math="0" grid="1" page="1" pageHeight="1560" guides="1" gridSize="10" fold="1" pageScale="1" shadow="0" arrows="1" dx="1400" pageWidth="1400">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="p3-title" label="03 · 固定步如何调用物理&#xA;公共调度在 FixedUpdate 里按 0 到 5 调用。自动模拟关闭，整个世界只在相位 4 模拟一次。" link="../../Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/MonoPublicMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=16;fontSize=22;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="30" width="1300" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-0" label="0 · 平台与水&#xA;平台写下本步 Delta，水更新范围和水位。随后同步几何，后面的探针才看见新位置。" link="../../Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/MonoPublicMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="170" width="1040" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-1" label="1 · 读取事实&#xA;基础实体读上一步原生接触、脚下探针、左右墙和区域。单向平台的忽略名单在采样前维护。接触只说明碰到了什么。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F4F3;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="320" width="1040" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-2" label="2 · 环境与关系&#xA;环境上下文核对来源，形成脚下、水和墙滑能力。玩家在这一相核对选中是否仍成立。几何命中不等于能墙滑或游泳。" link="../../Assets/Script/Framworker/Function/Physics/Base/EntityEnvironmentContext.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="480" width="1040" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-3" label="3 · 合成本步计划速度&#xA;基础实体用刚体上一步的实际速度，加上动作、被动速度、重力和坡面。静墙、可爬坡和头顶先收进计划，再写入刚体。详见第 4 页。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="640" width="1040" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-4" label="4 · 侧面推动，然后模拟一次&#xA;侧面推动先按计划速度处理人与第一只侧面箱子，最多两轮，把水平速度写回刚体。随后 Physics2D.Simulate 只调用一次。关节锁住的拉动不在这里改写。" link="../../Assets/Script/Framworker/Function/Physics/Base/EntitySidePush.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="800" width="1040" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-5" label="5 · 回读&#xA;读回实际速度，拆开本步命令和被碰撞留下的部分，供下一步和表现使用。观测不反写决策。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F4F3;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="970" width="1040" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p3-note" label="已不在这条路径里：预测包围盒、位置偏置、残余回算管理器、方向传播、下一帧接触力、两套求解接口、逐帧 MovePosition。&#xA;长箱子链仍不保证。站在箱顶不算侧面推动。" link="../工程原则.md">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=15;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="1120" width="1300" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="e30" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p3-0" target="p3-1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e31" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p3-1" target="p3-2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e32" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p3-2" target="p3-3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e33" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p3-3" target="p3-4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e34" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p3-4" target="p3-5"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="motion-write" name="04 · 速度写入与推动">
+    <mxGraphModel background="#FFFFFF" connect="1" tooltips="1" dy="1680" math="0" grid="1" page="1" pageHeight="1680" guides="1" gridSize="10" fold="1" pageScale="1" shadow="0" arrows="1" dx="1400" pageWidth="1400">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="p4-title" label="04 · 相位 3 到 4 的实现&#xA;先有本步计划，再按静墙收一次，然后才处理箱子侧面。结果是这一步的刚体速度，不是位置偏置。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=16;fontSize=22;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="50" y="30" width="1300" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-read" label="读上一步刚体速度&#xA;减掉已经接受的平台和环境分量，以及角色自己的主动水平速度。着地时丢掉没有起跳命令的向上残余。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F4F3;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="170" width="1040" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-compose" label="合成&#xA;被动水平含惯性、限时速度和状态速度。主动走路另算。重力只在未着地时累加。下坡竖直速度按全部水平速度贴坡，不单算走路。起跳这一步不再叠加坡面抬升。" link="../../Assets/Script/Framworker/Function/Physics/Data/EntityEffectState.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="320" width="1040" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-static" label="静墙、坡面、头顶&#xA;沿计划位移扫掠。迎面的陡表面收水平，可爬坡按间隙补竖直，头顶只收竖直。其它实体在这里跳过。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#F7F9FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="490" width="1040" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-fact" label="运动事实&#xA;EntityMotionFact 保存这一步收完静墙后的计划速度。查询只用一份临时命中列表，不保存预测包围盒。" link="../../Assets/Script/Framworker/Function/Physics/Base/EntitySidePush.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#FFF4DF;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="650" width="1040" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-push" label="侧面推动，两轮&#xA;驱动者水平顶到第一只侧面实体时，对方得到不超过该计划、且被其前方静墙收过的水平速度。驱动者收到间隙加上对方本步能走的距离。向左向右都只沿推动方向收，不把速度翻向。箱顶法线朝上，不进入推动。" link="../../Assets/Script/Framworker/Function/Physics/Base/EntitySidePush.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#EAF1FC;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="800" width="1040" height="140" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-joint" label="选中拉动&#xA;人正朝箱子走时解除水平关节，避免和上面的推动速度锁在同一轴。人离开箱子、仍贴合且着地时，关节保持竖直自由、水平贴合。跳跃、落边和停用也解除。" link="../../Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F3E8;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="990" width="1040" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="p4-sim" label="一次模拟与回读&#xA;速度写完后才 Simulate。相位 5 用实际速度更新下一步的主动与被动分量。长链、第二只箱子再推第三只，不在这两轮里保证。" link="../../Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/MonoPublicMgr.cs">
+          <mxCell vertex="1" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=14;fontSize=16;fontFamily=Microsoft YaHei;fontColor=#263449;fillColor=#E8F4F3;strokeColor=#6086B9;strokeWidth=1.5;">
+            <mxGeometry x="180" y="1160" width="1040" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="e40" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p4-read" target="p4-compose"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e41" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p4-compose" target="p4-static"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e42" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p4-static" target="p4-fact"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e43" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p4-fact" target="p4-push"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e44" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p4-push" target="p4-joint"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e45" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#4A789E;html=0;" edge="1" parent="1" source="p4-joint" target="p4-sim"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
