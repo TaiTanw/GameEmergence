@@ -299,7 +299,7 @@ MonoBehaviour:
   airResistance: 1
   envImpact: 1
   horizontalAcceleration: 300
-  speed: 15
+  speed: 7
   fourWaySpeed: 6
   upSpeed: 15
   pushPullEngageGap: 0.05
