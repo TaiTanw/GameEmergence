@@ -15,7 +15,7 @@ using Object = UnityEngine.Object;
 public static class CatgirlPresentationAnimationChecks
 {
     private const string ControllerPath = "Assets/MyObjAssets/gameObject/Animation/player.controller";
-    private const string OutputFolder = "output/animation-integration-20261008";
+    private const string OutputFolder = "output/animation-integration-20261009";
     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
     private static readonly MethodInfo AwakeMethod = typeof(PresentationLayer).GetMethod("Awake", Hidden);
     private static readonly MethodInfo UpdateMethod = typeof(PresentationLayer).GetMethod("Update", Hidden);
@@ -23,7 +23,7 @@ public static class CatgirlPresentationAnimationChecks
     private static readonly Dictionary<string, AnimationClip> clips = new Dictionary<string, AnimationClip>();
     private static AnimatorController controller;
 
-    [MenuItem("Tools/Animation/Catgirl/Check Presentation Animations")]
+    [MenuItem("自定义工具/测试工具/验证/验证猫娘表现动画（Edit Mode）")]
     public static void Run()
     {
         report.Clear();
@@ -41,6 +41,7 @@ public static class CatgirlPresentationAnimationChecks
                 throw new InvalidOperationException("Run these checks in Edit Mode.");
             LoadController();
             CheckGroundAndSprint();
+            CheckPushPull();
             CheckAirAndWall();
             CheckSwimming(PlayerStateMachine.E_playerState.swimming, "SwimIdle", "Swim");
             CheckSwimming(PlayerStateMachine.E_playerState.surfaceSwimming, "SurfaceSwimIdle", "SurfaceSwim");
@@ -51,6 +52,9 @@ public static class CatgirlPresentationAnimationChecks
             CheckSequence("Swim", PlayerStateMachine.E_playerState.swimming, 0f, 1f, 1f);
             CheckSequence("SurfaceSwimIdle", PlayerStateMachine.E_playerState.surfaceSwimming, 0f, 0f, 1f);
             CheckSequence("SurfaceSwim", PlayerStateMachine.E_playerState.surfaceSwimming, 1f, 0f, 1f);
+            CheckSequence("Push", PlayerStateMachine.E_playerState.isOnGround, 1f, 0f, 1f, PushPullAction.Push);
+            CheckSequence("Pull", PlayerStateMachine.E_playerState.isOnGround, -1f, 0f, 1f, PushPullAction.Pull);
+            CheckFootGrounding();
             Require(errors.Count == 0, "临时验收没有 Unity 错误日志：" + string.Join(" | ", errors));
             report.Add("RESULT: PASS");
             Debug.Log("Catgirl presentation animation checks: PASS. Report: " + ReportPath);
@@ -120,7 +124,7 @@ public static class CatgirlPresentationAnimationChecks
             AnimationClip clip = child.state.motion as AnimationClip;
             if (clip != null) clips[child.state.name] = clip;
         }
-        string[] required = { "On", "move", "Sprint", "Jump_Up", "Jump_Down", "OnAir", "OnAir_Down", "Wall",
+        string[] required = { "On", "move", "Sprint", "Push", "Pull", "Jump_Up", "Jump_Down", "OnAir", "OnAir_Down", "Wall",
             "SwimIdle", "Swim", "SurfaceSwimIdle", "SurfaceSwim", "Flight" };
         foreach (string state in required)
             Require(clips.ContainsKey(state), state + " 有真实 AnimationClip");
@@ -157,6 +161,87 @@ public static class CatgirlPresentationAnimationChecks
             fixture.Action.nowState = PlayerStateMachine.E_playerState.onWallSliding;
             fixture.Expect("Wall", "贴墙存在疾跑倍率也只播放贴墙动画");
         }
+    }
+
+    private static void CheckPushPull()
+    {
+        using (var fixture = new Fixture())
+        {
+            fixture.Select(PlayerStateMachine.E_playerState.isOnGround, 1f, 0f, 1.5f);
+            fixture.SetPushPull(PushPullAction.None, 3f);
+            fixture.Expect("Sprint", "只选中／尚在自动走近时，不提前播放推拉动画");
+            fixture.Action.pushPullAction = PushPullAction.Push;
+            fixture.Expect("Push", "逻辑推箱行为优先于疾跑倍率");
+            Require(!fixture.Renderer.flipX, "推右侧箱子面朝右");
+            fixture.Action.onMove = -1f;
+            fixture.Action.pushPullAction = PushPullAction.Pull;
+            fixture.Expect("Pull", "向左后退拉右侧箱子");
+            Require(!fixture.Renderer.flipX, "拉右侧箱子保持右朝向，不随后退输入翻转");
+            fixture.Box.transform.position = new Vector3(-3f, 0f, 0f);
+            Physics2D.SyncTransforms();
+            fixture.Action.pushPullAction = PushPullAction.Push;
+            fixture.Expect("Push", "向左推左侧箱子");
+            Require(fixture.Renderer.flipX, "推左侧箱子面朝左");
+            fixture.Action.onMove = 1f;
+            fixture.Action.pushPullAction = PushPullAction.Pull;
+            fixture.Expect("Pull", "向右后退拉左侧箱子");
+            Require(fixture.Renderer.flipX, "拉左侧箱子保持左朝向");
+            fixture.Action.onMove = 0f;
+            fixture.Action.pushPullAction = PushPullAction.None;
+            fixture.Expect("On", "停止推拉后回到待机");
+            fixture.Action.onMove = 1f;
+            fixture.Action.speedScale = 1f;
+            fixture.Action.pushPullBox = null;
+            fixture.Expect("move", "解除选中／普通接触推动使用行走");
+            fixture.Action.pushPullAction = PushPullAction.Push;
+            fixture.Expect("move", "缺少有效箱子时不播放悬空推箱姿势");
+            fixture.Action.pushPullBox = fixture.Box;
+            fixture.Action.nowState = PlayerStateMachine.E_playerState.inAir;
+            fixture.Geometry.isGrounded = false;
+            fixture.Physics.verticalSpeed = 2f;
+            fixture.Expect("OnAir", "离地事实优先于推拉输出");
+            fixture.Action.nowState = PlayerStateMachine.E_playerState.swimming;
+            fixture.Expect("Swim", "游泳事实优先于推拉输出");
+        }
+    }
+
+    private static void CheckFootGrounding()
+    {
+        Sprite idle = SpriteKeys(clips["On"])[0].value as Sprite;
+        float idleBottom = OpaqueBottom(idle);
+        var sprint = SpriteKeys(clips["Sprint"]);
+        var support = new HashSet<int> { 1, 2, 5, 6 };
+        for (int i = 0; i < 8; i++)
+        {
+            float bottom = OpaqueBottom((Sprite)sprint[i].value);
+            Require(bottom >= idleBottom - .01f, "疾跑第 " + (i + 1) + " 帧脚底不穿过待机地面基线");
+            if (support.Contains(i)) Require(Mathf.Abs(bottom - idleBottom) < .01f,
+                "疾跑支撑帧 " + (i + 1) + " 与待机脚底基线对齐");
+            if (i == 4) Require(bottom - idleBottom > .1f && bottom - idleBottom < .17f,
+                "疾跑腾空帧保留短暂离地，不强行把每帧脚贴地");
+        }
+        foreach (string state in new[] { "Push", "Pull" })
+        {
+            var keys = SpriteKeys(clips[state]);
+            for (int i = 0; i < 6; i++) Require(Mathf.Abs(OpaqueBottom((Sprite)keys[i].value) - idleBottom) < .01f,
+                state + " 第 " + (i + 1) + " 帧使用待机脚底与尺度基准");
+        }
+    }
+
+    private static float OpaqueBottom(Sprite sprite)
+    {
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        try
+        {
+            Require(texture.LoadImage(File.ReadAllBytes(AssetDatabase.GetAssetPath(sprite))), "可读入脚底核对的原始 PNG");
+            Color32[] pixels = texture.GetPixels32();
+            Rect rect = sprite.rect;
+            for (int y = (int)rect.yMin; y < (int)rect.yMax; y++)
+                for (int x = (int)rect.xMin; x < (int)rect.xMax; x++)
+                    if (pixels[y * texture.width + x].a > 20) return (y - rect.yMin - sprite.pivot.y) / sprite.pixelsPerUnit;
+            throw new InvalidOperationException("没有可见脚底像素：" + sprite.name);
+        }
+        finally { Object.DestroyImmediate(texture); }
     }
 
     private static void CheckSwimming(PlayerStateMachine.E_playerState mode, string idle, string moving)
@@ -258,7 +343,8 @@ public static class CatgirlPresentationAnimationChecks
         throw new InvalidOperationException(clip.name + " 缺少根对象 SpriteRenderer.m_Sprite 曲线。");
     }
 
-    private static void CheckSequence(string state, PlayerStateMachine.E_playerState mode, float x, float y, float scale)
+    private static void CheckSequence(string state, PlayerStateMachine.E_playerState mode, float x, float y, float scale,
+        PushPullAction pushPull = PushPullAction.None)
     {
         AnimationClip clip = clips[state];
         Require(AssetDatabase.GetAssetPath(clip) == "Assets/MyObjAssets/gameObject/Animation/Loop/" + state + ".anim",
@@ -281,6 +367,7 @@ public static class CatgirlPresentationAnimationChecks
         using (var fixture = new Fixture())
         {
             fixture.Select(mode, x, y, scale);
+            if (pushPull != PushPullAction.None) fixture.SetPushPull(pushPull, 3f);
             fixture.Expect(state, state + " 正确进入并采样首帧");
             float elapsed = 0f;
             for (int i = 0; i < keys.Length; i++)
@@ -308,6 +395,7 @@ public static class CatgirlPresentationAnimationChecks
         public readonly GeometryPhysicsData Geometry = new GeometryPhysicsData();
         public readonly Animator Animator;
         public readonly SpriteRenderer Renderer;
+        public PhysicalBox Box { get; private set; }
         private readonly PresentationLayer presentation;
         private readonly GameObject owner;
         private readonly Scene scene;
@@ -356,6 +444,23 @@ public static class CatgirlPresentationAnimationChecks
         {
             UpdateMethod.Invoke(presentation, null);
             Animator.Update(delta);
+        }
+
+        public void SetPushPull(PushPullAction action, float boxX)
+        {
+            if (Box == null)
+            {
+                var boxOwner = new GameObject("Presentation-only box fixture") { hideFlags = HideFlags.HideAndDontSave };
+                SceneManager.MoveGameObjectToScene(boxOwner, scene);
+                BoxCollider2D collider = boxOwner.AddComponent<BoxCollider2D>();
+                Box = boxOwner.AddComponent<PhysicalBox>();
+                // Edit Mode 不运行物理生命周期；只给临时箱提供真实碰撞矩形以验证左右朝向。
+                typeof(BasicEntity).GetField("boxCollider", Hidden).SetValue(Box, collider);
+            }
+            Box.transform.position = new Vector3(boxX, 0f, 0f);
+            Physics2D.SyncTransforms();
+            Action.pushPullBox = Box;
+            Action.pushPullAction = action;
         }
 
         public void Expect(string state, string description)

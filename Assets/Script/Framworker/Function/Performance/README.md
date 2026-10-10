@@ -2,7 +2,7 @@
 
 ## 范围
 
-角色动画包括待机、地面行走、疾跑、上升、下落、贴墙以及水底/水面待机和移动。专用推拉动画尚未制作，推拉期间继续使用已有移动切片并面向逻辑层指定的箱子。
+角色动画包括待机、地面行走、疾跑、推箱、拉箱、上升、下落、贴墙以及水底/水面待机和移动。推拉期间面向逻辑层指定的箱子，拉动时保持朝向并后退。
 
 Animator Controller 不需要建立 Transition 或参数连线。`PresentationLayer` 通过 `Animator.Play` 直接选择已经关联好切片的 Base Layer 状态：
 
@@ -11,6 +11,8 @@ Animator Controller 不需要建立 Transition 或参数连线。`PresentationLa
 | 待机 | `On` | 循环 |
 | 地面移动 | `move` | 循环 |
 | 地面疾跑 | `Sprint` | 循环，8 帧 |
+| 推箱 | `Push` | 循环，6 帧 |
+| 拉箱 | `Pull` | 循环，6 帧 |
 | 起跳/重新起跳 | `Jump_Up` | 触发动作，单次 |
 | 持续上升 | `OnAir` | 循环 |
 | 持续下落 | `OnAir_Down` | 循环 |
@@ -24,6 +26,8 @@ Animator Controller 不需要建立 Transition 或参数连线。`PresentationLa
 
 其中 `On` 与 `OnAir` 分别承载 `idle` 与 `OnAir_Up` 切片。五组新序列作为新资源导入，原有 `Swim`、`SurfaceSwim` 占位状态挂上移动片段，再新增疾跑及两种泳待机状态；新增状态没有连线，已有行走起步到行走循环的连线保留。
 
+推、拉序列各为 1536×1024、3×2 布局，切片均为 512×512。`Push`、`Pull` 同在 Base Layer，没有新增连线，由表现层直接调用。
+
 ## 数据流
 
 ```text
@@ -31,6 +35,7 @@ PlayerStateMachine
   └─ ReadOnly_ActionData
        ├─ NowState / isSwimming / isSurfaceSwimming ► 贴墙、水底与水面行为
        ├─ onMove / verticalInput ─► 地面行走与泳待机/移动、左右朝向
+       ├─ PushPullAction / PushPullBox ► 已成立的推拉行为与面向箱子
        └─ speedScale ─────────────► 状态机已结算的疾跑加速
 
 CharacterPhysics / BasicEntity
@@ -58,6 +63,7 @@ PresentationLayer
 ## 切换规则
 
 1. 普通地面行为按水平移动意图选择 `On` 或 `move`；有移动意图且逻辑层 `speedScale > 1` 时选择 `Sprint`。体力和疾跑许可由 FSM 结算，表现层不读取原始疾跑键或重新推导许可。
+   有水平移动意图、有效选中箱及已成立的 `PushPullAction` 时，优先选择 `Push`／`Pull`。只选中但尚在自动走近时、未选中的接触推动、解除选中后，仍按普通移动处理。零输入回待机；空中和水中行为优先于推拉。受阻时已有推拉意图仍播放用力循环。
 2. FSM 确认贴墙时，播放 `Wall`。
 3. 主动跳跃冲量成立时播放一次 `Jump_Up`；起跳动作结束且仍上升时进入 `OnAir`，开始下降时可提前打断。
 4. 总竖直速度转为向下时直接进入持续状态 `OnAir_Down`，不再错误播放落地动作。
@@ -70,9 +76,11 @@ PresentationLayer
 
 ## 新资源规格
 
-五张新序列图共 28 个 512×512 切片，以原待机的头部尺度为基准，PPU 为 118，显示尺寸为原 PPU=100 时的 84.75%。原图像素和各帧固定 pivot 保留，不按姿态外框逐帧调整。疾跑每帧 0.08 秒，两种待机每帧 0.24 秒，两种移动每帧 0.16 秒，全部循环。
+疾跑与四种泳姿共 28 个 512×512 切片，以原待机的头部尺度为基准，PPU 为 118，显示尺寸为原 PPU=100 时的 84.75%。原图像素保持不变；泳姿保持固定 pivot。疾跑第 2、3、6、7 帧的支撑脚与待机脚底（局部 Y=-1.465）对齐，其余阶段插值竖直定位并保留第 5 帧腾空，水平定位与尺寸不变。疾跑每帧 0.08 秒，两种待机每帧 0.24 秒，两种移动每帧 0.16 秒，全部循环。
 
-原生 Unity 资源导入与核对工具为 `CatgirlSprintSwimAssets`；表现层验收入口为 `CatgirlPresentationAnimationChecks.RunForBatch`。导入和验收记录写入 `output/animation-integration-20261008`。物理与逻辑层生产代码保持不变。
+推拉共 12 个切片，原像素已按待机头部尺度调整，使用 PPU=100；pivot 为 (192.5,244.5) 像素，以待机原图中心为基准，支撑脚底与待机对齐。每帧 0.16 秒，每组循环 0.96 秒；不包含箱子图像，也不修改角色预设体和碰撞框。
+
+原生 Unity 资源导入与核对工具为 `CatgirlSprintSwimAssets`（沿用入口并包含推拉）；表现层验收入口为 `CatgirlPresentationAnimationChecks.RunForBatch`。本轮导入和验收记录写入 `output/animation-integration-20261009`。物理与逻辑层生产代码保持不变。
 
 ## 运行时校验
 

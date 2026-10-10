@@ -20,6 +20,8 @@ public class PresentationLayer : MonoBehaviour
     private static readonly int IdleStateHash = Animator.StringToHash("Base Layer.On");
     private static readonly int MoveStateHash = Animator.StringToHash("Base Layer.move");
     private static readonly int SprintStateHash = Animator.StringToHash("Base Layer.Sprint");
+    private static readonly int PushStateHash = Animator.StringToHash("Base Layer.Push");
+    private static readonly int PullStateHash = Animator.StringToHash("Base Layer.Pull");
     private static readonly int JumpTriggerStateHash = Animator.StringToHash("Base Layer.Jump_Up");
     private static readonly int AirUpStateHash = Animator.StringToHash("Base Layer.OnAir");
     private static readonly int LandingTriggerStateHash = Animator.StringToHash("Base Layer.Jump_Down");
@@ -54,6 +56,8 @@ public class PresentationLayer : MonoBehaviour
         Idle,
         Move,
         Sprint,
+        Push,
+        Pull,
         JumpTrigger,
         AirUp,
         LandingTrigger,
@@ -254,7 +258,7 @@ public class PresentationLayer : MonoBehaviour
     /// </summary>
     private void UpdateFacing()
     {
-        // 推拉期间面向选中箱，拉动时后退而不转身；动作暂沿用 move 切片作为占位，专用推拉动画未制作。
+        // 推拉期间面向选中箱，拉动时后退而不转身。
         if (actionData.PushPullAction != PushPullAction.None && actionData.PushPullBox != null)
         {
             spriteRenderer.flipX = actionData.PushPullBox.BodyBounds.center.x < transform.position.x;
@@ -312,6 +316,13 @@ public class PresentationLayer : MonoBehaviour
         if (Mathf.Abs(actionData.onMove) <= MoveInputDeadZone)
         {
             Play(AnimationState.Idle);
+            return;
+        }
+
+        // 只消费已经成立的推拉行为；选中后自动走近、未选中接触推动仍使用普通移动动画。
+        if (actionData.PushPullBox != null && actionData.PushPullAction != PushPullAction.None)
+        {
+            Play(actionData.PushPullAction == PushPullAction.Push ? AnimationState.Push : AnimationState.Pull);
             return;
         }
 
@@ -490,6 +501,10 @@ public class PresentationLayer : MonoBehaviour
                 return MoveStateHash;
             case AnimationState.Sprint:
                 return SprintStateHash;
+            case AnimationState.Push:
+                return PushStateHash;
+            case AnimationState.Pull:
+                return PullStateHash;
             case AnimationState.JumpTrigger:
                 return JumpTriggerStateHash;
             case AnimationState.AirUp:
@@ -522,6 +537,8 @@ public class PresentationLayer : MonoBehaviour
             IdleStateHash,
             MoveStateHash,
             SprintStateHash,
+            PushStateHash,
+            PullStateHash,
             JumpTriggerStateHash,
             AirUpStateHash,
             LandingTriggerStateHash,
