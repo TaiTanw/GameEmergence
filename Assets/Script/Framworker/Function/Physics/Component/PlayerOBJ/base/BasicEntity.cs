@@ -8,6 +8,9 @@ using UnityEngine;
 /// </summary>
 public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentReceiver
 {
+    #region 数据：配置、几何与本步命令
+    // 子类只改开关。刚体、探针、几何事实和这一步的速度分量都在这里，后面的相位只读写它们。
+
     protected virtual IPhysicsWorldAccess2D PhysicsWorld => UnityPhysicsWorldAccess2D.Instance;
     protected virtual bool MotionExecutionReady => true;
     protected virtual bool MotionUpdatesEnabled => true;
@@ -105,6 +108,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     protected const float GroundProbeDistance = 0.02f;
     internal IReadOnlyList<Collider2D> oneWayDropColliders;
 
+    #endregion
+
+    #region 参与、暂停与刷新
+    // 世界暂停和角色自己的许可分开。刷新可迁位置并重采样，不是第二条逐帧运动管线。
+
     public void SetMotionParticipation(bool active)
     {
         motionParticipation = active;
@@ -145,6 +153,14 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
 
     protected virtual void OnMotionSuspended() { }
     public Vector2 GetPlanarVelocity() => rb != null ? rb.velocity : Vector2.zero;
+    /// <summary>显式安置时以刚体实际位置及碰撞框几何换算根坐标，不读取插值显示位置。</summary>
+    internal Vector2 GetPositionForBodyCenter(Vector2 center)
+    {
+        // 安全：缺少碰撞框或刚体时没有可换算的中心偏移。
+        if (rb == null || boxCollider == null) return center;
+        GetBoxShape(this, out Vector2 bodyCenter, out _, out _);
+        return center - (bodyCenter - rb.position);
+    }
     public bool TryGetLastDisplacementObservation(out EntityDisplacementObservation observation)
     {
         observation = lastDisplacementObservation;
@@ -218,6 +234,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         MonoPublicMgr.Instance.AddPhysicalTimingUpdate(SpeedCalculation, 3);
         MonoPublicMgr.Instance.AddPhysicalTimingUpdate(DisplacementCorrection, 5);
     }
+
+    #endregion
+
+    #region 相位1：几何、接触与区域
+    // 读上一步模拟留下的接触，再用探针补脚下和墙。这里只记碰到了什么，不决定能墙滑或游泳。
 
     protected abstract void GeometricQuery();
     private void GeometricQueryPhase()
@@ -317,6 +338,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         }
     }
 
+    #endregion
+
+    #region 相位2：环境事实
+    // 用来源核对脚下、水和减速。穿墙时清空这些事实，不把外部运动写进命令。
+
     protected virtual void PhyFunUpdate()
     {
         if (UsesCollisionFreeMovement) return;
@@ -343,6 +369,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         effectState.ClearMotionParameters();
         playerPhysicsData.nowPhyNum = 0f;
     }
+
+    #endregion
+
+    #region 恢复行走：实心重叠检查
+    // 飞转行只看当前位置。浅重叠可以恢复，深嵌入拒绝，这里不挪角色。
 
     /// <summary>
     /// 人工阅读：飞转行只查本次当前位置的恢复形状。地形和暂停实体共用浅重叠容差，失败不移动角色。
@@ -435,6 +466,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
             + otherHalf.x * Mathf.Abs(Vector2.Dot(otherRight, axis)) + otherHalf.y * Mathf.Abs(Vector2.Dot(otherUp, axis));
         return Mathf.Abs(Vector2.Dot(offset, axis)) < span - tolerance;
     }
+
+    #endregion
+
+    #region 相位3：计划速度、静墙与侧面读口
+    // 先读 SpeedCalculation。静墙、坡面、头顶和侧面推动读口都服务于这一步计划，源码顺序夹在一起。
 
     /// <summary>自由箱保留真实推动惯性。静墙、坡面和头顶先收进本步速度，实体之间仍交给原生模拟。</summary>
     private void SpeedCalculation()
@@ -753,6 +789,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     }
     protected virtual void VActiveSpeedOperation() { }
 
+    #endregion
+
+    #region 相位5：回读实际速度
+    // 模拟之后才读刚体。拆开本步命令和碰撞留下的部分，不在这里再提交位移。
+
     /// <summary>相位 5 只回读实际结果，不再提交移动或纠偏。</summary>
     private void DisplacementCorrection()
     {
@@ -788,6 +829,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         return 0f;
     }
 
+    #endregion
+
+    #region 环境效果登记
+    // 只登记参数和限时命令。穿墙时不接收这些外部运动。真实速度仍在刚体上。
+
     public void StatePowerRegistration(EnvironmentRegistration source, float offset)
     { if (!UsesCollisionFreeMovement) effectState.RegisterMovementModifier(source, offset); }
     public void StatePowerCancellation(EnvironmentRegistration source) => effectState.RemoveMovementModifier(source);
@@ -801,6 +847,11 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     public void ChangeForce(IDynamicAddForce source, float force) => effectState.ChangeDynamicForce(source, force);
     public void ChangeType(IDynamicAddForce source, E_PhyForceType type) => effectState.ChangeDynamicType(source, type);
     public void RemoveForce(IDynamicAddForce source) => effectState.RemoveDynamicForce(source);
+
+    #endregion
+
+    #region 停用
+    // 退出相位注册，并放开环境来源。世界暂停名单一并移除。
 
     protected virtual void OnDisable()
     {
@@ -821,7 +872,12 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         environmentContext?.ReleaseAll();
     }
 
+    #endregion
+
 #if UNITY_EDITOR
+    #region 编辑器只读
+    // 只复制事实。编辑器自己做采样和差值，这里不回写速度或求解。
+
     // [EditorOnly] 只读输出口；编辑器侧负责采样、缓存、快照组装与跨帧差值计算。
     public RigidbodyType2D DebugBodyType => rb != null ? rb.bodyType : RigidbodyType2D.Static;
     public Vector2 DebugActualPosition => rb != null ? rb.position : (Vector2)transform.position;
@@ -860,6 +916,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         data.verticalSize = cPhysics.boxCastV;
         return true;
     }
+
+    #endregion
 #endif
 
 }

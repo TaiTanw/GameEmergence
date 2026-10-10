@@ -7,23 +7,35 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// 场景切换管理器
 /// </summary>
-public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
+public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefreshRules, IPlayerTutorialRefreshRules
 {
     const string MenuSceneName = "BeginScenes";
     Player body;
     Player spirit;
     PlayerLifecycleRules levelRules;
+    readonly PlayerEffectLedger effects = new PlayerEffectLedger();
+    bool refreshing;
     bool loading;
     int loadSerial;
     public bool GameMenuOpen { get; private set; }
     float timeScaleBeforeMenu;
+    string gameplayMessage;
+    float messageUntil;
+    public string GameplayMessage => Time.unscaledTime < messageUntil ? gameplayMessage : null;
+
+    void ShowGameplayMessage(string message)
+    {
+        gameplayMessage = message;
+        messageUntil = Time.unscaledTime + 4f;
+    }
 
     /// <summary>人工阅读：固定 ESC → 本关菜单 → 原世界暂停入口；关闭后按当前模式恢复，不重置现场。</summary>
     public bool ToggleGameMenu()
     {
         if (GameMenuOpen) { CloseGameMenu(); return true; }
         // 安全：菜单和关卡加载期间没有可暂停的游戏，不显示关内菜单。
-        if (loading || body == null || SceneLevelSetup.Current == null || InputControlMgr.Instance.Player == null)
+        if (loading || body == null || SceneLevelSetup.Current == null
+            || (InputControlMgr.Instance.Player == null && !EscapeSelectionPending))
             return false;
         GameMenuOpen = true;
         timeScaleBeforeMenu = Time.timeScale;
@@ -42,7 +54,8 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         UIMgr.Instance.HideOneUI<GameMenuPanel>();
         Time.timeScale = timeScaleBeforeMenu;
         // 实际逻辑：漫游继续暂停世界；教学和模拟恢复，平台不会追赶菜单停留时间。
-        PlayerLifecycleRules.SetWorldPaused(levelRules != null && !levelRules.IsSimulation);
+        PlayerLifecycleRules.SetWorldPaused(levelRules != null &&
+            ((levelRules.Stage == PlayerGameplayStage.Exploration && !levelRules.IsSimulation) || levelRules.EscapeSelectionPending));
         InputControlMgr.Instance.SetMenuInputPaused(false);
     }
 
@@ -53,11 +66,166 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         return spirit.RequestSpiritForm(!simulation, reason);
     }
 
+    public bool CanResetTrial => !loading && !GameMenuOpen && Time.timeScale > 0f
+        && levelRules != null && levelRules.Stage == PlayerGameplayStage.Exploration
+        && levelRules.IsSimulation && !levelRules.EscapeSelectionPending && spirit != null && InputControlMgr.Instance.Player == spirit;
+
+    public bool CanStartEscape => !loading && !refreshing && !GameMenuOpen && Time.timeScale > 0f
+        && levelRules != null && levelRules.Stage == PlayerGameplayStage.Exploration
+        && !levelRules.EscapeSelectionPending && body != null && spirit != null;
+    public bool EscapeSelectionPending => levelRules != null && levelRules.EscapeSelectionPending;
+
+    /// <summary>手动和耗尽共用一次探索结束；选择时暂停，低预算直接接受本局负面并开始逃生。</summary>
+    public bool StartEscape()
+    {
+        SceneLevelSetup setup = SceneLevelSetup.Current;
+        if (!CanStartEscape || setup == null || !ValidEscapeSetup(setup)) return false;
+        if (!levelRules.BeginEscapeSelection()) return false;
+        InputControlMgr.Instance.BindPlayer(null);
+        PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
+        body.RefreshRuntime(setup.BodyPoint);
+        bool affordable = false;
+        foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
+            affordable |= levelRules.Cognition.Remaining >= offer.Cost;
+        if (!affordable)
+        {
+            effects.GrantEffect(PlayerEffectKind.MovementMultiplier, setup.LowCognitionMovementMultiplier);
+            CompleteEscape(setup);
+        }
+        return true;
+    }
+
+    public bool PurchaseEscapeAbility(int index)
+    {
+        SceneLevelSetup setup = SceneLevelSetup.Current;
+        // 选择只提交一次；无效或买不起的选项不先扣余额或给效果。
+        if (loading || refreshing || GameMenuOpen || Time.timeScale <= 0f || !EscapeSelectionPending || setup == null
+            || index < 0 || index >= setup.EscapeAbilities.Count) return false;
+        EscapeAbilityOffer offer = setup.EscapeAbilities[index];
+        if (offer == null || !offer.IsValid || levelRules.Cognition.Remaining < offer.Cost) return false;
+        if (!effects.GrantEffect(offer.Kind, offer.Multiplier)) return false;
+        levelRules.Cognition.TryPayAbilityCost(offer.Cost);
+        CompleteEscape(setup);
+        return true;
+    }
+
+    static bool ValidEscapeSetup(SceneLevelSetup setup)
+    {
+        if (setup.EscapeAbilities == null || setup.EscapeAbilities.Count == 0
+            || float.IsNaN(setup.LowCognitionMovementMultiplier) || float.IsInfinity(setup.LowCognitionMovementMultiplier)
+            || setup.LowCognitionMovementMultiplier <= 0f || setup.LowCognitionMovementMultiplier > 1f) return false;
+        foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
+            if (offer == null || !offer.IsValid) return false;
+        if (setup.RisingWater != null && (setup.RisingWater.gameObject.scene != setup.gameObject.scene
+            || !setup.RisingWater.CanPrepareRun(setup.WaterRiseSpeed))) return false;
+        return true;
+    }
+
+    void CompleteEscape(SceneLevelSetup setup)
+    {
+        body.BindEffectLedger(effects);
+        body.BindDeathReceiver(levelRules);
+        levelRules.ConfigureStage(PlayerGameplayStage.Escape);
+        InputControlMgr.Instance.BindPlayer(body);
+        PlayerLifecycleRules.SetWorldPaused(false);
+        Physics2D.SyncTransforms();
+        LevelBoxContext.Resample(setup.gameObject.scene);
+        body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+        body.RefreshRuntime(setup.BodyPoint);
+        setup.RisingWater?.SetRisingAllowed(true);
+        DestroyActor(ref spirit);
+        InputControlMgr.Instance.InputOpenOrClose(true);
+    }
+
+    /// <summary>同一死亡周期的失败重开：环境先回默认，最后创建新精神体，不重新加载本关。</summary>
+    public bool TryRestartExploration(Player deadPlayer)
+    {
+        SceneLevelSetup setup = SceneLevelSetup.Current;
+        if (loading || refreshing || setup == null || setup.Teaching || deadPlayer != body
+            || levelRules == null || levelRules.Stage != PlayerGameplayStage.Escape || !CanSpawnSpirit(setup)) return false;
+        refreshing = true;
+        try
+        {
+            InputControlMgr.Instance.BindPlayer(null);
+            body.PrepareRuntimeRefresh();
+            body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+            PlayerLifecycleRules.SetWorldPaused(true);
+            setup.RisingWater?.RestoreRunDefaults();
+            foreach (GameObject root in setup.gameObject.scene.GetRootGameObjects())
+                foreach (BasicPhysicalObject source in root.GetComponentsInChildren<BasicPhysicalObject>(true))
+                    source.RestoreEnvironmentDefaults();
+            PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
+            foreach (GameObject root in setup.gameObject.scene.GetRootGameObjects())
+                foreach (SceneProp prop in root.GetComponentsInChildren<SceneProp>(true)) prop.RestoreDefault();
+            levelRules.MapRecord?.Reset();
+            effects.ResetCurrentLevel();
+            body.RefreshRuntime(setup.BodyPoint, true);
+            ReleaseLevelRules();
+            if (!SpawnSpirit(setup)) return false;
+            InputControlMgr.Instance.InputOpenOrClose(true);
+            return true;
+        }
+        finally { refreshing = false; }
+    }
+
+    public bool TryRestartTeaching(Player deadPlayer)
+    {
+        if (loading || refreshing || deadPlayer != body || SceneLevelSetup.Current == null || !SceneLevelSetup.Current.Teaching)
+            return false;
+        effects.ResetCurrentLevel();
+        EnterLevel(LevelStageMgr.Instance.LevelIndex, DataAndInitMgr.Instance.LoadLevelOrder());
+        // 异步重开尚未安置完成时不报告死亡已处理；新关组装会显式恢复死亡周期。
+        return false;
+    }
+
+    public bool CanEditEnvironment => !loading && !GameMenuOpen && Time.timeScale > 0f
+        && levelRules != null && levelRules.CanEditEnvironment && InputControlMgr.Instance.Player == spirit;
+
+    public bool EditEnvironmentParameter(BasicPhysicalObject source, int index, float value)
+    {
+        if (!CanEditEnvironment) return false;
+        return levelRules.TryEditEnvironmentParameter(source, index, value);
+    }
+
+    /// <summary>界面试验重置入口；地图前使用固定起点，后续地图目标仍交给同一规则安置。</summary>
+    public bool ResetTrial()
+    {
+        // 安全：加载、菜单暂停或控制交接时不消费重置请求。
+        if (!CanResetTrial || SceneLevelSetup.Current == null) return false;
+        Vector2 point = SceneLevelSetup.Current.TrialPoint;
+        // 地图启用后只校验实际格子目标；未启用时才校验试验起点。
+        if (!levelRules.TryGetTrialResetPoint(point, out point, out string error))
+        {
+            Debug.LogWarning(error);
+            ShowGameplayMessage(error);
+            return false;
+        }
+        gameplayMessage = null;
+        InputControlMgr input = InputControlMgr.Instance;
+        bool enabled = input.InputEnabled;
+        if (enabled) input.InputOpenOrClose(false);
+        try { return levelRules.TryResetTrial(point); }
+        finally { if (enabled) input.InputOpenOrClose(true); }
+    }
+
     void ReleaseLevelRules()
     {
+        // 生命周期：卸关或返回菜单时移除本关计时，下一关只登记一次。
+        if (levelRules != null && !MonoPublicMgr.IsQuitting)
+            MonoPublicMgr.Instance.RemoveUpdatEvent(AdvanceLevelCognition);
         LevelStageMgr.Instance.BindRules(null);
         levelRules = null;
+        gameplayMessage = null;
         PlayerLifecycleRules.SetWorldPaused(false);
+    }
+
+    void AdvanceLevelCognition()
+    {
+        // 暂停约束：加载与关内菜单不产生模拟费用；其余情况用随 TimeScale 推进的游戏时间。
+        if (loading || GameMenuOpen || levelRules == null || Time.timeScale <= 0f) return;
+        levelRules.AdvanceSimulationTime(Time.deltaTime);
+        levelRules.AdvanceExplorationMap();
+        if (levelRules.CognitionExhaustionRequested && !levelRules.EscapeSelectionPending) StartEscape();
     }
 
     /// <summary>按已保存的关序号进入。没有存档时是第一关。</summary>
@@ -74,7 +242,7 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
     public void EnterNextLevel()
     {
         LevelOrderFile order = DataAndInitMgr.Instance.LoadLevelOrder();
-        EnterLevel(DataAndInitMgr.Instance.LoadLevelIndex() + 1, order);
+        EnterLevel(DataAndInitMgr.Instance.LoadLevelIndex() + 1, order, true);
     }
 
     /// <summary>还在关卡里就结束本局并载回开始场景。人已经在菜单时返回 false，让界面自己退一层。</summary>
@@ -85,6 +253,7 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         int serial = ++loadSerial;
         loading = false;
         ReleaseLevelRules();
+        effects.ResetCurrentLevel();
         InputControlMgr.Instance.BindPlayer(null);
         InputControlMgr.Instance.InputOpenOrClose(false);
         // 实际逻辑：不在开始场景就结束本局。实体跨场景，必须显式销毁。
@@ -107,7 +276,7 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         return true;
     }
 
-    void EnterLevel(int index, LevelOrderFile order)
+    void EnterLevel(int index, LevelOrderFile order, bool confirmPrevious = false)
     {
         // 安全：没有顺序时不编造关卡。
         if (order.scenes == null || order.scenes.Length == 0)
@@ -139,19 +308,21 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         ReleaseLevelRules();
         // 实际逻辑：跨关加载时旧目标先交出操作，留下的实体停止运动，不能在加载途中继续控制。
         InputControlMgr.Instance.BindPlayer(null);
-        body?.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
-        spirit?.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        if (body != null) body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        if (spirit != null) spirit.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        // 精神体不跨关；显式交还引用，教学重开不能调用上一关已卸载的对象。
+        DestroyActor(ref spirit);
         int serial = ++loadSerial;
         InputControlMgr.Instance.InputOpenOrClose(false);
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top);
         LoadSceneAsync(order.scenes[index], () =>
         {
             if (serial != loadSerial) return;
-            PlaceBody(index, serial, placed => FinishEnter(index, serial, placed));
+            PlaceBody(index, serial, placed => FinishEnter(index, serial, placed, confirmPrevious));
         });
     }
 
-    void FinishEnter(int index, int serial, bool placed)
+    void FinishEnter(int index, int serial, bool placed, bool confirmPrevious)
     {
         // 实际逻辑：返回或新的进入已经作废这一轮时，不再写进度、也不再打开输入。
         if (serial != loadSerial) return;
@@ -159,13 +330,15 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
         UIMgr.Instance.HideOneUI<LoadingPanel>();
         if (placed)
         {
+            // 结算边界：本次换关仍有效且角色安置成功，才确认上一关效果；失败保留本局记录。
+            if (confirmPrevious) effects.CommitLevel();
             DataAndInitMgr.Instance.SaveLevelIndex(index);
             InputControlMgr.Instance.InputOpenOrClose(true);
             UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom);
         }
     }
 
-    /// <summary>人工阅读入口：场景配置 → 留下的实体 → 本关精神体 → 唯一输入目标；成功后才保存进度。</summary>
+    /// <summary>人工阅读入口：场景配置 → 留下的实体 → 本关精神体 → 唯一输入目标；成功后才确认效果并保存进度。</summary>
     void PlaceBody(int index, int serial, UnityAction<bool> done)
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
@@ -188,9 +361,14 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
             }
             // 实际逻辑：先绑输入再刷新，状态机才能在 Start 之前拿到操作数据。
             InputControlMgr.Instance.BindPlayer(body);
+            body.BindEffectLedger(effects);
             body.RefreshRuntime(setup.BodyPoint);
             if (setup.Teaching)
             {
+                levelRules = new PlayerLifecycleRules(body, null, this, new LevelCognition(0f));
+                levelRules.ConfigureStage(PlayerGameplayStage.Tutorial);
+                LevelStageMgr.Instance.BindRules(levelRules);
+                body.BindDeathReceiver(levelRules);
                 body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
                 done?.Invoke(true);
                 return;
@@ -203,6 +381,11 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
 
     bool SpawnSpirit(SceneLevelSetup setup)
     {
+        if (!CanSpawnSpirit(setup))
+        {
+            Debug.LogError("精神体预设、出生点或上涨水配置无效，不能开始探索。", setup);
+            return false;
+        }
         // 实际逻辑：上一只还在时先去掉，这一关再新建。
         DestroyActor(ref spirit);
         // 安全：没指定预设时不造精神体，实体保持待机。
@@ -222,9 +405,11 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
             return false;
         }
         InputControlMgr.Instance.BindPlayer(spirit);
+        spirit.BindEffectLedger(effects);
         spirit.RefreshRuntime(setup.SpiritPoint);
-        levelRules = new PlayerLifecycleRules(body, spirit,
-            cognition: new LevelCognition(setup.InitialCognition), formCost: setup.FormChangeCost);
+        levelRules = new PlayerLifecycleRules(body, spirit, this,
+            cognition: new LevelCognition(setup.InitialCognition), formCost: setup.FormChangeCost,
+            simulationCognitionPerSecond: setup.SimulationCognitionPerSecond);
         if (!levelRules.BeginExploration(setup.ManualFormCooldown))
         {
             Debug.LogError("精神体飞行初始化失败。", spirit);
@@ -233,13 +418,29 @@ public class SceneChangeMgr : BaseMgr<SceneChangeMgr>
             return false;
         }
         LevelStageMgr.Instance.BindRules(levelRules);
+        levelRules.BindExplorationMap(setup);
+        if (setup.RisingWater != null && !setup.RisingWater.PrepareRun(setup.WaterRiseSpeed)) return false;
+        MonoPublicMgr.Instance.AddUpdatEvent(AdvanceLevelCognition);
         return true;
     }
 
+    static bool CanSpawnSpirit(SceneLevelSetup setup)
+    {
+        if (setup == null || setup.SpiritPrefab == null) return false;
+        Player configured = setup.SpiritPrefab.GetComponent<Player>();
+        Vector2 spiritPoint = setup.SpiritPoint, bodyPoint = setup.BodyPoint;
+        return configured != null && configured.Identity == PlayerIdentity.Spirit
+            && Finite(spiritPoint) && Finite(bodyPoint)
+            && (setup.RisingWater == null || (setup.RisingWater.gameObject.scene == setup.gameObject.scene
+                && setup.RisingWater.CanPrepareRun(setup.WaterRiseSpeed)));
+    }
+
+    static bool Finite(Vector2 point) => !float.IsNaN(point.x) && !float.IsInfinity(point.x)
+        && !float.IsNaN(point.y) && !float.IsInfinity(point.y);
+
     static void DestroyActor(ref Player actor)
     {
-        if (actor == null) return;
-        Object.Destroy(actor.gameObject);
+        if (actor != null) Object.Destroy(actor.gameObject);
         actor = null;
     }
 

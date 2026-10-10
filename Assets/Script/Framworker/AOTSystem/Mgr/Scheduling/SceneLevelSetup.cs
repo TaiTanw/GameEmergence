@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// 摆在场景里的本关配置。登记教学、出生点、精神体预设和转换参数，不创建角色，不抢控制。
@@ -13,6 +14,8 @@ public class SceneLevelSetup : MonoBehaviour
     Transform bodySpawn;
     [SerializeField, Tooltip("非教学关精神体的位置，不要和实体出生点重合")]
     Transform spiritSpawn;
+    [SerializeField, Tooltip("地图接入前的固定试验重置起点；未设置时使用本配置物体的位置")]
+    Transform trialStart;
     [Header("精神体")]
     [SerializeField, Tooltip("非教学关使用的精神体预设。教学关不会实例化它")]
     GameObject spiritPrefab;
@@ -22,14 +25,38 @@ public class SceneLevelSetup : MonoBehaviour
     float initialCognition = 100f;
     [SerializeField, Min(0f), Tooltip("每次成功的手动／死亡／区域强制转换都扣一次；失败不扣")]
     float formChangeCost = 1f;
+    [SerializeField, Min(0f), Tooltip("探索／模拟每游戏秒消耗的认知；漫游、菜单暂停与加载不计时")]
+    float simulationCognitionPerSecond = 0.5f;
+    [Header("认知地图")]
+    [SerializeField, Tooltip("启用后试验重置使用玩家当前地图格中心；教学关不建立地图记录")]
+    bool mapEnabled;
+    [SerializeField, Tooltip("手工关联本关全部地图格子，允许边界相接，不允许面积重叠或漏引用")]
+    MapCell[] mapCells = new MapCell[0];
 
     public bool Teaching => teaching;
     public GameObject SpiritPrefab => spiritPrefab;
     public float ManualFormCooldown => Mathf.Max(0f, manualFormCooldown);
     public float InitialCognition => Mathf.Max(0f, initialCognition);
     public float FormChangeCost => Mathf.Max(0f, formChangeCost);
+    public float SimulationCognitionPerSecond => Mathf.Max(0f, simulationCognitionPerSecond);
     public Vector2 BodyPoint => Point(bodySpawn);
     public Vector2 SpiritPoint => Point(spiritSpawn);
+    public Vector2 TrialPoint => Point(trialStart);
+    public bool MapEnabled => mapEnabled;
+    public IReadOnlyList<MapCell> MapCells => mapCells;
+
+    [Header("逃生")]
+    [SerializeField] WaterRegion risingWater;
+    [SerializeField, Min(0f)] float waterRiseSpeed = 0.5f;
+    [SerializeField, Range(0.01f, 1f)] float lowCognitionMovementMultiplier = 0.8f;
+    [SerializeField] EscapeAbilityOffer[] escapeAbilities = {
+        new EscapeAbilityOffer("步伐强化", PlayerEffectKind.MovementMultiplier, 20f, 1.2f),
+        new EscapeAbilityOffer("起跳强化", PlayerEffectKind.JumpMultiplier, 20f, 1.2f)
+    };
+    public WaterRegion RisingWater => risingWater;
+    public float WaterRiseSpeed => waterRiseSpeed;
+    public float LowCognitionMovementMultiplier => lowCognitionMovementMultiplier;
+    public System.Collections.Generic.IReadOnlyList<EscapeAbilityOffer> EscapeAbilities => escapeAbilities;
 
     public static SceneLevelSetup Current { get; private set; }
 

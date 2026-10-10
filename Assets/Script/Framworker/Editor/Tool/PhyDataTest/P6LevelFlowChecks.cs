@@ -16,6 +16,7 @@ public static class P6LevelFlowChecks
     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
     private const BindingFlags StaticHidden = BindingFlags.Static | BindingFlags.NonPublic;
     private static readonly List<string> passed = new List<string>();
+    private static readonly List<GameObject> fixtures = new List<GameObject>();
     private static string progressPath;
     private static byte[] previousProgress;
     private static bool hadProgress;
@@ -26,6 +27,9 @@ public static class P6LevelFlowChecks
     private static string[] sceneOrder;
     private static Player body, oldSpirit;
     private static PlayerLifecycleRules oldRules;
+    private static PlayerEffectLedger effects;
+    private static string expectedLoadError;
+    private static bool receivedExpectedLoadError, removeIncomingSetup;
     private static int bodyId, spiritId;
     private static GameplayPanel panel;
     private static GameMenuPanel menu;
@@ -47,6 +51,7 @@ public static class P6LevelFlowChecks
         previousSimulation = Physics2D.simulationMode;
         previousTimeScale = Time.timeScale;
         passed.Clear(); stage = 0; failure = null; runtimeError = null; panel = null; menu = null;
+        expectedLoadError = null; receivedExpectedLoadError = false;
         EditorSettings.enterPlayModeOptionsEnabled = true;
         EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload;
         MonoPublicMgr.IsQuitting = false;
@@ -89,11 +94,72 @@ public static class P6LevelFlowChecks
                         "教学仅创建一个实体，没有精神体");
                     Check(InputControlMgr.Instance.Player == body && body.Permissions.motionUpdates,
                         "教学唯一输入目标是已恢复运动许可的实体");
-                    Check(Rules() == null && LevelStageMgr.Instance.CognitionRemaining == 0f
-                        && !LevelStageMgr.Instance.CognitionExhausted, "教学没有非教学关的认知记录或耗尽事实");
+                    Check(Rules() != null && Rules().Stage == PlayerGameplayStage.Tutorial
+                        && LevelStageMgr.Instance.Stage == PlayerGameplayStage.Tutorial
+                        && !LevelStageMgr.Instance.HasExploration && LevelStageMgr.Instance.CognitionRemaining == 0f
+                        && !Rules().CognitionExhaustionRequested,
+                        "教学死亡规则已组装但不参与探索认知计时或耗尽请求");
                     CheckCamera(body);
                     Check(DataAndInitMgr.Instance.LoadLevelIndex() == 0, "教学安置完成才保存当前序号");
+                    effects = (PlayerEffectLedger)typeof(SceneChangeMgr).GetField("effects", Hidden).GetValue(SceneChangeMgr.Instance);
+                    Check(effects.GrantEffect(PlayerEffectKind.MovementMultiplier, .9f, PlayerEffectScope.Permanent),
+                        "布置此前已经通关确认的永久效果");
+                    effects.CommitLevel();
+                    AddPendingEffects();
+                    StartFailedNextLevel(true);
+                    stage = 20;
+                    break;
+                case 20:
+                    if (!FailedLoadFinished()) return;
+                    CheckPendingEffects("下一关缺失配置后");
+                    Check(SceneLevelSetup.Current == null && Actor("spirit") == null && !InputControlMgr.Instance.InputEnabled,
+                        "配置缺失真实安置失败，不开放输入或创建精神体");
+                    SceneChangeMgr.Instance.EnterSavedLevel();
+                    stage = 21;
+                    break;
+                case 21:
+                    if (!Ready(sceneOrder[0])) return;
+                    CheckPendingEffects("普通进入原关成功后");
+                    StartFailedNextLevel(false);
+                    stage = 22;
+                    break;
+                case 22:
+                    if (!FailedLoadFinished()) return;
+                    CheckPendingEffects("下一关无法创建精神体后");
+                    Check(SceneLevelSetup.Current != null && Actor("spirit") == null && !InputControlMgr.Instance.InputEnabled,
+                        "无效精神体配置真实安置失败，不开放输入");
+                    SceneChangeMgr.Instance.EnterSavedLevel();
+                    stage = 23;
+                    break;
+                case 23:
+                    if (!Ready(sceneOrder[0])) return;
                     SceneChangeMgr.Instance.EnterNextLevel();
+                    CheckPendingEffects("被返回菜单作废前");
+                    int cancelledSerial = (int)typeof(SceneChangeMgr).GetField("loadSerial", Hidden).GetValue(SceneChangeMgr.Instance);
+                    Check(SceneChangeMgr.Instance.ReturnToMenu(), "真实返回菜单作废尚在加载的跨关请求");
+                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0,
+                        "返回菜单只撤销本局新增，不把待确认永久效果提升为已确认");
+                    // 作废的回调即使迟到并报告成功，也不能确认效果、写进度或重新开放输入。
+                    typeof(SceneChangeMgr).GetMethod("FinishEnter", Hidden).Invoke(SceneChangeMgr.Instance,
+                        new object[] { 1, cancelledSerial, true, true });
+                    Check(effects.ConfirmedPermanentEffects.Count == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0
+                        && InputControlMgr.Instance.Player == null && !InputControlMgr.Instance.InputEnabled,
+                        "旧请求的迟到成功回调不结算、不推进进度或交回控制");
+                    stage = 24;
+                    break;
+                case 24:
+                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
+                    Check(effects.ConfirmedPermanentEffects.Count == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
+                        "作废请求及菜单实际加载结束仍不提前确认或推进进度");
+                    SceneChangeMgr.Instance.EnterSavedLevel();
+                    stage = 25;
+                    break;
+                case 25:
+                    if (!Ready(sceneOrder[0])) return;
+                    body = Actor("body"); bodyId = body.GetInstanceID();
+                    AddPendingEffects();
+                    SceneChangeMgr.Instance.EnterNextLevel();
+                    CheckPendingEffects("有效跨关开始加载后");
                     stage = 2;
                     break;
                 case 2:
@@ -104,17 +170,34 @@ public static class P6LevelFlowChecks
                     expectedCognition = SceneLevelSetup.Current.InitialCognition;
                     formCost = SceneLevelSetup.Current.FormChangeCost;
                     Check(DataAndInitMgr.Instance.LoadLevelIndex() == 1, "跨关成功保存第二关序号");
+                    Check(effects.CurrentLevelEffects.Count == 0 && effects.ConfirmedPermanentEffects.Count == 2,
+                        "下一关安置成功才确认新增永久效果并清本局项");
+                    Near(effects.MovementMultiplier, 1.08f, "成功跨关不重复叠加永久倍率");
+                    Near(effects.JumpMultiplier, 1f, "成功跨关清除本局起跳效果");
+                    Near(body.GetComponent<CharacterPhysics>().EffectiveMovementSpeed,
+                        body.GetComponent<CharacterPhysics>().speed * 1.08f, "本体消费安置成功后的永久倍率");
+                    Near(oldSpirit.GetComponent<CharacterPhysics>().EffectiveMovementSpeed,
+                        oldSpirit.GetComponent<CharacterPhysics>().speed * 1.08f, "新精神体消费同一确认记录");
                     UIMgr.Instance.GetOnePanel<GameplayPanel>(value => panel = value);
                     stage = 3;
                     break;
                 case 3:
                     if (panel == null || !panel.gameObject.activeInHierarchy) return;
                     Check(panel.transform.parent == UIMgr.Instance.GetUILayer(E_UILayer.Bottom), "游戏显示预设进入 Bottom 层");
-                    Check(panel.GetComponentsInChildren<Button>(true).Length == 0, "游戏显示面板不提供临时测试按钮");
-                    foreach (string reserved in new[] { "MapArea", "ActionArea", "MessageArea" })
+                    Button resetButton = panel.transform.Find("ActionArea/ResetTrialButton")?.GetComponent<Button>();
+                    Button applyButton = panel.transform.Find("ActionArea/EnvironmentEditArea/ApplyEnvironmentButton")?.GetComponent<Button>();
+                    Check(resetButton != null && applyButton != null,
+                        "游戏显示预设包含正式试验重置与环境应用按钮");
+                    Check(panel.transform.Find("ActionArea/EnvironmentEditArea/EnvironmentValueInput")?.GetComponent<InputField>() != null
+                        && panel.transform.Find("ActionArea/EnvironmentEditArea")?.GetComponent<EnvironmentEditView>() != null,
+                        "环境输入与编辑显示位于实际操作区预设");
+                    Check(panel.transform.Find("MapArea").gameObject.activeSelf == SceneChangeMgr.Instance.CanViewMap,
+                        "实际地图区域按本关已启用地图显示，暂停不冒充未接地图");
+                    foreach (string reserved in new[] { "ActionArea", "MessageArea" })
                         Check(panel.transform.Find(reserved) != null && !panel.transform.Find(reserved).gameObject.activeSelf,
                             "实际预设安排并隐藏预留节点 " + reserved);
                     GameMenuInputChecks.Capture("gameplay.png");
+                    BaseGround editedGround = CheckEnvironmentEditUI();
                     // 测试布置：避开出生点附近的占用，检验实际场景模式入口；不写场景文件。
                     oldSpirit.GetComponent<CharacterPhysics>().RefreshMotionState(new Vector2(5000f, 5000f));
                     Check(SceneChangeMgr.Instance.SetSimulation(true), "场景模式入口成功进入模拟");
@@ -130,6 +213,8 @@ public static class P6LevelFlowChecks
                     Check(oldSpirit.FormCooldownRemaining > 0f
                         && oldSpirit.FormCooldownRemaining <= SceneLevelSetup.Current.ManualFormCooldown,
                         "当前受控精神体的资源面板出口立即显示真实转换 CD");
+                    CheckTrialResetUI(editedGround);
+                    Object.Destroy(editedGround.gameObject);
                     cooldownEnds = EditorApplication.timeSinceStartup + SceneLevelSetup.Current.ManualFormCooldown + .1;
                     stage = 4;
                     break;
@@ -138,7 +223,7 @@ public static class P6LevelFlowChecks
                     Near(oldSpirit.FormCooldownRemaining, 0f, "TimeScale 为零时转换 CD 仍归零");
                     typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
                     Check(panel.FindUIObj<Text>("StageText").text == "探索 · 模拟"
-                        && panel.FindUIObj<Text>("CognitionText").text == $"认知  {expectedCognition:0.##}"
+                        && panel.FindUIObj<Text>("CognitionText").text == $"认知  {Mathf.Floor(expectedCognition):0}"
                         && panel.FindUIObj<Text>("FormCooldownText").text == "转换 CD  0.0 秒",
                         "游戏显示消费当前阶段、认知和实际转换 CD");
                     Check(SceneChangeMgr.Instance.SetSimulation(false), "场景模式入口成功返回漫游");
@@ -154,6 +239,8 @@ public static class P6LevelFlowChecks
                     break;
                 case 7:
                     if (EditorApplication.timeSinceStartup < cooldownEnds) return;
+                    // 试验起点已由正式按钮验过；键位回归仍使用原隔离位置，免受旧场景出生点占用干扰。
+                    oldSpirit.GetComponent<CharacterPhysics>().RefreshMotionState(new Vector2(5000f, 5000f));
                     SpiritFormInputChecks.Run(passed, body, oldSpirit, oldRules);
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 5;
@@ -218,6 +305,141 @@ public static class P6LevelFlowChecks
             && InputControlMgr.Instance.Player != null;
     }
 
+    private static void AddPendingEffects()
+    {
+        Check(effects.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent)
+            && effects.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.3f), "布置本局待确认永久效果和本局起跳效果");
+    }
+
+    private static void CheckPendingEffects(string context)
+    {
+        Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 2,
+            context + "永久效果仍待确认，本局效果未提前清除");
+        Near(effects.MovementMultiplier, 1.08f, context + "当前永久倍率未重施或撤销");
+        Near(effects.JumpMultiplier, 1.3f, context + "本局起跳效果仍保留");
+        Check(DataAndInitMgr.Instance.LoadLevelIndex() == 0, context + "进度仍停在原关");
+    }
+
+    private static void StartFailedNextLevel(bool missingSetup)
+    {
+        removeIncomingSetup = missingSetup;
+        receivedExpectedLoadError = false;
+        expectedLoadError = missingSetup ? "当前场景没有关卡配置。"
+            : "精神体预设、出生点或上涨水配置无效，不能开始探索。";
+        SceneManager.sceneLoaded += BreakIncomingSetup;
+        SceneChangeMgr.Instance.EnterNextLevel();
+        CheckPendingEffects("失败用例开始加载时");
+    }
+
+    private static void BreakIncomingSetup(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name != sceneOrder[1]) return;
+        SceneManager.sceneLoaded -= BreakIncomingSetup;
+        SceneLevelSetup incoming = SceneLevelSetup.Current;
+        // 只破坏本次播放中的新关配置，不修改保存场景或预设。
+        if (removeIncomingSetup) Object.DestroyImmediate(incoming);
+        else typeof(SceneLevelSetup).GetField("spiritPrefab", Hidden).SetValue(incoming, null);
+    }
+
+    private static bool FailedLoadFinished()
+    {
+        if (SceneManager.GetActiveScene().name != sceneOrder[1]
+            || (bool)typeof(SceneChangeMgr).GetField("loading", Hidden).GetValue(SceneChangeMgr.Instance)) return false;
+        Check(receivedExpectedLoadError, "真实加载完成并报告预期的安置失败原因");
+        expectedLoadError = null;
+        return true;
+    }
+
+    private static BaseGround CheckEnvironmentEditUI()
+    {
+        float previous = Time.timeScale;
+        try
+        {
+            Time.timeScale = 1f;
+            typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
+            Transform editorArea = panel.transform.Find("ActionArea/EnvironmentEditArea");
+            Check(panel.transform.Find("ActionArea").gameObject.activeSelf && editorArea.gameObject.activeSelf
+                && !panel.transform.Find("ActionArea/ResetTrialButton").gameObject.activeSelf,
+                "漫游实际界面开放环境编辑且隐藏试验重置");
+
+            GameObject item = new GameObject("P6 flow temporary editable ground") { hideFlags = HideFlags.DontSave };
+            fixtures.Add(item);
+            item.transform.position = new Vector2(7500f, 7500f);
+            item.AddComponent<BoxCollider2D>().size = new Vector2(4f, 2f);
+            BaseGround ground = item.AddComponent<BaseGround>();
+            Physics2D.SyncTransforms();
+            CharacterPhysics physics = oldSpirit.GetComponent<CharacterPhysics>();
+            Vector2 spiritPosition = physics.DebugActualPosition, spiritVelocity = physics.GetPlanarVelocity();
+            float balance = oldRules.Cognition.Remaining;
+            EnvironmentEditView view = editorArea.GetComponent<EnvironmentEditView>();
+            typeof(EnvironmentEditView).GetMethod("SelectAt", Hidden).Invoke(view, new object[] { (Vector2)item.transform.position });
+            InputField value = editorArea.Find("EnvironmentValueInput").GetComponent<InputField>();
+            value.text = "0.5";
+            Button apply = editorArea.Find("ApplyEnvironmentButton").GetComponent<Button>();
+            Check(value.interactable && apply.interactable, "选中本关实际地面后可输入并提交有限倍率");
+            apply.onClick.Invoke();
+            Near(ground.SlowingEffect, .5f, "真实环境应用按钮改值交给原环境来源");
+            Check(physics.DebugActualPosition == spiritPosition && physics.GetPlanarVelocity() == spiritVelocity
+                && oldSpirit._ActionData.isFlying, "漫游编辑不改精神体运动或形态");
+            Near(oldRules.Cognition.Remaining, balance, "当前环境改值不另扣转换或模拟认知");
+            GameMenuInputChecks.Capture("environment-edit.png");
+            return ground;
+        }
+        finally { Time.timeScale = previous; }
+    }
+
+    private static void CheckTrialResetUI(BaseGround editedGround)
+    {
+        float previous = Time.timeScale;
+        InputControlMgr input = InputControlMgr.Instance;
+        SceneLevelSetup setup = SceneLevelSetup.Current;
+        bool hadMap = setup.MapEnabled;
+        LevelMapRecord previousMap = oldRules.MapRecord;
+        try
+        {
+            // 本夹具验地图前的固定起点支路；实际地图中心传送由 P8/P9 夹具另验，不依赖用户是否已铺格。
+            typeof(SceneLevelSetup).GetField("mapEnabled", Hidden).SetValue(setup, false);
+            Check(oldRules.BindExplorationMap(setup) && oldRules.MapRecord == null, "试验按钮夹具临时使用无地图固定起点支路");
+            Time.timeScale = 1f;
+            typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
+            Button reset = panel.transform.Find("ActionArea/ResetTrialButton").GetComponent<Button>();
+            Check(panel.transform.Find("ActionArea").gameObject.activeSelf && reset.gameObject.activeSelf && reset.interactable
+                && !panel.transform.Find("ActionArea/EnvironmentEditArea").gameObject.activeSelf,
+                "模拟实际界面开放试验重置并关闭环境编辑");
+            float balance = oldRules.Cognition.Remaining;
+            float nextChange = (float)typeof(PlayerLifecycleRules).GetField("nextManualChange", Hidden).GetValue(oldRules);
+            bool inputWasEnabled = input.InputEnabled;
+            input.PlayerInputData.jumpPressed = input.PlayerInputData.interactTapped = true;
+            reset.onClick.Invoke();
+            CharacterPhysics physics = oldSpirit.GetComponent<CharacterPhysics>();
+            Check((physics.DebugActualPosition - SceneLevelSetup.Current.TrialPoint).magnitude <= .001f,
+                "真实试验按钮将当前精神体安置到本关固定试验起点");
+            Check(oldSpirit.GetInstanceID() == spiritId && input.Player == oldSpirit && oldRules.IsSimulation
+                && !oldSpirit._ActionData.isFlying, "真实试验重置保持同一模拟精神体与唯一输入目标");
+            Near(oldRules.Cognition.Remaining, balance, "真实试验按钮保留本关认知余额");
+            Near((float)typeof(PlayerLifecycleRules).GetField("nextManualChange", Hidden).GetValue(oldRules), nextChange,
+                "真实试验按钮保留转换冷却截止时间");
+            Check(input.InputEnabled == inputWasEnabled && !input.PlayerInputData.jumpPressed
+                && !input.PlayerInputData.jumpRelease && !input.PlayerInputData.interactTapped
+                && !input.PlayerInputData.interactLongPressed, "试验刷新恢复原输入开关且不补发旧跳跃或交互点按");
+            Check(!WorldPaused(typeof(BasicEntity)) && !WorldPaused(typeof(Taijie)) && physics.IsMotionParticipating,
+                "试验刷新恢复当前模拟的角色与世界参与许可");
+            Near(editedGround.SlowingEffect, .5f, "真实试验轻刷新保留已经提交的环境改值");
+            Near(LevelStageMgr.Instance.CognitionRemaining, expectedCognition,
+                "真实认知显示出口继续代理同一规则余额");
+            GameMenuInputChecks.Capture("trial-reset.png");
+        }
+        finally
+        {
+            typeof(SceneLevelSetup).GetField("mapEnabled", Hidden).SetValue(setup, hadMap);
+            typeof(PlayerLifecycleRules).GetField("<MapRecord>k__BackingField", Hidden).SetValue(oldRules, previousMap);
+            input.PlayerInputData.jumpPressed = input.PlayerInputData.interactTapped = false;
+            Time.timeScale = previous;
+            typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
+            Check(!panel.transform.Find("ActionArea").gameObject.activeSelf, "TimeScale 暂停再次隐藏操作区");
+        }
+    }
+
     private static void CheckNonTeaching(Player spirit)
     {
         Check(!SceneLevelSetup.Current.Teaching && !LevelStageMgr.Instance.Teaching,
@@ -267,6 +489,11 @@ public static class P6LevelFlowChecks
 
     private static void RecordRuntimeError(string message, string trace, LogType type)
     {
+        if (type == LogType.Error && expectedLoadError != null && message == expectedLoadError)
+        {
+            receivedExpectedLoadError = true;
+            return;
+        }
         if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
             runtimeError ??= "真实启动或关卡流程报错：" + message + "\n" + trace;
     }
@@ -275,7 +502,10 @@ public static class P6LevelFlowChecks
     {
         EditorApplication.update -= Advance;
         Application.logMessageReceived -= RecordRuntimeError;
+        SceneManager.sceneLoaded -= BreakIncomingSetup;
         if (failure == null && runtimeError != null) failure = new InvalidOperationException(runtimeError);
+        foreach (GameObject item in fixtures) if (item != null) Object.DestroyImmediate(item);
+        fixtures.Clear();
         try
         {
             if (hadProgress) File.WriteAllBytes(progressPath, previousProgress);

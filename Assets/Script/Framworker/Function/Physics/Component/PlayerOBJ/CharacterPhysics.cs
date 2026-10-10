@@ -27,6 +27,12 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     [SerializeField, Min(0f)] private float fourWaySpeed = 6f; // 首版可调四向主动速度，后续定标。
 
     public float upSpeed = 15;//基础跳跃速度
+    private PlayerEffectLedger effectLedger;
+    public float EffectiveMovementSpeed => speed * (effectLedger?.MovementMultiplier ?? 1f);
+    public float EffectiveJumpSpeed => upSpeed * (effectLedger?.JumpMultiplier ?? 1f);
+    private float MovementMultiplier => effectLedger?.MovementMultiplier ?? 1f;
+    /// <summary>只绑定共享记录；消费时从角色自身基础值重算，不回写配置或积累加成。</summary>
+    internal void BindEffectLedger(PlayerEffectLedger ledger) => effectLedger = ledger;
     #endregion
 
 
@@ -47,15 +53,23 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     bool jumpReleaseSide;
     public float MovingDirection => playActionData.onMove;
 
-    public float Mobility => speed;
+    public float Mobility => EffectiveMovementSpeed;
     protected override bool MotionExecutionReady => playActionData != null;
     protected override bool MotionUpdatesEnabled => playActionData == null || playActionData.motionUpdates;
     protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
     private bool flying;
     protected override bool UsesCollisionFreeMovement => flying;
     protected override bool ParticipatesInWorldPause => false;
-    protected override Vector2 CollisionFreeVelocity => playActionData == null ? Vector2.zero
-        : Vector2.ClampMagnitude(new Vector2(playActionData.onMove, playActionData.verticalInput), 1f) * fourWaySpeed;
+    protected override Vector2 CollisionFreeVelocity
+    {
+        get
+        {
+            if (playActionData == null) return Vector2.zero;
+            Vector2 input = Vector2.ClampMagnitude(new Vector2(playActionData.onMove, playActionData.verticalInput), 1f);
+            // 实际逻辑：倍率乘在已归一的方向上，斜向两轴一起缩放，不单改水平。
+            return input * fourWaySpeed * MovementMultiplier;
+        }
+    }
     [SerializeField, Tooltip("选中箱与玩家碰撞框水平间隙不超过此值才开始共同推拉，开发期参数")]
     private float pushPullEngageGap = 0.05f;
 
@@ -146,7 +160,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         LevelBoxContext.IsSideContact(BodyBounds, box.BodyBounds, pushPullEngageGap);
 
     /// <summary>一个物理步内行走输入为 1 时的水平位移，供自动走近时按剩余间隙缩小输入、避免冲撞。</summary>
-    internal float WalkStepDistance => speed * Time.fixedDeltaTime;
+    internal float WalkStepDistance => EffectiveMovementSpeed * Time.fixedDeltaTime;
 
     #endregion
 
@@ -213,9 +227,10 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     {
         // 安全：角色尚未组装动作时没有主动操作。
         if (playActionData == null) return 0f;
-        if (playActionData.FourWay != FourWayMode.None) return playActionData.onMove * fourWaySpeed;
+        if (playActionData.FourWay != FourWayMode.None)
+            return playActionData.onMove * fourWaySpeed * MovementMultiplier;
         // 实际逻辑：先乘行为给出的速率倍率，环境修饰仍在后面乘 nowPhyNum。
-        return playActionData.onMove * speed * playActionData.speedScale;
+        return playActionData.onMove * EffectiveMovementSpeed * playActionData.speedScale;
     }
 
     protected override void PhyEventUpdate()
@@ -235,7 +250,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
             //受到地面影响程度
             float data = 1f + EnvironmentFrame.jumpHeightOffset;
             //当前竖直速度等于跳跃速度
-            playerPhysicsData.verticalSpeed = upSpeed * data;
+            playerPhysicsData.verticalSpeed = EffectiveJumpSpeed * data;
             //数据消费
             jump = false;
         }
@@ -291,7 +306,9 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         // 四向行为覆盖本步主动竖直速度；被动水流仍由原 phyVSpeed 合入运动快照。
         if (playActionData != null && playActionData.FourWay != FourWayMode.None)
         {
-            playerPhysicsData.verticalSpeed = playActionData.verticalInput * fourWaySpeed * (1f + playerPhysicsData.nowPhyNum);
+            // 实际逻辑：游泳竖直与水平使用同一移动倍率，环境修饰仍只乘这一次。
+            playerPhysicsData.verticalSpeed = playActionData.verticalInput * fourWaySpeed * MovementMultiplier
+                * (1f + playerPhysicsData.nowPhyNum);
             return;
         }
         if (playActionData == null) return;

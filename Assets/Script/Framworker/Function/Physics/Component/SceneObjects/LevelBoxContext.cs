@@ -13,6 +13,27 @@ public static class LevelBoxContext
     public static void Register(PhysicalBox box) { if (!boxes.Contains(box)) boxes.Add(box); }
     public static void Unregister(PhysicalBox box) => boxes.Remove(box);
 
+    /// <summary>规则显式恢复当前关的全部箱子；格子不裁剪刷新范围，不另存一份箱子清单。</summary>
+    public static void RestoreDefaults(UnityEngine.SceneManagement.Scene scene)
+    {
+        foreach (PhysicalBox box in boxes)
+        {
+            // 安全：已销毁引用或其它已加载场景的箱子不属于本次恢复。
+            if (box == null || box.gameObject.scene != scene) continue;
+            box.RestoreDefault();
+        }
+    }
+
+    /// <summary>所有箱子的位置与参与资格同步后，再采样最终世界，避免读取其它箱子的旧位置。</summary>
+    public static void Resample(UnityEngine.SceneManagement.Scene scene)
+    {
+        foreach (PhysicalBox box in boxes)
+        {
+            if (box == null || box.gameObject.scene != scene) continue;
+            box.ResampleEnvironment();
+        }
+    }
+
     /// <summary>
     /// 找本次交互的箱子：外部箱须侧面贴合（间隙不超过 outsideGap），收纳箱用较宽的 storedGap；站在箱顶或箱底不算。
     /// 距离取非负的矩形边缘间隙。只要有未收纳且可推动的侧面箱子，就先选它；否则才选收纳箱。同类里间隙更小者优先。

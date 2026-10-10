@@ -27,6 +27,7 @@ public interface IPlayerFormRules
 
 /// <summary>由关卡刷新规则实现：完整失败刷新、效果撤销及返回探索全部提交后才返回成功。</summary>
 public interface IPlayerRunRefreshRules { bool TryRestartExploration(Player deadPlayer); }
+public interface IPlayerTutorialRefreshRules { bool TryRestartTeaching(Player deadPlayer); }
 
 /// <summary>
 /// 精神体执行模块的接入口；开启屏蔽重力、外部效果和实心阻挡，仍走统一原生模拟，

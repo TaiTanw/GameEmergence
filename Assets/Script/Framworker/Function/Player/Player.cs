@@ -138,6 +138,13 @@ public class Player : MonoBehaviour
     internal float StoredReachGap => storedReachGap;
     internal bool OnGroundForInteraction => _ActionData.NowState == PlayerStateMachine.E_playerState.isOnGround;
 
+    /// <summary>组装侧绑定本体和精神体共读的效果记录；重复绑定不改基础参数或重复施加。</summary>
+    public void BindEffectLedger(PlayerEffectLedger ledger)
+    {
+        EnsureRuntimeReady();
+        playPDate.BindEffectLedger(ledger);
+    }
+
     public void BindDeathReceiver(IPlayerDeathReceiver receiver)
     {
         deathReceiver = receiver;
@@ -210,14 +217,23 @@ public class Player : MonoBehaviour
         fsm?.ResetOxygenDeathRequest();
     }
 
-    public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false)
+    /// <summary>整关刷新开始前撤销角色操作关系；不恢复资源、不改变认知或形态。</summary>
+    internal void PrepareRuntimeRefresh()
     {
-        // 实际逻辑：进关可能在 Start 之前刷新，先完成状态机接线。
         EnsureRuntimeReady();
         inputOwner?.ClearPlayerInputEdges(this);
         ReleaseBoxSelection();
         ClearActionOutput();
+        playPDate.ClearPendingActions();
+    }
+
+    public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false, bool alignBodyCenter = false)
+    {
+        // 实际逻辑：进关可能在 Start 之前刷新，先完成状态机接线。
+        PrepareRuntimeRefresh();
         fsm.RefreshResources();
+        // 地图落点对齐碰撞框中心；出生点和未启用地图的试验起点仍使用原根坐标。
+        if (position.HasValue && alignBodyCenter) position = playPDate.GetPositionForBodyCenter(position.Value);
         playPDate.RefreshMotionState(position, releaseEnvironmentEffects);
         ResetDeathCycle();
         // 刷新后按当前水/几何重选行为，但不扣资源、不补点按，也不迁移未指定的位置。
