@@ -267,6 +267,16 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
 
     static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
+    /// <summary>地图只传送同一精神体；保留资源、世界现场、模式及认知，不走试验轻刷新。</summary>
+    public bool TryTeleportMap(Vector2 center)
+    {
+        if (spirit == null || !Finite(center.x) || !Finite(center.y)
+            || Stage != PlayerGameplayStage.Exploration || EscapeSelectionPending) return false;
+        spirit.TeleportRuntime(center);
+        NotifyMapRelocated();
+        return true;
+    }
+
     /// <summary>宿主全黑下成功重建探索后，给旧规则的死亡周期留完成记录，供旧请求重放去重。</summary>
     internal void CompleteEscapeRecovery(PlayerDeathRequest request)
     {

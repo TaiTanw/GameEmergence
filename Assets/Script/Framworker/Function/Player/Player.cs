@@ -241,6 +241,15 @@ public class Player : MonoBehaviour
         playPDate.ClearPendingActions();
     }
 
+    /// <summary>地图安置只清角色旧位置的运动／操作并重采样，不恢复资源或死亡周期。</summary>
+    internal void TeleportRuntime(Vector2 center)
+    {
+        PrepareRuntimeRefresh();
+        playPDate.RefreshMotionState(playPDate.GetPositionForBodyCenter(center));
+        fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
+        animatorFSM?.ResetMotionHistory();
+    }
+
     public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false, bool alignBodyCenter = false)
     {
         // 实际逻辑：进关可能在 Start 之前刷新，先完成状态机接线。
