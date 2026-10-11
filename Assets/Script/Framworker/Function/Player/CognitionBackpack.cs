@@ -25,7 +25,7 @@ public sealed class CognitionBackpackItem
     public bool IsCalculation => CalculationPoint != null;
     public string DisplayName => IsCalculation ? CalculationPoint.DisplayName
         : Property.DisplayName + "  " + Property.ValueText
-            + (Property.CalculationPoint != null ? "  [" + Property.CalculationPoint.DisplayName + "]" : "");
+            + (Property.CalculationCount > 0 ? "  [" + Property.CalculationText + "]" : "");
 
     internal CognitionBackpackItem(int id, EnvironmentParameter property, EnvironmentCalculationPoint point)
     {

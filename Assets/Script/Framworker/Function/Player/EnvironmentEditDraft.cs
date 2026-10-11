@@ -19,6 +19,7 @@ public sealed class EnvironmentEditDraft
     public BasicPhysicalObject Source { get; }
     public bool IsTriggerEnvironment { get; private set; }
     public int SlotCapacity => colliderSlots.Length;
+    public int CalculationPointLimit => Source.EnvironmentCalculationPointLimit;
     public IReadOnlyList<CognitionBackpackItem> Items => readOnlyItems;
     public bool HasChanges { get; private set; }
     public bool IsCompleted => completed;
@@ -65,11 +66,11 @@ public sealed class EnvironmentEditDraft
         EnvironmentCalculationPoint point = item.CalculationPoint;
         for (int i = 0; i < SlotCapacity; i++)
         {
-            if (colliderSlots[i]?.CalculationPoint == point) return "碰撞器槽 " + (i + 1);
-            if (triggerSlots[i]?.CalculationPoint == point) return "触发器槽 " + (i + 1);
+            if (colliderSlots[i]?.ContainsCalculation(point) == true) return "碰撞器槽 " + (i + 1);
+            if (triggerSlots[i]?.ContainsCalculation(point) == true) return "触发器槽 " + (i + 1);
         }
         foreach (CognitionBackpackItem nature in items)
-            if (nature.Property?.CalculationPoint == point) return "背包 · " + nature.Property.DisplayName;
+            if (nature.Property?.ContainsCalculation(point) == true) return "背包 · " + nature.Property.DisplayName;
         return "";
     }
 
@@ -84,10 +85,11 @@ public sealed class EnvironmentEditDraft
         EnvironmentParameter target = GetSlot(trigger, slot);
         if (target == null)
             return item.Property != null && item.Property.Kind != EnvironmentParameterKind.TriggerEnvironment
-                && item.Property.IsTriggerProperty == trigger && !ContainsKind(trigger, item.Property.Kind);
-        // 已确认的附加点随性质整体保留；只有尚留在背包里的预览点允许改选、替换预览。
+                && item.Property.IsTriggerProperty == trigger && !ContainsKind(trigger, item.Property.Kind)
+                && item.Property.CalculationCount <= CalculationPointLimit;
+        // 已使用的预览点可改选另一槽，同一槽重复点击不复制、不重新排序。
         return item.IsCalculation && target.SupportsCalculation
-            && (target.CalculationPoint == null || FindCalculationItem(target.CalculationPoint) != null);
+            && !target.ContainsCalculation(item.CalculationPoint) && target.CalculationCount < CalculationPointLimit;
     }
 
     public bool TryUseItem(int itemId, bool trigger, int slot, bool geometry, out string error)
@@ -114,11 +116,12 @@ public sealed class EnvironmentEditDraft
             EnvironmentParameter target = GetSlot(trigger, slot);
             // 先在副本验证结果；无效乘积不解除原目标、不改变任何已有预览。
             EnvironmentParameter trial = target.CopyRuntime();
-            trial.RemoveCalculation();
             if (!trial.TryAttachCalculation(item.CalculationPoint))
             { error = "计算结果无效，不能应用此计算点。"; return false; }
+            EnvironmentParameter owner = FindPointOwner(item.CalculationPoint);
+            if (owner != null && !owner.CopyRuntime().RemoveCalculation(item.CalculationPoint))
+            { error = "移走此点会使原性质数值无效，请先抽出后加入的点。"; return false; }
             ReleasePointPreview(item.CalculationPoint);
-            target.RemoveCalculation();
             target.TryAttachCalculation(item.CalculationPoint);
         }
         HasChanges = true;
@@ -158,22 +161,25 @@ public sealed class EnvironmentEditDraft
         return true;
     }
 
-    public bool TrySplitCalculation(int itemId, out string error)
+    public bool TryExtractCalculation(bool trigger, int slot, out string error)
     {
         error = null;
-        CognitionBackpackItem item = FindItem(itemId);
-        if (completed || item?.Property?.CalculationPoint == null)
-        { error = "请选择背包中带计算点的性质。"; return false; }
-        EnvironmentCalculationPoint point = item.Property.CalculationPoint;
+        EnvironmentParameter property = GetSlot(trigger, slot);
+        if (completed || property == null || property.CalculationCount == 0)
+        { error = "此环境槽没有可抽出的计算点。"; return false; }
+        EnvironmentCalculationPoint point = property.CalculationPoints[property.CalculationCount - 1];
         CognitionBackpackItem existing = FindCalculationItem(point);
-        // 预览点尚未真正出包，拆回时恢复它的可用性；已消耗的点才作为新内容物入包。
+        // 预览点保留原身份；已确认点才作为新内容物收费。抽出内容物统一追加末尾。
         CognitionBackpackItem split = existing ?? backpack.NewCalculation(point);
-        item.Property.RemoveCalculation();
-        if (existing == null) items.Add(split);
+        int previousIndex = existing == null ? -1 : items.IndexOf(existing);
+        property.RemoveCalculation();
+        if (existing != null) items.Remove(existing);
+        items.Add(split);
         if (FinalItems().Count > backpack.Capacity)
         {
-            if (existing == null) items.Remove(split);
-            item.Property.TryAttachCalculation(point);
+            items.Remove(split);
+            if (existing != null) items.Insert(previousIndex, existing);
+            property.TryAttachCalculation(point);
             error = "背包空间不足。";
             return false;
         }
@@ -218,29 +224,47 @@ public sealed class EnvironmentEditDraft
     {
         var points = new HashSet<EnvironmentCalculationPoint>();
         foreach (EnvironmentParameter property in colliderSlots)
-            if (property?.CalculationPoint != null && !points.Add(property.CalculationPoint))
+            if (!AddPropertyPoints(property, points))
             { error = "同一个计算点不能同时用于多个性质。"; return false; }
         foreach (EnvironmentParameter property in triggerSlots)
-            if (property?.CalculationPoint != null && !points.Add(property.CalculationPoint))
+            if (!AddPropertyPoints(property, points))
             { error = "同一个计算点不能同时用于多个性质。"; return false; }
         foreach (CognitionBackpackItem item in final)
         {
-            EnvironmentCalculationPoint point = item.IsCalculation ? item.CalculationPoint : item.Property?.CalculationPoint;
-            if (point != null && !points.Add(point))
+            if (item.IsCalculation ? !points.Add(item.CalculationPoint) : !AddPropertyPoints(item.Property, points))
             { error = "计算点的背包与环境归属重复。"; return false; }
         }
         error = null;
         return true;
     }
 
+    static bool AddPropertyPoints(EnvironmentParameter property, HashSet<EnvironmentCalculationPoint> points)
+    {
+        if (property == null) return true;
+        foreach (EnvironmentCalculationPoint point in property.CalculationPoints)
+            if (!points.Add(point)) return false;
+        return true;
+    }
+
+    EnvironmentParameter FindPointOwner(EnvironmentCalculationPoint point)
+    {
+        foreach (EnvironmentParameter property in colliderSlots)
+            if (property?.ContainsCalculation(point) == true) return property;
+        foreach (EnvironmentParameter property in triggerSlots)
+            if (property?.ContainsCalculation(point) == true) return property;
+        foreach (CognitionBackpackItem item in items)
+            if (item.Property?.ContainsCalculation(point) == true) return item.Property;
+        return null;
+    }
+
     void ReleasePointPreview(EnvironmentCalculationPoint point)
     {
         foreach (EnvironmentParameter property in colliderSlots)
-            if (property?.CalculationPoint == point) property.RemoveCalculation();
+            property?.RemoveCalculation(point);
         foreach (EnvironmentParameter property in triggerSlots)
-            if (property?.CalculationPoint == point) property.RemoveCalculation();
+            property?.RemoveCalculation(point);
         foreach (CognitionBackpackItem item in items)
-            if (item.Property?.CalculationPoint == point) item.Property.RemoveCalculation();
+            item.Property?.RemoveCalculation(point);
     }
 
     bool ContainsKind(bool trigger, EnvironmentParameterKind kind)

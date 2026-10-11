@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -108,7 +108,7 @@ public static class EnvironmentClickPlayModeChecks
             apply.onClick.Invoke();
             Check(Mathf.Abs(ground.SlowingEffect - point.CalculationPoint.Multiplier) < .0001f,
                 "真实整面板确认按钮提交计算结果到原环境来源", passed);
-            Check(ground.CopyEnvironmentSlots(false)[0].CalculationPoint == point.CalculationPoint,
+            Check(ground.CopyEnvironmentSlots(false)[0].ContainsCalculation(point.CalculationPoint),
                 "确认后环境槽保存所用计算点记录", passed);
             foreach (CognitionBackpackItem remaining in rules.CognitionBackpack.Items)
                 Check(remaining.Id != point.Id, "统一确认后所用计算点实际移出背包", passed);
@@ -149,8 +149,8 @@ public static class EnvironmentClickPlayModeChecks
             "主动打开背包显示只读侧栏", passed);
         foreach (Button item in bag.Find("CognitionBackpackScroll/Viewport/Content").GetComponentsInChildren<Button>())
             Check(!item.interactable, "独立背包内容槽不可点击", passed);
-        Check(!bag.Find("SplitBackpackCalculationButton").GetComponent<Button>().interactable,
-            "独立背包拆点按钮不可点击", passed);
+        Check(bag.Find("SplitBackpackCalculationButton") == null,
+            "独立背包已移除拆点按钮", passed);
         RectTransform rect = (RectTransform)bag;
         RectTransform environment = (RectTransform)view.transform;
         Check(rect.anchorMin.x == 1f && rect.anchorMax.x == 1f && rect.pivot.x == 1f

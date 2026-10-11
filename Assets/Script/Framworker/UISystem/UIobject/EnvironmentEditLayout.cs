@@ -32,8 +32,26 @@ public static class EnvironmentEditLayout
         // 已生成侧栏同样补齐容量说明，避免较早制作的预设漏掉预览占用口径。
         if (bag.Find("BackpackCapacityText") == null)
             Label(bag, "BackpackCapacityText", "", new Vector2(18, -84), new Vector2(324, 40), 15, Muted);
+        Text mode = bag.Find("BackpackModeText").GetComponent<Text>();
+        mode.rectTransform.anchoredPosition = new Vector2(18, -50); mode.rectTransform.sizeDelta = new Vector2(324, 60);
+        mode.fontSize = 16; mode.color = Ink;
+        if (bag.Find("BackpackExplanationBox") == null)
+        {
+            RectTransform explanation = Region(bag, "BackpackExplanationBox", new Vector2(0, 1), new Vector2(18, -50), new Vector2(324, 60));
+            Background(explanation, Normal, false); explanation.SetSiblingIndex(mode.transform.GetSiblingIndex());
+        }
+        ((RectTransform)bag.Find("BackpackCapacityText")).anchoredPosition = new Vector2(18, -114);
         RectTransform bagScroll = (RectTransform)bag.Find("CognitionBackpackScroll");
-        bagScroll.anchoredPosition = new Vector2(18, -132); bagScroll.sizeDelta = new Vector2(324, 190);
+        bagScroll.anchoredPosition = new Vector2(18, -160); bagScroll.sizeDelta = new Vector2(324, 212);
+        ((RectTransform)bag.Find("BackpackSelectionText")).anchoredPosition = new Vector2(18, -378);
+        // 旧预设的背包拆点入口移除；功能只通过环境数值行暴露。
+        Transform oldSplit = bag.Find("SplitBackpackCalculationButton");
+        if (oldSplit != null)
+        {
+            oldSplit.gameObject.SetActive(false); oldSplit.name = "RetiredBackpackSplitButton";
+            if (Application.isPlaying) Object.Destroy(oldSplit.gameObject); else Object.DestroyImmediate(oldSplit.gameObject);
+        }
+        EnsureAbilityScrollbar(area.Find("EnvironmentEditorContent/EnvironmentAbilityScroll").GetComponent<ScrollRect>());
         if (panel.Find("OpenCognitionBackpackButton") == null)
             Button(panel, "OpenCognitionBackpackButton", "认知背包", new Vector2(1f, 1f),
                 new Vector2(-32f, -182f), new Vector2(360f, 48f), 24);
@@ -76,7 +94,6 @@ public static class EnvironmentEditLayout
         Label(bag, "BackpackCapacityText", "", new Vector2(18, -84), new Vector2(324, 40), 15, Muted);
         Scroll(bag, "CognitionBackpackScroll", new Vector2(18, -132), new Vector2(324, 190));
         Label(bag, "BackpackSelectionText", "", new Vector2(18, -328), new Vector2(324, 28), 17, Ink);
-        Button(bag, "SplitBackpackCalculationButton", "抽出计算点", new Vector2(0, 1), new Vector2(18, -364), new Vector2(324, 36), 21);
         bag.gameObject.SetActive(false);
     }
 
@@ -131,6 +148,21 @@ public static class EnvironmentEditLayout
         scroll.viewport = viewport; scroll.content = content; scroll.horizontal = false;
         scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 28; return content;
+    }
+
+    static void EnsureAbilityScrollbar(ScrollRect scroll)
+    {
+        if (scroll.verticalScrollbar != null) return;
+        RectTransform track = Region(scroll.transform, "VerticalScrollbar", new Vector2(1, 1), Vector2.zero, new Vector2(16, 0));
+        track.anchorMin = new Vector2(1, 0); track.anchorMax = Vector2.one;
+        Background(track, Normal, true);
+        RectTransform handle = Region(track, "Handle", Vector2.one, Vector2.zero, Vector2.zero);
+        Stretch(handle); Image graphic = Background(handle, new Color(.38f, .66f, .72f), true);
+        Scrollbar bar = track.gameObject.AddComponent<Scrollbar>();
+        bar.handleRect = handle; bar.targetGraphic = graphic; bar.direction = Scrollbar.Direction.BottomToTop;
+        scroll.verticalScrollbar = bar; scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        // 固定预留拖动条宽度，数字行不会延伸到把手下面。
+        scroll.viewport.offsetMax = new Vector2(-18, 0);
     }
 
     public static void Stretch(RectTransform rect)

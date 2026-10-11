@@ -17,12 +17,12 @@ public sealed class EnvironmentEditView : MonoBehaviour
     GameObject selectionHint;
     Text objectText, listStateText, hintText, occupancyText, costText, backpackModeText, backpackSelectionText, backpackCapacityText;
     Button confirmButton, cancelButton, colliderViewButton, triggerViewButton, geometryButton, extractTriggerButton;
-    Button openBackpackButton, closeBackpackButton, splitCalculationButton;
+    Button openBackpackButton, closeBackpackButton;
     readonly List<RaycastResult> uiHits = new List<RaycastResult>();
     readonly List<BasicPhysicalObject> frameSources = new List<BasicPhysicalObject>();
     readonly List<Button> slotButtons = new List<Button>(), extractButtons = new List<Button>();
+    readonly List<Button> extractPointButtons = new List<Button>();
     readonly Dictionary<int, Button> bagButtons = new Dictionary<int, Button>();
-    readonly Dictionary<int, Button> splitSelectionButtons = new Dictionary<int, Button>();
     EnvironmentSelectionFrames selectionFrames;
     float nextFrameScan, nextOccupancyScan;
     int selectedSlot = -1, selectedBagItemId = -1, seenBackpackVersion = -1;
@@ -63,7 +63,6 @@ public sealed class EnvironmentEditView : MonoBehaviour
         extractTriggerButton = Bind(editor, "ExtractTriggerNatureButton", ExtractTrigger);
         openBackpackButton = Bind(panel.transform, "OpenCognitionBackpackButton", OpenReadOnlyBackpack);
         closeBackpackButton = Bind(backpack, "CloseCognitionBackpackButton", CloseBackpack);
-        splitCalculationButton = Bind(backpack, "SplitBackpackCalculationButton", SplitSelectedCalculation);
         RefreshAll();
     }
 
@@ -214,7 +213,7 @@ public sealed class EnvironmentEditView : MonoBehaviour
         selected = source; draft = next; pendingSelection = null;
         viewTrigger = draft.IsTriggerEnvironment; selectedSlot = selectedBagItemId = -1; geometryTarget = false;
         message = "选择空槽注入性质；选择已有性质使用计算点。";
-        RebuildSlots(); RefreshAll();
+        RefreshAll(); ResetAbilityScroll();
     }
 
     public void SetViewedList(bool trigger)
@@ -223,19 +222,17 @@ public sealed class EnvironmentEditView : MonoBehaviour
         // 浏览切换只改变显示，两个能力列表的草稿继续保留。
         viewTrigger = trigger; selectedSlot = selectedBagItemId = -1; geometryTarget = false;
         message = trigger == draft.IsTriggerEnvironment ? "当前列表生效，可注入、计算或抽取。" : "此列表停用，保留性质；只允许抽取。";
-        RebuildSlots(); RefreshAll();
+        RefreshAll(); ResetAbilityScroll();
     }
 
     public void SelectAbilitySlot(int slot)
     {
         if (!CanAct || slot < 0 || slot >= draft.SlotCapacity || viewTrigger != draft.IsTriggerEnvironment) return;
-        selectedSlot = slot; geometryTarget = false; selectedBagItemId = -1;
         EnvironmentParameter property = draft.GetSlot(viewTrigger, slot);
+        if (property != null && !property.SupportsCalculation) return;
+        selectedSlot = slot; geometryTarget = false; selectedBagItemId = -1;
         message = property == null ? "背包高光性质可注入此空槽。"
-            : !property.SupportsCalculation ? "此性质不参与计算；可用右侧按钮抽取。"
-            : property.CalculationPoint != null ? IsPreviewPoint(property.CalculationPoint)
-                ? "此计算点尚未确认，可重选计算点或改挂到其它槽。"
-                : "此性质已有确认的计算点；整体抽取后可在背包拆点。"
+            : property.CalculationCount >= draft.CalculationPointLimit ? "此槽计算点已满，可从数值行右侧逐个抽出。"
             : "背包高光计算点可预览此性质的结果。";
         OpenLinkedBackpack(); RefreshAll();
     }
@@ -274,10 +271,10 @@ public sealed class EnvironmentEditView : MonoBehaviour
         if (item == null) return;
         selectedBagItemId = itemId;
         bool targetSelected = geometryTarget || selectedSlot >= 0;
-        // 非兼容项只可选中带点的背包性质以拆点，不绕过兼容与当前列表限制。
+        // 背包只有兼容项可用于当前目标；拆点入口统一在环境数值行。
         if (!targetSelected || !draft.CanUseItem(itemId, viewTrigger, selectedSlot, geometryTarget))
         {
-            message = item.Property?.CalculationPoint != null ? "此背包性质带计算点，可点击右侧背包底部抽出。" : "此内容物不适用于当前槽。";
+            message = "此内容物不适用于当前槽。";
             RefreshAll(); return;
         }
         if (!draft.TryUseItem(itemId, viewTrigger, selectedSlot, geometryTarget, out string error))
@@ -303,23 +300,12 @@ public sealed class EnvironmentEditView : MonoBehaviour
         OpenLinkedBackpack(); message = "触发器性质预览入包，将恢复碰撞器；两套列表仍保留。"; RefreshAll();
     }
 
-    public void SplitSelectedCalculation()
+    public void ExtractSlotCalculation(int slot)
     {
-        if (!LinkedBackpack) return;
-        CognitionBackpackItem item = FindItem(selectedBagItemId);
-        if (item?.Property?.CalculationPoint == null) return;
-        if (!draft.TrySplitCalculation(item.Id, out string error)) { ShowMessage(error); return; }
-        message = "已预览抽出计算点；性质恢复原值，确认时统一扣费。"; RefreshAll();
-    }
-
-    public void SelectBackpackPropertyForSplit(int itemId)
-    {
-        if (!LinkedBackpack) return;
-        CognitionBackpackItem item = FindItem(itemId);
-        if (item?.Property?.CalculationPoint == null) return;
-        // 附加标记只选择背包性质，不执行当前空槽的兼容注入。
-        selectedBagItemId = itemId;
-        message = "已选择带点的背包性质；点击背包底部按钮抽出计算点。";
+        if (!CanAct || slot < 0 || slot >= draft.SlotCapacity) return;
+        if (!draft.TryExtractCalculation(viewTrigger, slot, out string error)) { ShowMessage(error); return; }
+        OpenLinkedBackpack(); selectedBagItemId = -1;
+        message = "最后加入的计算点已预览抽出并放在背包末尾；确认后生效。";
         RefreshAll();
     }
 
@@ -348,7 +334,7 @@ public sealed class EnvironmentEditView : MonoBehaviour
         selectedSlot = selectedBagItemId = -1; geometryTarget = false; message = text;
         // 关闭编辑只关闭联动背包，独立只读背包保留查看状态。
         if (!standaloneBackpack) backpackOpen = false;
-        RebuildSlots(); RefreshAll();
+        RefreshAll();
     }
 
     void ShowMessage(string text)
@@ -372,8 +358,9 @@ public sealed class EnvironmentEditView : MonoBehaviour
                 : geometryTarget ? "触发器性质 · 待注入，请点击背包高光项"
                 : selected.IsTriggerEnvironment ? "实心碰撞器 · 抽取已预览，待确认" : "实心碰撞器 · 点击选择背包触发器性质";
             costText.text = $"预览费用 {draft.Cost:0.##}  ·  当前认知 {LevelStageMgr.Instance.CognitionRemaining:0.##}";
-            RefreshSlots(); RefreshOccupancy();
+            RefreshOccupancy();
         }
+        RebuildSlots();
         RefreshBackpack(); RefreshControls();
     }
 
@@ -407,57 +394,83 @@ public sealed class EnvironmentEditView : MonoBehaviour
             ? EnvironmentEditLayout.Highlight : EnvironmentEditLayout.Normal;
         extractTriggerButton.interactable = CanAct && draft.IsTriggerEnvironment;
         closeBackpackButton.interactable = allowed;
-        CognitionBackpackItem selectedItem = FindItem(selectedBagItemId);
-        splitCalculationButton.interactable = LinkedBackpack && selectedItem?.Property?.CalculationPoint != null;
         for (int i = 0; i < slotButtons.Count; i++)
         {
-            slotButtons[i].interactable = CanAct && viewTrigger == draft.IsTriggerEnvironment;
+            if (slotButtons[i] != null) slotButtons[i].interactable = CanAct && viewTrigger == draft.IsTriggerEnvironment;
             extractButtons[i].interactable = CanAct && draft.GetSlot(viewTrigger, i) != null;
+            if (extractPointButtons[i] != null)
+                extractPointButtons[i].interactable = CanAct && draft.GetSlot(viewTrigger, i).CalculationCount > 0;
         }
         foreach (KeyValuePair<int, Button> entry in bagButtons)
         {
-            CognitionBackpackItem item = FindItem(entry.Key);
             bool compatible = LinkedBackpack && (geometryTarget || selectedSlot >= 0)
                 && draft.CanUseItem(entry.Key, viewTrigger, selectedSlot, geometryTarget);
-            entry.Value.interactable = LinkedBackpack && (compatible || item?.Property?.CalculationPoint != null);
+            entry.Value.interactable = compatible;
         }
-        foreach (KeyValuePair<int, Button> entry in splitSelectionButtons)
-            entry.Value.interactable = LinkedBackpack && FindItem(entry.Key)?.Property?.CalculationPoint != null;
     }
 
     void RebuildSlots()
     {
         if (abilityContent == null) return;
-        ClearChildren(abilityContent); slotButtons.Clear(); extractButtons.Clear();
+        ScrollRect scroll = abilityContent.GetComponentInParent<ScrollRect>();
+        float position = scroll != null ? scroll.verticalNormalizedPosition : 1f;
+        ClearChildren(abilityContent); slotButtons.Clear(); extractButtons.Clear(); extractPointButtons.Clear();
         int count = draft?.SlotCapacity ?? 0;
-        abilityContent.sizeDelta = new Vector2(0, count * 72f);
+        float y = 0f;
         for (int i = 0; i < count; i++)
         {
             int slot = i;
-            Button body = EnvironmentEditLayout.Button(abilityContent, "EnvironmentAbilitySlot_" + i, "", new Vector2(0, 1),
-                new Vector2(0, -i * 72f), new Vector2(602, 64), 19);
-            Label(body).alignment = TextAnchor.MiddleLeft;
-            body.onClick.AddListener(() => SelectAbilitySlot(slot)); slotButtons.Add(body);
+            EnvironmentParameter property = draft.GetSlot(viewTrigger, i);
+            bool numeric = property != null && property.SupportsCalculation;
+            float height = numeric ? 104f : 64f;
+            Color color = viewTrigger != draft.IsTriggerEnvironment ? EnvironmentEditLayout.Inactive : EnvironmentEditLayout.Normal;
+            Button body = null, pop = null;
+            if (property == null)
+            {
+                body = EnvironmentEditLayout.Button(abilityContent, "EnvironmentAbilitySlot_" + i, $"{i + 1} · 空槽 · 点击注入性质",
+                    new Vector2(0, 1), new Vector2(0, -y), new Vector2(576, height), 19);
+            }
+            else
+            {
+                RectTransform nameRow = EnvironmentEditLayout.Region(abilityContent, "EnvironmentAbilityName_" + i,
+                    new Vector2(0, 1), new Vector2(0, -y), new Vector2(576, numeric ? 44 : height));
+                EnvironmentEditLayout.Background(nameRow, color, false);
+                EnvironmentEditLayout.Label(nameRow, "Label", $"{i + 1} · {property.DisplayName}"
+                    + (numeric ? "" : " · " + property.ValueText), new Vector2(10, 0), new Vector2(556, numeric ? 44 : height), 19, EnvironmentEditLayout.Ink);
+                if (numeric)
+                {
+                    body = EnvironmentEditLayout.Button(abilityContent, "EnvironmentAbilitySlot_" + i,
+                        property.CalculationFormula + $"\n计算点 {property.CalculationCount}/{draft.CalculationPointLimit} · 点击选择计算点",
+                        new Vector2(0, 1), new Vector2(0, -y - 48), new Vector2(464, 56), 17);
+                    pop = EnvironmentEditLayout.Button(abilityContent, "ExtractEnvironmentCalculation_" + i, "抽出\n计算点",
+                        new Vector2(0, 1), new Vector2(472, -y - 48), new Vector2(104, 56), 17);
+                    pop.GetComponent<Image>().color = color;
+                    pop.onClick.AddListener(() => ExtractSlotCalculation(slot));
+                }
+            }
+            // 纯能力只有名称行；数值行和空槽才是背包选择目标，抽点按钮是独立点击区。
+            if (body != null)
+            {
+                Label(body).alignment = TextAnchor.MiddleLeft;
+                body.GetComponent<Image>().color = viewTrigger == draft.IsTriggerEnvironment && i == selectedSlot && !geometryTarget
+                    ? EnvironmentEditLayout.Highlight : color;
+                body.onClick.AddListener(() => SelectAbilitySlot(slot));
+            }
+            slotButtons.Add(body); extractPointButtons.Add(pop);
             Button extract = EnvironmentEditLayout.Button(abilityContent, "ExtractEnvironmentAbility_" + i, "抽取", new Vector2(0, 1),
-                new Vector2(610, -i * 72f), new Vector2(70, 64), 19);
+                new Vector2(584, -y), new Vector2(78, height), 19);
+            extract.GetComponent<Image>().color = color;
             extract.onClick.AddListener(() => ExtractAbility(slot)); extractButtons.Add(extract);
+            y += height + 8f;
         }
-        ScrollRect scroll = abilityContent.GetComponentInParent<ScrollRect>();
-        if (scroll != null) scroll.verticalNormalizedPosition = 1f;
+        abilityContent.sizeDelta = new Vector2(0, Mathf.Max(0, y - 8f));
+        if (scroll != null) scroll.verticalNormalizedPosition = position;
     }
 
-    void RefreshSlots()
+    void ResetAbilityScroll()
     {
-        for (int i = 0; i < slotButtons.Count; i++)
-        {
-            EnvironmentParameter property = draft.GetSlot(viewTrigger, i);
-            string calculation = property?.CalculationPoint == null ? "" : $" · {property.CalculationPoint.DisplayName}";
-            Label(slotButtons[i]).text = property == null ? $"{i + 1} · 空槽" : $"{i + 1} · {property.DisplayName}  {property.ValueText}{calculation}";
-            Image background = slotButtons[i].GetComponent<Image>();
-            background.color = viewTrigger != draft.IsTriggerEnvironment ? EnvironmentEditLayout.Inactive
-                : i == selectedSlot && !geometryTarget ? EnvironmentEditLayout.Highlight : EnvironmentEditLayout.Normal;
-            extractButtons[i].GetComponent<Image>().color = viewTrigger == draft.IsTriggerEnvironment ? EnvironmentEditLayout.Normal : EnvironmentEditLayout.Inactive;
-        }
+        ScrollRect scroll = abilityContent.GetComponentInParent<ScrollRect>();
+        if (scroll != null) scroll.verticalNormalizedPosition = 1f;
     }
 
     void RefreshBackpack()
@@ -466,7 +479,7 @@ public sealed class EnvironmentEditView : MonoBehaviour
         CognitionBackpack bag = SceneChangeMgr.Instance.CurrentCognitionBackpack;
         seenBackpackVersion = bag?.Version ?? -1;
         IReadOnlyList<CognitionBackpackItem> items = draft != null ? draft.Items : bag?.Items;
-        ClearChildren(backpackContent); bagButtons.Clear(); splitSelectionButtons.Clear();
+        ClearChildren(backpackContent); bagButtons.Clear();
         int count = items?.Count ?? 0;
         backpackContent.sizeDelta = new Vector2(0, Mathf.Max(count * 64f, 48f));
         backpackModeText.text = IsBackpackReadOnly ? draft != null ? "只读 · 当前环境预览" : "独立打开：只读查看" : pendingSelection != null
@@ -488,20 +501,11 @@ public sealed class EnvironmentEditView : MonoBehaviour
             string caption = item.DisplayName + (string.IsNullOrEmpty(target) ? "" : $"\n预览用于 {target}");
             // 几何槽的高光只表示可选，背包正文明确标出还需点击才能注入。
             if (compatible && geometryTarget) caption = "触发器性质\n点击注入";
-            bool hasAttachedPoint = item.Property?.CalculationPoint != null;
             Button button = EnvironmentEditLayout.Button(backpackContent, "CognitionBackpackItem_" + id, caption, new Vector2(0, 1),
-                new Vector2(0, -i * 64f), new Vector2(hasAttachedPoint ? 244 : 324, 58), 18);
+                new Vector2(0, -i * 64f), new Vector2(324, 58), 18);
             Label(button).alignment = TextAnchor.MiddleLeft;
             button.GetComponent<Image>().color = compatible || id == selectedBagItemId ? EnvironmentEditLayout.Highlight : EnvironmentEditLayout.Normal;
             button.onClick.AddListener(() => SelectBackpackItem(id)); bagButtons.Add(id, button);
-            if (hasAttachedPoint)
-            {
-                Button selectSplit = EnvironmentEditLayout.Button(backpackContent, "SelectBackpackSplitItem_" + id,
-                    "选中\n拆点", new Vector2(0, 1), new Vector2(252, -i * 64f), new Vector2(72, 58), 17);
-                selectSplit.GetComponent<Image>().color = id == selectedBagItemId ? EnvironmentEditLayout.Highlight : EnvironmentEditLayout.Normal;
-                selectSplit.onClick.AddListener(() => SelectBackpackPropertyForSplit(id));
-                splitSelectionButtons.Add(id, selectSplit);
-            }
         }
         CognitionBackpackItem selectedItem = FindItem(selectedBagItemId);
         backpackSelectionText.text = selectedItem == null ? "" : selectedItem.DisplayName;
@@ -513,6 +517,16 @@ public sealed class EnvironmentEditView : MonoBehaviour
             backpackSelectionText.text = draft.IsTriggerEnvironment ? "触发器性质已预览注入，待面板确认"
                 : hasCompatibleItem ? "待注入：请点击上方高光性质" : "";
         }
+        else if (LinkedBackpack && selectedSlot >= 0)
+        {
+            EnvironmentParameter target = draft.GetSlot(viewTrigger, selectedSlot);
+            backpackModeText.text = viewTrigger != draft.IsTriggerEnvironment ? "当前列表停用：只可从环境抽取"
+                : target == null ? $"已选择空槽 {selectedSlot + 1}：点击高光性质注入"
+                : target.CalculationCount >= draft.CalculationPointLimit ? $"槽 {selectedSlot + 1} 计算点已满：请从数值行抽出"
+                : $"已选择数值行 {selectedSlot + 1}：点击高光计算点叠加";
+            if (!hasCompatibleItem && target == null) backpackModeText.text += "\n暂无兼容性质";
+        }
+        else if (LinkedBackpack) backpackModeText.text = "请先选环境空槽、数值行或顶部形态槽\n所有修改由环境面板统一确认";
         // 内容变更可刷新行，浏览切换和计算重选仍保留背包滚动位置。
     }
 
@@ -526,22 +540,17 @@ public sealed class EnvironmentEditView : MonoBehaviour
         return null;
     }
 
-    bool IsPreviewPoint(EnvironmentCalculationPoint point)
-    {
-        if (draft == null || point == null) return false;
-        foreach (CognitionBackpackItem item in draft.Items)
-            if (item.IsCalculation && item.CalculationPoint == point) return true;
-        return false;
-    }
-
     static Text Label(Button button) => button.transform.Find("Label").GetComponent<Text>();
 
     static void ClearChildren(Transform parent)
     {
-        foreach (Transform child in parent)
+        for (int i = parent.childCount - 1; i >= 0; i--)
         {
+            Transform child = parent.GetChild(i);
             // 本帧旧按钮先失活，Unity 延迟销毁不会让旧内容继续接收点击。
-            child.gameObject.SetActive(false); Object.Destroy(child.gameObject);
+            child.gameObject.SetActive(false); child.name = "Retired_" + child.name;
+            if (Application.isPlaying) Object.Destroy(child.gameObject);
+            else Object.DestroyImmediate(child.gameObject);
         }
     }
 }

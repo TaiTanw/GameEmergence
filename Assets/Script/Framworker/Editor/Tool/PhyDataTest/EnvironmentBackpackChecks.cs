@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -55,7 +55,9 @@ public static class EnvironmentBackpackChecks
             CheckWholeCommitAndRejection();
             CheckBothListsAndGeometry();
             CheckCompositeExtractionAndSplit();
+            CheckCalculationStacks();
             CheckDefaultsAndCopies();
+            CheckEnvironmentOpacity();
             CheckCalculationEligibility();
             CheckEffectiveAbilityUpdates();
             CheckPausedBoxAndMainWater();
@@ -107,18 +109,18 @@ public static class EnvironmentBackpackChecks
             "确认前不提交版本、不移出实际背包");
         Check(draft.TryUseItem(id, false, 1, false, out _), "同一个计算点可以改选另一槽");
         Near(draft.GetSlot(false, 0).Value, .4f, "改选后原槽恢复原值");
-        Check(draft.GetSlot(false, 0).CalculationPoint == null, "原目标解除计算点占用");
+        Check(draft.GetSlot(false, 0).CalculationCount == 0, "原目标解除计算点占用");
         Near(draft.GetSlot(false, 1).Value, 2.4f, "新槽显示计算结果");
-        Check(draft.GetSlot(false, 1).CalculationPoint != null && draft.Items.Count == 1,
+        Check(draft.GetSlot(false, 1).CalculationCount > 0 && draft.Items.Count == 1,
             "草稿保留同一计算点内容物直至统一确认");
         var cancelled = new EnvironmentEditDraft(source, bag);
         Near(cancelled.GetSlot(false, 0).Value, .4f, "放弃草稿后新面板读取原配置");
-        Check(!cancelled.HasChanges && cancelled.GetSlot(false, 1).CalculationPoint == null,
+        Check(!cancelled.HasChanges && cancelled.GetSlot(false, 1).CalculationCount == 0,
             "取消不会把旧预览带入新面板");
         var cognition = new LevelCognition(20f);
         Check(draft.TryCommit(cognition, out _), "整面板确认一次提交选定计算结果");
         Near(source.CopyEnvironmentSlots(false)[1].Value, 2.4f, "真实来源在确认后读取新结果");
-        Check(bag.Items.Count == 0 && source.CopyEnvironmentSlots(false)[1].CalculationPoint != null,
+        Check(bag.Items.Count == 0 && source.CopyEnvironmentSlots(false)[1].CalculationCount > 0,
             "确认后点移出背包并保留环境附加记录");
         Near(cognition.Remaining, 20f, "计算点出包不额外扣费");
         int committedVersion = source.EnvironmentParameterVersion;
@@ -212,41 +214,128 @@ public static class EnvironmentBackpackChecks
     static void CheckCompositeExtractionAndSplit()
     {
         BasicPhysicalObject source = Host("composite", false, 2, new WallSlideMultiplierParameter(.4f));
-        var bag = new CognitionBackpack(5, 3f, 2f, null, new[] { 2f });
+        var bag = new CognitionBackpack(5, 3f, 2f, null, new[] { 2f, 3f, 0f, 4f });
         var attach = new EnvironmentEditDraft(source, bag);
-        Check(attach.TryUseItem(bag.Items[0].Id, false, 0, false, out _)
-            && attach.TryCommit(new LevelCognition(20f), out _), "复合性质夹具经真实点预览与确认形成");
+        Check(attach.CalculationPointLimit == 3, "每环境默认单槽计算点上限为三");
+        for (int i = 0; i < 3; i++)
+            Check(attach.TryUseItem(bag.Items[i].Id, false, 0, false, out _), "同一性质依次叠加计算点 " + i);
+        Check(!attach.CanUseItem(bag.Items[3].Id, false, 0)
+            && !attach.TryUseItem(bag.Items[3].Id, false, 0, false, out _), "达到上限拒绝第四点且保持序列");
+        Check(!attach.TryUseItem(bag.Items[0].Id, false, 0, false, out _), "同一个点重复点击不重复附加");
+        Check(attach.TryCommit(new LevelCognition(20f), out _), "三个计算点统一确认移出真实背包");
+        Check(bag.Items.Count == 1 && source.CopyEnvironmentSlots(false)[0].CalculationCount == 3,
+            "确认保留完整点序列与未使用点");
+        Near(source.CopyEnvironmentSlots(false)[0].Value, 0f, "叠加零倍率也能按原值重算");
         var extract = new EnvironmentEditDraft(source, bag);
-        Check(extract.TryExtract(false, 0, out _), "带计算点性质可整体抽取");
+        Check(extract.TryExtract(false, 0, out _), "带多个点性质可整体抽取");
         Near(extract.Cost, 3f, "整体抽取只计性质入包费用");
-        Check(extract.Items.Count == 1 && extract.Items[0].Property.CalculationPoint != null,
-            "整体抽取保持一个内容物与附加点记录");
+        Check(extract.Items.Count == 2 && extract.Items[1].Property.CalculationCount == 3,
+            "整个性质及点序列作为一个内容物追加背包末尾");
         var cognition = new LevelCognition(20f);
-        Check(extract.TryCommit(cognition, out _) && bag.Items.Count == 1,
-            "整体抽取确认不会另生成计算点");
-        int composite = bag.Items[0].Id;
-        Near(bag.Items[0].Property.Value, .8f, "背包显示带点性质的有效结果");
+        Check(extract.TryCommit(cognition, out _), "整体抽取统一确认不生成额外点");
+        int composite = bag.Items[1].Id;
         var split = new EnvironmentEditDraft(source, bag);
-        Check(split.TrySplitCalculation(composite, out _), "背包性质槽可以预览抽出计算点");
-        Check(split.Items.Count == 2 && split.Items[0].Property.CalculationPoint == null,
-            "拆点草稿分成性质和一个计算点");
-        Near(split.Items[0].Property.Value, .4f, "拆点恢复性质原值，不重复乘结果");
-        Near(split.Cost, 2f, "拆点只对新入包的计算点收费");
-        Check(bag.Items.Count == 1 && bag.Items[0].Property.CalculationPoint != null,
-            "拆点预览保持真实复合内容物完整");
-        Check(split.TryCommit(cognition, out _), "整面板确认拆点");
-        Check(bag.Items.Count == 2 && bag.Items[0].Property.CalculationPoint == null && FindCalculation(bag) >= 0,
-            "成功拆点只加入一个点，保留性质身份");
-        Near(cognition.Remaining, 15f, "性质整体抽取与拆点各自仅扣一次费用");
+        Check(split.TryUseItem(composite, false, 0, false, out _), "背包复合性质可整体注回环境");
+        for (int i = 2; i >= 0; i--)
+        {
+            Check(split.TryExtractCalculation(false, 0, out _), "环境数值行逐个出栈 " + i);
+            Check(ReferenceEquals(split.Items[split.Items.Count - 1].CalculationPoint, attach.GetSlot(false, 0).CalculationPoints[i]),
+                "抽出顺序后进先出且保持点身份 " + i);
+        }
+        Check(split.GetSlot(false, 0).CalculationCount == 0, "三次抽点后环境性质保留无点状态");
+        Near(split.GetSlot(false, 0).Value, .4f, "抽出零倍率不做除法，最终恢复原值");
+        Near(split.Cost, 6f, "只对三个新入包点收费，性质注入免费");
+        Check(bag.Items.Count == 2 && bag.Items[1].Property.CalculationCount == 3,
+            "抽点预览不修改真实背包复合性质");
+        Check(split.TryCommit(cognition, out _) && bag.Items.Count == 4, "统一确认逐个抽点并保留原未使用点");
+        Near(cognition.Remaining, 11f, "整体抽取与三个抽点按最终新增内容物收费一次");
         var noPoint = new EnvironmentEditDraft(source, bag);
-        Check(!noPoint.TrySplitCalculation(composite, out _), "已无附加点的性质不再允许拆点");
+        Check(!noPoint.TryExtractCalculation(false, 0, out _), "无附加点的槽拒绝再抽点");
 
-        var tightNature = new GroundSlowingParameter(.5f);
-        tightNature.TryAttachCalculation(new EnvironmentCalculationPoint(2f));
-        var tight = new CognitionBackpack(1, 3f, 2f, new[] { tightNature });
+        var refill = new EnvironmentEditDraft(source, bag);
+        Check(refill.TryUseItem(bag.Items[0].Id, false, 0, false, out _) && refill.TryCommit(cognition, out _),
+            "重新附加一个点作为容量拒绝夹具");
+        var tight = new CognitionBackpack(1, 3f, 2f, null, new[] { 2f });
         var tightDraft = new EnvironmentEditDraft(source, tight);
-        Check(!tightDraft.TrySplitCalculation(tight.Items[0].Id, out _) && tightDraft.Items[0].Property.CalculationPoint != null,
-            "拆点容量不足时完整保留原复合性质");
+        Check(!tightDraft.TryExtractCalculation(false, 0, out _) && !tightDraft.HasChanges
+            && tightDraft.GetSlot(false, 0).CalculationCount == 1 && tightDraft.Items.Count == 1,
+            "抽点容量不足完整保留原序列、顺序和背包");
+    }
+
+    static void CheckCalculationStacks()
+    {
+        BasicPhysicalObject source = Host("stack reassignment", false, 3,
+            new GroundSlowingParameter(.5f), new GroundJumpMultiplierParameter(1f), new MovementSpeedOffsetParameter(-1f));
+        var bag = new CognitionBackpack(6, 3f, 2f, null, new[] { 2f, 3f, 4f });
+        var draft = new EnvironmentEditDraft(source, bag);
+        int a = bag.Items[0].Id, b = bag.Items[1].Id, c = bag.Items[2].Id;
+        Check(draft.TryUseItem(a, false, 0, false, out _) && draft.TryUseItem(b, false, 0, false, out _)
+            && draft.TryUseItem(c, false, 1, false, out _), "预览多个点分配到两个数值槽");
+        Check(draft.TryUseItem(a, false, 1, false, out _), "中间预览点可改选另一已有点的槽");
+        Check(draft.GetSlot(false, 0).CalculationCount == 1
+            && draft.GetSlot(false, 0).ContainsCalculation(bag.Items[1].CalculationPoint), "改选只移走指定点，其余点保留");
+        Near(draft.GetSlot(false, 0).Value, 1.5f, "旧目标从原值及剩余点重算");
+        Near(draft.GetSlot(false, 1).Value, 8f, "新目标在已有序列末尾叠加改选点");
+        Check(draft.CalculationTarget(draft.Items[0]) == "碰撞器槽 2", "背包标记跟随多点改选更新");
+        Check(draft.TryExtractCalculation(false, 1, out _) && draft.Items[draft.Items.Count - 1].Id == a,
+            "未确认点抽出保留原物品身份并移动到末尾");
+        Near(draft.Cost, 0f, "抽回未确认点不产生获取费用");
+        Check(draft.TryCommit(new LevelCognition(20f), out _) && bag.Items.Count == 1 && bag.Items[0].Id == a,
+            "统一确认只消耗仍附加在槽内的预览点");
+        var copy = source.CopyEnvironmentSlots(false);
+        copy[0].RemoveCalculation();
+        Check(source.CopyEnvironmentSlots(false)[0].CalculationCount == 1, "副本的点序列修改不回写来源");
+        var inactive = new EnvironmentEditDraft(source, bag);
+        Check(inactive.TryUseItem(a, false, 0, false, out _), "同槽叠加后可继续编辑几何");
+        var triggerBag = new CognitionBackpack(5, 3f, 2f, new[] { new TriggerEnvironmentParameter() });
+        var gray = new EnvironmentEditDraft(source, triggerBag);
+        Check(gray.TryUseItem(triggerBag.Items[0].Id, false, -1, true, out _) && gray.TryExtractCalculation(false, 0, out _),
+            "停用列表仍允许直接抽点");
+        Check(!gray.CanUseItem(gray.Items[0].Id, false, 0), "停用列表不能注入计算点");
+        Check(gray.TryCommit(new LevelCognition(20f), out _), "灰列表抽点与形态切换统一确认");
+        source.RestoreEnvironmentDefaults();
+        Check(!source.IsTriggerEnvironment && source.CopyEnvironmentSlots(false)[0].CalculationCount == 0,
+            "重刷新恢复默认几何及无点性质");
+
+        var stack = new WallSlideMultiplierParameter(.2f);
+        for (int i = 0; i < 3; i++) stack.TryAttachCalculation(new EnvironmentCalculationPoint(2f));
+        BasicPhysicalObject lower = Host("lower point cap", false, 2);
+        typeof(BasicPhysicalObject).GetField("environmentCalculationPointLimit", Hidden).SetValue(lower, 2);
+        var compositeBag = new CognitionBackpack(2, 3f, 2f, new[] { stack });
+        var over = new EnvironmentEditDraft(lower, compositeBag);
+        Check(!over.CanUseItem(compositeBag.Items[0].Id, false, 0)
+            && !over.TryUseItem(compositeBag.Items[0].Id, false, 0, false, out _), "复合性质超过目标上限拒绝整体注入");
+        Check(!over.HasChanges && over.Items[0].Property.CalculationCount == 3 && over.GetSlot(false, 0) == null,
+            "超限拒绝不丢点或移出背包");
+        var forged = lower.CopyEnvironmentSlots(false); forged[0] = stack.CopyRuntime();
+        Check(!lower.TryCommitEnvironmentEdit(forged, lower.CopyEnvironmentSlots(true), false, out _),
+            "来源提交也复核单槽计算点上限");
+        typeof(BasicPhysicalObject).GetField("environmentCalculationPointLimit", Hidden).SetValue(lower, 0);
+        Check(!lower.ValidateEnvironmentParameters(out _), "制作配置拒绝零上限");
+        typeof(BasicPhysicalObject).GetField("environmentCalculationPointLimit", Hidden).SetValue(lower, 3);
+
+        var first = new EnvironmentCalculationPoint(2f); var second = new EnvironmentCalculationPoint(.5f);
+        var slots = lower.CopyEnvironmentSlots(false);
+        slots[0] = new GroundSlowingParameter(1f); slots[0].TryAttachCalculation(first); slots[0].TryAttachCalculation(second);
+        Check(lower.TryCommitEnvironmentEdit(slots, lower.CopyEnvironmentSlots(true), false, out _), "点序列版本夹具提交");
+        int version = lower.EnvironmentParameterVersion;
+        slots[0].RemoveCalculation(); slots[0].RemoveCalculation(); slots[0].TryAttachCalculation(second); slots[0].TryAttachCalculation(first);
+        Check(lower.TryCommitEnvironmentEdit(slots, lower.CopyEnvironmentSlots(true), false, out _)
+            && lower.EnvironmentParameterVersion == version + 1, "结果相同但点顺序变化仍更新来源版本");
+        slots[1] = new GroundJumpMultiplierParameter(1f); slots[1].TryAttachCalculation(first);
+        Check(!lower.TryCommitEnvironmentEdit(slots, lower.CopyEnvironmentSlots(true), false, out _),
+            "同一点出现在两个栈内时提交拒绝");
+        var overflow = Host("zero reveal overflow", false, 2,
+            new GroundSlowingParameter(float.MaxValue), new GroundJumpMultiplierParameter(1f));
+        var overflowBag = new CognitionBackpack(4, 3f, 2f, null, new[] { 0f, 2f });
+        var invalidMove = new EnvironmentEditDraft(overflow, overflowBag);
+        Check(invalidMove.TryUseItem(overflowBag.Items[0].Id, false, 0, false, out _)
+            && invalidMove.TryUseItem(overflowBag.Items[1].Id, false, 0, false, out _), "零倍率允许后续有限零结果");
+        Check(!invalidMove.TryUseItem(overflowBag.Items[0].Id, false, 1, false, out _)
+            && invalidMove.GetSlot(false, 0).CalculationCount == 2 && invalidMove.GetSlot(false, 1).CalculationCount == 0,
+            "移走零倍率暴露溢出时拒绝整次改选，保留两目标");
+        Check(invalidMove.TryExtractCalculation(false, 0, out _) && invalidMove.TryUseItem(overflowBag.Items[0].Id, false, 1, false, out _),
+            "先按栈顺序移走末尾点后零倍率可安全改选");
     }
 
     static void CheckDefaultsAndCopies()
@@ -276,6 +365,94 @@ public static class EnvironmentBackpackChecks
         Check(source.EnvironmentParameterVersion == version, "重复默认恢复幂等，不重复增加版本");
     }
 
+    static void CheckEnvironmentOpacity()
+    {
+        BasicPhysicalObject source = Host("opacity source", false, 2, new GroundSlowingParameter(.5f));
+        SpriteRenderer visual = source.gameObject.AddComponent<SpriteRenderer>();
+        visual.color = new Color(.2f, .4f, .6f, .24f);
+        typeof(BasicPhysicalObject).GetField("colliderOpacity", Hidden).SetValue(source, .85f);
+        typeof(BasicPhysicalObject).GetField("triggerOpacity", Hidden).SetValue(source, .35f);
+        var child = new GameObject("independent decoration"); child.transform.SetParent(source.transform);
+        SpriteRenderer decoration = child.AddComponent<SpriteRenderer>(); decoration.color = new Color(1f, 1f, 1f, .6f);
+        Check(EnvironmentOpacityTool.TrySynchronize(source, out _), "制作工具按原始实心碰撞体同步外观");
+        Near(visual.color.a, .85f, "实心同步使用逐物体配置，直接替换旧 Alpha");
+        Check(!(bool)typeof(BasicPhysicalObject).GetField("parametersInitialized", Hidden).GetValue(source),
+            "制作同步不提前捕获环境默认或初始化能力列表");
+        Near(visual.color.r, .2f, "制作同步保留主体颜色");
+        Near(decoration.color.a, .6f, "制作同步不覆盖子物体独立外观");
+
+        var bag = new CognitionBackpack(4, 1f, 1f, new[] { new TriggerEnvironmentParameter() });
+        var draft = new EnvironmentEditDraft(source, bag);
+        Check(draft.TryUseItem(bag.Items[0].Id, false, -1, true, out _), "透明度夹具可预览注入触发器性质");
+        Near(visual.color.a, .85f, "面板切换预览不提前改变世界透明度");
+        var cancelled = new EnvironmentEditDraft(source, bag);
+        Check(!cancelled.IsTriggerEnvironment && !source.GetComponent<Collider2D>().isTrigger,
+            "取消预览保留原几何与外观形态");
+        Check(draft.TryCommit(new LevelCognition(10f), out _), "确认形态切换时提交透明度表现");
+        Near(visual.color.a, .35f, "触发器使用独立配置，不乘原实心 Alpha");
+        Near(visual.color.g, .4f, "运行时切换保留颜色 RGB");
+        Near(decoration.color.a, .6f, "运行时切换仅影响同宿主主体精灵");
+        source.gameObject.SetActive(false); source.gameObject.SetActive(true);
+        Near(visual.color.a, .35f, "启停保持已确认透明度");
+
+        visual.color = new Color(.2f, .4f, .6f, .61f);
+        EnvironmentParameter[] trigger = source.CopyEnvironmentSlots(true);
+        trigger[0] = new MovementSpeedOffsetParameter(-.3f);
+        Check(source.TryCommitEnvironmentEdit(source.CopyEnvironmentSlots(false), trigger, true, out _),
+            "同形态能力修改仍可正常提交");
+        Near(visual.color.a, .61f, "同形态能力修改不反复补正外观");
+        source.RestoreEnvironmentDefaults();
+        Near(visual.color.a, .85f, "重刷新随默认实心形态恢复配置透明度");
+        Check(!source.IsTriggerEnvironment && !source.GetComponent<Collider2D>().isTrigger,
+            "默认恢复后表现与真实几何一致");
+
+        BasicPhysicalObject pool = Host("opacity trigger defaults", true, 2, new WaterSwimmingParameter(true));
+        SpriteRenderer poolVisual = pool.gameObject.AddComponent<SpriteRenderer>();
+        poolVisual.color = new Color(.1f, .3f, .5f, .24f);
+        Check(pool.IsTriggerEnvironment, "读取初始触发器形态成功");
+        Near(poolVisual.color.a, .24f, "运行时首次读取不对旧预设外观做特殊补正");
+        Check(EnvironmentOpacityTool.TrySynchronize(pool, out _), "制作工具识别默认触发器形态");
+        Near(poolVisual.color.a, .5f, "默认触发器不透明度为 50%");
+        var extraction = new EnvironmentEditDraft(pool, new CognitionBackpack(4, 1f, 1f));
+        Check(extraction.TryExtractTrigger(out _) && extraction.TryCommit(new LevelCognition(10f), out _),
+            "抽取触发器性质可确认恢复实心外观");
+        Near(poolVisual.color.a, 1f, "默认实心不透明度为 100%");
+        pool.RestoreEnvironmentDefaults();
+        Near(poolVisual.color.a, .5f, "默认触发器环境重刷新恢复 50%");
+
+        BasicPhysicalObject mixed = Host("opacity mixed geometry", false, 2);
+        mixed.gameObject.AddComponent<CircleCollider2D>().isTrigger = true;
+        SpriteRenderer mixedVisual = mixed.gameObject.AddComponent<SpriteRenderer>();
+        mixedVisual.color = new Color(1f, 1f, 1f, .27f);
+        Check(!EnvironmentOpacityTool.TrySynchronize(mixed, out _), "制作工具拒绝混合几何的模糊外观形态");
+        Near(mixedVisual.color.a, .27f, "制作拒绝保留原外观");
+
+        // 用临时预设核对工具确实保存资产；不写用户的环境预设或场景。
+        string prefabPath = AssetDatabase.GenerateUniqueAssetPath("Assets/P14OpacityCheck.prefab");
+        GameObject contents = null;
+        try
+        {
+            pool.gameObject.hideFlags = HideFlags.None;
+            poolVisual.color = new Color(.1f, .3f, .5f, .24f);
+            SerializedProperty cap = new SerializedObject(pool).FindProperty("environmentCalculationPointLimit");
+            Check(cap != null, "单槽计算点上限是可制作的序列化组件配置");
+            cap.intValue = 5; cap.serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(pool.gameObject, prefabPath);
+            Check(prefab != null, "透明度制作检查使用实际临时预设");
+            EnvironmentOpacityTool.Synchronize(new[] { prefab.GetComponent<BasicPhysicalObject>() });
+            contents = PrefabUtility.LoadPrefabContents(prefabPath);
+            Near(contents.GetComponent<SpriteRenderer>().color.a, .5f, "批量制作工具将触发器透明度写入预设文件");
+            Near(contents.GetComponent<SpriteRenderer>().color.b, .5f, "保存预设仍保留原 RGB");
+            Check(contents.GetComponent<BasicPhysicalObject>().EnvironmentCalculationPointLimit == 5,
+                "各环境预设保存并重载自己的单槽计算点上限");
+        }
+        finally
+        {
+            if (contents != null) PrefabUtility.UnloadPrefabContents(contents);
+            AssetDatabase.DeleteAsset(prefabPath);
+        }
+    }
+
     static void CheckCalculationEligibility()
     {
         var point = new EnvironmentCalculationPoint(2f);
@@ -286,8 +463,11 @@ public static class EnvironmentBackpackChecks
         var wall = new WallSlideMultiplierParameter(.4f);
         Check(wall.SupportsCalculation && wall.TryAttachCalculation(point), "墙滑能力的固定系数允许计算");
         Near(wall.Value, .8f, "墙滑计算消费原系数");
-        Check(!wall.TryAttachCalculation(new EnvironmentCalculationPoint(3f)), "一项性质拒绝第二个计算点");
-        Check(ReferenceEquals(wall.RemoveCalculation(), point) && wall.CalculationPoint == null, "拆出点保持原内容物身份");
+        var second = new EnvironmentCalculationPoint(3f);
+        Check(wall.TryAttachCalculation(second), "性质支持第二个计算点叠加");
+        Near(wall.Value, 2.4f, "多个点依次乘原值");
+        Check(ReferenceEquals(wall.RemoveCalculation(), second), "先抽出后加入的点");
+        Check(ReferenceEquals(wall.RemoveCalculation(), point) && wall.CalculationCount == 0, "拆出点保持原内容物身份");
         Near(wall.Value, .4f, "拆点回滚性质原值");
         var movement = new MovementSpeedOffsetParameter(-.3f);
         Check(movement.TryAttachCalculation(point), "主动速度修饰允许负原值和非负计算点");
@@ -396,12 +576,23 @@ public static class EnvironmentBackpackChecks
         objects.Add(setupObject); SceneLevelSetup setup = setupObject.AddComponent<SceneLevelSetup>();
         typeof(SceneLevelSetup).GetField("risingWater", Hidden).SetValue(setup, water);
         typeof(SceneLevelSetup).GetField("<Current>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, setup);
+        SpriteRenderer mainVisual = waterObject.AddComponent<SpriteRenderer>();
+        mainVisual.color = new Color(0f, .8f, 1f, .24f);
+        typeof(SceneLevelSetup).GetField("<Current>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, null);
+        bool mainSynchronized = EnvironmentOpacityTool.TrySynchronize(water, out string mainError);
+        Check(!mainSynchronized, "编辑器没有 Current 注册时也排除场景指定主水体 [配置="
+            + Resources.FindObjectsOfTypeAll<SceneLevelSetup>().Length + ", 引用=" + (setup.RisingWater == water)
+            + ", 场景有效=" + waterObject.scene.IsValid() + ", 提示=" + mainError + "]");
+        Near(mainVisual.color.a, .24f, "主水体制作同步保持独立透明度");
+        typeof(SceneLevelSetup).GetField("<Current>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, setup);
         Check(!water.AllowsEnvironmentEditing && source.AllowsEnvironmentEditing,
             "本关指定主水体单独排除编辑，普通环境仍开放");
         var mainSolid = water.CopyEnvironmentSlots(false); var mainTrigger = water.CopyEnvironmentSlots(true);
         Check(!water.ValidateEnvironmentEdit(mainSolid, mainTrigger, false, out _)
             && !water.TryCommitEnvironmentEdit(mainSolid, mainTrigger, false, out _) && water.GetComponent<Collider2D>().isTrigger,
             "主水体来源提交入口也拒绝编辑或几何切换");
+        water.RestoreEnvironmentDefaults();
+        Near(mainVisual.color.a, .24f, "主水体默认恢复不覆盖独立透明度");
         MethodInfo editable = typeof(EnvironmentEditView).GetMethod("EditableSource", BindingFlags.Static | BindingFlags.NonPublic);
         Check(!(bool)editable.Invoke(null, new object[] { water }), "主水体同时从蓝框与点选共用资格入口排除");
     }
@@ -465,14 +656,22 @@ public static class EnvironmentBackpackChecks
         Check(area.Find("EnvironmentEditorContent/EnvironmentAbilityScroll").GetComponent<ScrollRect>() != null
             && bag.Find("CognitionBackpackScroll").GetComponent<ScrollRect>() != null,
             "环境性质列表与侧栏背包各有独立滚动控件");
+        ScrollRect abilityScroll = area.Find("EnvironmentEditorContent/EnvironmentAbilityScroll").GetComponent<ScrollRect>();
+        Check(abilityScroll.verticalScrollbar != null && abilityScroll.verticalScrollbar.handleRect != null
+            && abilityScroll.verticalScrollbarVisibility == ScrollRect.ScrollbarVisibility.Permanent,
+            "能力列表有常显滚动条和真实可拖动把手");
+        Check(abilityScroll.viewport.offsetMax.x == -18f && bag.Find("BackpackExplanationBox") != null,
+            "滚动条预留空间，侧栏顶部有操作说明框");
         Check(area.Find("EnvironmentEditorContent/ConfirmEnvironmentButton").GetComponent<Button>() != null
             && area.Find("EnvironmentEditorContent/CancelEnvironmentButton").GetComponent<Button>() != null
-            && bag.Find("SplitBackpackCalculationButton").GetComponent<Button>() != null,
-            "统一确认／取消与背包固定拆点按钮有实际控件");
+            && bag.Find("SplitBackpackCalculationButton") == null,
+            "统一确认／取消保留，背包固定拆点入口移除");
         int children = root.childCount, areaChildren = area.childCount;
         EnvironmentEditLayout.Ensure(area, root);
         Check(root.childCount == children && area.childCount == areaChildren,
             "重复启用布局不复制环境面板、背包或按钮");
+        Check(abilityScroll.GetComponentsInChildren<Scrollbar>(true).Length == 1,
+            "旧预设补齐和重复布局不生成多根拖动条");
     }
 
     static void CheckLinkedUI()
@@ -529,17 +728,20 @@ public static class EnvironmentBackpackChecks
                 "点击空槽同时显示中下环境面板与右侧联动背包");
             int compositeId = rules.CognitionBackpack.Items[0].Id;
             Transform bagContent = bag.Find("CognitionBackpackScroll/Viewport/Content");
-            Button splitSelection = bagContent.Find("SelectBackpackSplitItem_" + compositeId).GetComponent<Button>();
-            Check(splitSelection.interactable, "兼容空槽旁的附加点选择区域可独立选择拆点");
             int beforeCount = view.DisplayedDraft.Items.Count;
-            Click(view, splitSelection);
-            Check(view.DisplayedDraft.GetSlot(false, 1) == null && view.DisplayedDraft.Items.Count == beforeCount,
-                "点击附加点区域不误注入或移出兼容性质");
-            Button splitButton = bag.Find("SplitBackpackCalculationButton").GetComponent<Button>();
-            Check(splitButton.interactable, "选择背包带点性质后固定拆点按钮启用");
-            Click(view, splitButton);
-            Check(view.DisplayedDraft.Items.Count == beforeCount + 1 && rules.CognitionBackpack.Items[0].Property.CalculationPoint != null,
-                "实际拆点按钮只改变预览，正式背包仍完整");
+            Check(bag.Find("BackpackModeText").GetComponent<Text>().text.Contains("空槽"), "背包顶部说明空槽正在等待性质注入");
+            Click(view, bagContent.Find("CognitionBackpackItem_" + compositeId).GetComponent<Button>());
+            Check(view.DisplayedDraft.GetSlot(false, 1).CalculationCount == 1, "复合性质从背包整体注入环境数值槽");
+            Check(bag.Find("BackpackModeText").GetComponent<Text>().text.Contains("数值行"), "注入后背包顶部自动说明数值行计算目标");
+            Button popButton = editor.Find("EnvironmentAbilityScroll/Viewport/Content/ExtractEnvironmentCalculation_1").GetComponent<Button>();
+            Check(popButton.interactable, "带计算点的环境数值行抽点按钮启用");
+            Click(view, popButton);
+            Check(view.DisplayedDraft.Items.Count == beforeCount && view.DisplayedDraft.GetSlot(false, 1).CalculationCount == 0
+                && rules.CognitionBackpack.Items[0].Property.CalculationCount == 1,
+                "数值行直接抽点只改预览，正式背包复合性质完整");
+            Check(!editor.Find("EnvironmentAbilityScroll/Viewport/Content/ExtractEnvironmentCalculation_1").GetComponent<Button>().interactable,
+                "抽出最后一点后数值行按钮置灰");
+            Check(bag.Find("SplitBackpackCalculationButton") == null, "联动背包没有重复拆点入口");
             Click(view, editor.Find("CancelEnvironmentButton").GetComponent<Button>(), true);
             Check(view.DisplayedDraft == null && rules.ActiveEnvironmentEdit == null && !bag.gameObject.activeSelf,
                 "实际取消按钮关闭联动面板并释放规则草稿");
@@ -557,20 +759,32 @@ public static class EnvironmentBackpackChecks
             Check(view.IsBackpackReadOnly && view.DisplayedDraft != null, "独立打开背包保留同一预览但只读");
             foreach (Button button in bag.Find("CognitionBackpackScroll/Viewport/Content").GetComponentsInChildren<Button>())
                 Check(!button.interactable, "独立只读背包正文与附加点区域均不可点击");
-            Check(!splitButton.interactable, "独立只读背包固定拆点按钮不可点击");
-            view.SelectBackpackPropertyForSplit(compositeId); view.SplitSelectedCalculation();
-            Check(view.DisplayedDraft.Items.Count == beforeCount, "独立只读模式直接调用选择／拆点也拒绝修改");
+            Check(bag.Find("SplitBackpackCalculationButton") == null, "独立只读背包没有拆点按钮");
+            view.SelectBackpackItem(compositeId);
+            Check(view.DisplayedDraft.Items.Count == beforeCount, "独立只读模式直接调用背包选择也拒绝修改");
             PrepareUIAction(view); view.SelectAbilitySlot(0);
             Click(view, editor.Find("ConfirmEnvironmentButton").GetComponent<Button>(), true);
             Near(source.CopyEnvironmentSlots(false)[0].Value, .8f, "真实统一确认按钮经规则提交来源结果");
             Check(view.DisplayedDraft == null && rules.ActiveEnvironmentEdit == null,
                 "统一确认后视图与规则都结束本次草稿");
 
+            typeof(BasicPhysicalObject).GetField("environmentCalculationPointLimit", Hidden).SetValue(source, 1);
+            PrepareUIAction(view, true); view.SelectEnvironment(source);
+            Click(view, editor.Find("EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0").GetComponent<Button>());
+            Check(bag.Find("BackpackModeText").GetComponent<Text>().text.Contains("已满"), "选满槽时顶部说明先抽点");
+            foreach (Button itemButton in bag.Find("CognitionBackpackScroll/Viewport/Content").GetComponentsInChildren<Button>())
+                Check(!itemButton.interactable, "已满槽不启用任何背包注入项");
+            Check(editor.Find("EnvironmentAbilityScroll/Viewport/Content/ExtractEnvironmentCalculation_0").GetComponent<Button>().interactable,
+                "满槽仍允许从数值行抽出一点");
+            Click(view, editor.Find("CancelEnvironmentButton").GetComponent<Button>(), true);
+            typeof(BasicPhysicalObject).GetField("environmentCalculationPointLimit", Hidden).SetValue(source, 3);
+
             PrepareUIAction(view, true); view.SelectEnvironment(source);
             PrepareUIAction(view, true); view.SetViewedList(true);
-            Check(!editor.Find("EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0").GetComponent<Button>().interactable
+            Check(editor.Find("EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0") == null
+                && editor.Find("EnvironmentAbilityScroll/Viewport/Content/ExtractEnvironmentCalculation_0") == null
                 && editor.Find("EnvironmentAbilityScroll/Viewport/Content/ExtractEnvironmentAbility_0").GetComponent<Button>().interactable,
-                "真实置灰列表正文禁用，右侧抽取区域仍启用");
+                "纯能力没有数值选择行或抽点按钮，置灰列表仍可整体抽取");
 
             Button geometry = editor.Find("EnvironmentGeometrySlot").GetComponent<Button>();
             float cognitionBeforeGeometry = rules.Cognition.Remaining;
@@ -730,11 +944,44 @@ public static class EnvironmentBackpackChecks
             wallObject.hideFlags = HideFlags.HideAndDontSave; objects.Add(wallObject);
             wallObject.transform.position = new Vector2(81000f, 81000f);
             Wall wall = wallObject.GetComponent<Wall>();
+            EnvironmentParameter[] numericSeed = wall.CopyEnvironmentSlots(false);
+            numericSeed[0].TryAttachCalculation(new EnvironmentCalculationPoint(2f));
+            numericSeed[0].TryAttachCalculation(new EnvironmentCalculationPoint(3f));
+            Check(wall.TryCommitEnvironmentEdit(numericSeed, wall.CopyEnvironmentSlots(true), false, out _),
+                "实际墙体数值行夹具保留两个已确认计算点");
             PrepareUIAction(view, true); view.SelectEnvironment(wall);
             Transform editor = view.transform.Find("EnvironmentEditorContent");
             Button geometry = editor.Find("EnvironmentGeometrySlot").GetComponent<Button>();
             Canvas.ForceUpdateCanvases(); camera.Render();
             GraphicRaycaster raycaster = canvas.GetComponent<GraphicRaycaster>();
+            Button numeric = editor.Find("EnvironmentAbilityScroll/Viewport/Content/EnvironmentAbilitySlot_0").GetComponent<Button>();
+            CheckPointerHit(raycaster, numeric, "实际数值第二行可独立选中计算目标");
+            Click(view, numeric);
+            Canvas.ForceUpdateCanvases(); camera.Render();
+            Button pop = editor.Find("EnvironmentAbilityScroll/Viewport/Content/ExtractEnvironmentCalculation_0").GetComponent<Button>();
+            CheckPointerHit(raycaster, pop, "实际数值行右侧抽点按钮独立命中，未被整项抽取覆盖");
+            ScrollRect scroll = editor.Find("EnvironmentAbilityScroll").GetComponent<ScrollRect>();
+            scroll.verticalScrollbar.value = .4f;
+            Canvas.ForceUpdateCanvases();
+            Near(scroll.verticalNormalizedPosition, .4f, "操作滚动把手同步能力列表位置");
+            scroll.verticalScrollbar.value = 1f;
+            Canvas.ForceUpdateCanvases(); camera.Render();
+            RenderTexture previousTarget = RenderTexture.active;
+            var capture = new Texture2D(target.width, target.height, TextureFormat.RGB24, false);
+            try
+            {
+                RenderTexture.active = target;
+                capture.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0); capture.Apply();
+                File.WriteAllBytes(".utmp/P14Validation/stack-ui-preview.png", capture.EncodeToPNG());
+            }
+            finally { RenderTexture.active = previousTarget; Object.DestroyImmediate(capture); }
+            Click(view, pop);
+            Check(view.DisplayedDraft.GetSlot(false, 0).CalculationCount == 1
+                && wall.CopyEnvironmentSlots(false)[0].CalculationCount == 2,
+                "真实抽点按钮只出栈一点，不改已确认来源");
+            Click(view, editor.Find("CancelEnvironmentButton").GetComponent<Button>(), true);
+            PrepareUIAction(view, true); view.SelectEnvironment(wall);
+            Canvas.ForceUpdateCanvases(); camera.Render();
             CheckPointerHit(raycaster, geometry, "实际保存面板的独特槽是最上层点击命中目标");
             PointerClick(view, geometry);
             int triggerId = FindProperty(rules.CognitionBackpack, EnvironmentParameterKind.TriggerEnvironment);
