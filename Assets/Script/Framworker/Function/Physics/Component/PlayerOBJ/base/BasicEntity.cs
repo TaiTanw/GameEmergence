@@ -270,7 +270,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
             Collider2D other = contact.collider != null && contact.collider.attachedRigidbody == rb
                 ? contact.otherCollider : contact.collider;
             // 安全：忽略无效、自身和本步刚放开的单向平台。
-            if (other == null || other.attachedRigidbody == rb || IsDroppingThrough(other)) continue;
+            if (other == null || other.attachedRigidbody == rb || IsDroppingThrough(other) || IgnoresCollider(other)) continue;
             Vector2 normal = contact.normal;
             if (normal.y > 0.7f)
             {
@@ -307,13 +307,23 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         float bestUp = 0.7f;
         foreach (RaycastHit2D hit in groundProbeHits)
         {
-            if (hit.collider == null || hit.collider.attachedRigidbody == rb || IsDroppingThrough(hit.collider)) continue;
+            if (hit.collider == null || hit.collider.attachedRigidbody == rb || IsDroppingThrough(hit.collider)
+                || IgnoresCollider(hit.collider)) continue;
             float up = Vector2.Dot(hit.normal, Vector2.up);
             if (up <= bestUp) continue;
             support = hit;
             bestUp = up;
         }
         return support;
+    }
+
+    /// <summary>脚本查询遵守原生的逐碰撞框排除；车与玩家互穿不能只关闭原生响应而仍被探针／侧推命中。</summary>
+    protected bool IgnoresCollider(Collider2D other)
+    {
+        if (other == null || boxCollider == null) return false;
+        return (boxCollider.excludeLayers.value & (1 << other.gameObject.layer)) != 0
+            || (other.excludeLayers.value & (1 << gameObject.layer)) != 0
+            || PhysicsWorld.GetIgnoreCollision(boxCollider, other);
     }
 
     private bool IsDroppingThrough(Collider2D collider)
@@ -336,13 +346,13 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         nowGemetry.regionOverlaps.Clear();
         if (boxCollider == null || !boxCollider.enabled) return;
         ContactFilter2D filter = new ContactFilter2D { useTriggers = true };
-        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer));
+        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer) & ~boxCollider.excludeLayers.value);
         regionOverlapHits.Clear();
         PhysicsWorld.OverlapCollider(boxCollider, filter, regionOverlapHits);
         foreach (Collider2D other in regionOverlapHits)
         {
             if (other == null || !other.enabled || !other.gameObject.activeInHierarchy) continue;
-            if (!other.isTrigger || other.attachedRigidbody == rb || PhysicsWorld.GetIgnoreCollision(boxCollider, other)) continue;
+            if (!other.isTrigger || other.attachedRigidbody == rb || IgnoresCollider(other)) continue;
             nowGemetry.regionOverlaps.Add(other);
         }
     }
@@ -657,13 +667,13 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         Vector2 delta = new Vector2(vx * dt, 0f);
         hits.Clear();
         ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
-        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer));
+        filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer) & ~boxCollider.excludeLayers.value);
         PhysicsWorld.BoxCast((Vector2)bounds.center, bounds.size, 0f, delta.normalized, delta.magnitude, filter, hits);
         float best = float.MaxValue;
         foreach (RaycastHit2D hit in hits)
         {
             // 安全：空命中和自身不是被推对象。
-            if (hit.collider == null || hit.collider.attachedRigidbody == rb) continue;
+            if (hit.collider == null || hit.collider.attachedRigidbody == rb || IgnoresCollider(hit.collider)) continue;
             BasicEntity entity = EnvironmentCapabilities.FindEntity(hit.collider);
             // 实际逻辑：箱顶法线朝上，站在上面不算侧面推动。
             if (entity == null || entity == this || hit.normal.y >= minUp || hit.normal.x * vx >= -0.0001f) continue;
@@ -798,6 +808,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     }
 
     protected virtual void HActiveSpeedOperation() { }
+    /// <summary>撤销驱动归属但保留刚体速度；下一步把已获得的速度交回现有被动惯性与阻力。</summary>
+    protected void ReleaseHorizontalDrive() => activeHorizontalVelocity = 0f;
     private void VUnderForce()
     {
         if (!nowGemetry.isGrounded) playerPhysicsData.verticalSpeed += gravity * Time.fixedDeltaTime;

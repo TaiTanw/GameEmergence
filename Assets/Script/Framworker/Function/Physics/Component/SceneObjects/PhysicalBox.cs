@@ -224,7 +224,7 @@ public class PhysicalBox : BasicEntity, IPlayerInteractable
         // 顶头与脚下同属接触查询，沿用同一层掩码和 Trigger 过滤。
         RaycastHit2D topHit = PhysicsWorld.BoxCast(ProbePosition(upV), cPhysics.boxCastH, a,
             transform.up, 0f, contactFilter);
-        nowGemetry.istop = topHit.collider != null;
+        nowGemetry.istop = topHit.collider != null && !IgnoresCollider(topHit.collider);
         //缓存真实命中法线；斜坡位移与着地判定必须使用表面信息
         nowGemetry.groundNormal = hit.normal;
         bool onGroundNow = false;
