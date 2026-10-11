@@ -16,7 +16,16 @@ public sealed class EnvironmentParameterEditor : Editor
         using (new EditorGUI.DisabledScope(Application.isPlaying))
         {
             DrawPropertiesExcluding(serializedObject, "environmentParameters", "slowingEffect", "jumpHeightNum", "wallFriction",
-                "colliderOpacity", "triggerOpacity", "environmentCalculationPointLimit");
+                "colliderOpacity", "triggerOpacity", "environmentCalculationPointLimit", "mechanismOffset", "mechanismTravelTime");
+            if (target is Taijie platform)
+            {
+                EditorGUILayout.LabelField("机关目标位移", EditorStyles.boldLabel);
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("mechanismOffset"), new GUIContent("目标位置偏移（世界 XY）"));
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("mechanismTravelTime"), new GUIContent("往／返缓动时长（秒）"));
+                EditorGUILayout.HelpBox(platform.GetComponent<PlatformEffector2D>() != null
+                    ? "带平台效应器：可跳上的单向台阶。" : "无平台效应器：实心机关门／四面阻挡物。", MessageType.Info);
+                if (!platform.ValidateMechanismConfiguration(out string motionError)) EditorGUILayout.HelpBox(motionError, MessageType.Error);
+            }
             EditorGUILayout.PropertyField(serializedObject.FindProperty("environmentCalculationPointLimit"),
                 new GUIContent("单槽计算点上限", "此环境两套列表的每个数值槽共用；默认 3，至少 1。"));
             DrawLegacy(parameters, legacySlowing, EnvironmentParameterKind.GroundSlowing, "旧地面消退倍率");
