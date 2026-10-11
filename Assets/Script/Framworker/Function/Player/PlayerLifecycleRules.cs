@@ -267,6 +267,14 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
 
     static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
+    /// <summary>宿主全黑下成功重建探索后，给旧规则的死亡周期留完成记录，供旧请求重放去重。</summary>
+    internal void CompleteEscapeRecovery(PlayerDeathRequest request)
+    {
+        if (request.subject != body || request.cycle == 0 || Stage != PlayerGameplayStage.Escape) return;
+        handledCycles[body] = request.cycle;
+        ConfigureStage(PlayerGameplayStage.Exploration);
+    }
+
     public static void SetWorldPaused(bool paused)
     {
         BasicEntity.SetWorldPaused(paused);

@@ -15,6 +15,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     PlayerLifecycleRules levelRules;
     readonly PlayerEffectLedger effects = new PlayerEffectLedger();
     bool refreshing;
+    public bool IsFailureRecovering => refreshing;
     bool loading;
     int loadSerial;
     bool enterFromMenu;
@@ -35,7 +36,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     {
         if (GameMenuOpen) { CloseGameMenu(); return true; }
         // 安全：菜单和关卡加载期间没有可暂停的游戏，不显示关内菜单。
-        if (loading || body == null || SceneLevelSetup.Current == null
+        if (loading || refreshing || body == null || SceneLevelSetup.Current == null
             || (InputControlMgr.Instance.Player == null && !EscapeSelectionPending))
             return false;
         GameMenuOpen = true;
@@ -63,11 +64,11 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>场景模式请求与区域规则调用同一入口；当前控制对象不变，失败留在原模式。</summary>
     public bool SetSimulation(bool simulation, PlayerFormChangeReason reason = PlayerFormChangeReason.Manual)
     {
-        if (loading || levelRules == null || spirit == null) return false;
+        if (loading || refreshing || levelRules == null || spirit == null) return false;
         return spirit.RequestSpiritForm(!simulation, reason);
     }
 
-    public bool CanResetTrial => !loading && !GameMenuOpen && Time.timeScale > 0f
+    public bool CanResetTrial => !loading && !refreshing && !GameMenuOpen && Time.timeScale > 0f
         && levelRules != null && levelRules.Stage == PlayerGameplayStage.Exploration
         && levelRules.IsSimulation && !levelRules.EscapeSelectionPending && spirit != null && InputControlMgr.Instance.Player == spirit;
 
@@ -140,36 +141,101 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         InputControlMgr.Instance.InputOpenOrClose(true);
     }
 
-    /// <summary>同一死亡周期的失败重开：环境先回默认，最后创建新精神体，不重新加载本关。</summary>
+    /// <summary>受理一次异步失败演出，返回 false 保持死亡待处理；全黑后才重建同关探索。</summary>
     public bool TryRestartExploration(Player deadPlayer)
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
         if (loading || refreshing || setup == null || setup.Teaching || deadPlayer != body
+            || deadPlayer == null || !deadPlayer.PendingDeath.HasValue
             || levelRules == null || levelRules.Stage != PlayerGameplayStage.Escape || !CanSpawnSpirit(setup)) return false;
         refreshing = true;
+        int serial = ++loadSerial;
+        PlayerDeathRequest request = deadPlayer.PendingDeath.Value;
+        PlayerLifecycleRules previousRules = levelRules;
+        InputControlMgr.Instance.InputOpenOrClose(false);
+        InputControlMgr.Instance.BindPlayer(null);
+        PlayerLifecycleRules.SetWorldPaused(true);
+        Time.timeScale = 0f;
+        UIMgr.Instance.ShowOneUI<FailureRecoveryPanel>(E_UILayer.Top, panel =>
+        {
+            // 退出／换关已经作废本轮时，迟到的面板回调不能再重置场景。
+            if (serial != loadSerial) return;
+            string error = null;
+            if (panel == null || !panel.ValidateSettings(out error))
+            {
+                Debug.LogError(panel == null ? "逃生失败面板缺失。" : error);
+                ReturnToMenu();
+                return;
+            }
+            MonoPublicMgr.Instance.StartCoroutine(RecoverEscape(panel, setup, previousRules, request, serial));
+        });
+        return false;
+    }
+
+    IEnumerator RecoverEscape(FailureRecoveryPanel panel, SceneLevelSetup setup,
+        PlayerLifecycleRules previousRules, PlayerDeathRequest request, int serial)
+    {
+        yield return FadeFailure(panel, 0f, 1f, serial);
+        if (serial != loadSerial) yield break;
+        // 留一帧真正的全黑，之后才提交世界／认知／角色的重置。
+        yield return null;
+        if (serial != loadSerial) yield break;
+        bool restored = false;
         try
         {
-            InputControlMgr.Instance.BindPlayer(null);
-            body.PrepareRuntimeRefresh();
-            body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
-            PlayerLifecycleRules.SetWorldPaused(true);
-            setup.RisingWater?.RestoreRunDefaults();
-            foreach (GameObject root in setup.gameObject.scene.GetRootGameObjects())
-                foreach (BasicPhysicalObject source in root.GetComponentsInChildren<BasicPhysicalObject>(true))
-                    source.RestoreEnvironmentDefaults();
-            PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
-            foreach (GameObject root in setup.gameObject.scene.GetRootGameObjects())
-                foreach (SceneProp prop in root.GetComponentsInChildren<SceneProp>(true)) prop.RestoreDefault();
-            levelRules.MapRecord?.Reset();
-            effects.ResetCurrentLevel();
-            body.RefreshRuntime(setup.BodyPoint, true);
-            PlaceDepth(body, setup.BodyPose);
-            ReleaseLevelRules();
-            if (!SpawnSpirit(setup)) return false;
-            InputControlMgr.Instance.InputOpenOrClose(true);
-            return true;
+            restored = RestoreExplorationAfterFailure(setup);
         }
-        finally { refreshing = false; }
+        catch (System.Exception error) { Debug.LogException(error); }
+        if (!restored)
+        {
+            Debug.LogError("逃生失败复位未完成，返回菜单。", setup);
+            ReturnToMenu();
+            yield break;
+        }
+        previousRules.CompleteEscapeRecovery(request);
+        InputControlMgr.Instance.SnapCameraToPlayer();
+        yield return FadeFailure(panel, 1f, 0f, serial);
+        if (serial != loadSerial) yield break;
+        UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
+        refreshing = false;
+        Time.timeScale = 1f;
+        InputControlMgr.Instance.InputOpenOrClose(true);
+    }
+
+    IEnumerator FadeFailure(FailureRecoveryPanel panel, float from, float to, int serial)
+    {
+        float duration = to > from ? panel.DarkenSeconds : panel.BrightenSeconds;
+        float elapsed = 0f;
+        panel.SetWeight(from);
+        while (elapsed < duration)
+        {
+            if (serial != loadSerial) yield break;
+            elapsed += Time.unscaledDeltaTime;
+            panel.SetWeight(Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / duration)));
+            yield return null;
+        }
+        if (serial == loadSerial) panel.SetWeight(to);
+    }
+
+    bool RestoreExplorationAfterFailure(SceneLevelSetup setup)
+    {
+        InputControlMgr.Instance.BindPlayer(null);
+        body.PrepareRuntimeRefresh();
+        body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+        PlayerLifecycleRules.SetWorldPaused(true);
+        setup.RisingWater?.RestoreRunDefaults();
+        foreach (GameObject root in setup.gameObject.scene.GetRootGameObjects())
+            foreach (BasicPhysicalObject source in root.GetComponentsInChildren<BasicPhysicalObject>(true))
+                source.RestoreEnvironmentDefaults();
+        PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
+        foreach (GameObject root in setup.gameObject.scene.GetRootGameObjects())
+            foreach (SceneProp prop in root.GetComponentsInChildren<SceneProp>(true)) prop.RestoreDefault();
+        levelRules.MapRecord?.Reset();
+        effects.ResetCurrentLevel();
+        body.RefreshRuntime(setup.BodyPoint, true);
+        PlaceDepth(body, setup.BodyPose);
+        ReleaseLevelRules();
+        return SpawnSpirit(setup);
     }
 
     public bool TryRestartTeaching(Player deadPlayer)
@@ -182,7 +248,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         return false;
     }
 
-    public bool CanEditEnvironment => !loading && !GameMenuOpen && Time.timeScale > 0f
+    public bool CanEditEnvironment => !loading && !refreshing && !GameMenuOpen && Time.timeScale > 0f
         && levelRules != null && levelRules.CanEditEnvironment && InputControlMgr.Instance.Player == spirit;
 
     public CognitionBackpack CurrentCognitionBackpack => levelRules?.CognitionBackpack;
@@ -278,6 +344,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;
         loading = false;
+        refreshing = false;
+        UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
         InputControlMgr.Instance.EndTransitionView(true);
         body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionPlayback(false);
         Time.timeScale = 1f;
@@ -334,6 +402,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             Debug.LogError($"关卡不能加载：{order.scenes[index]}，请重新生成关卡顺序并核对构建设置。");
             return;
         }
+        refreshing = false;
+        UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
         loading = true;
         CloseGameMenu();
         UIMgr.Instance.HideOneUI<GameplayPanel>();
