@@ -42,6 +42,8 @@ public static class P8P9LevelFlowChecks
     static Vector2 boxHome, storedHome;
     static float groundDefault, waterDefault, waterBottom;
     static PlayerDeathRequest escapeDeath, teachingDeath;
+    static Action failureChecks;
+    static bool sawDarkening, sawBlack, sawBrightening;
 
     public static void RunForBatch()
     {
@@ -120,19 +122,39 @@ public static class P8P9LevelFlowChecks
                     stage = 4;
                     break;
                 case 4:
+                    if (!FinishFailureTransition()) return;
                     InRunningTime(CheckZeroBudget);
                     InRunningTime(CheckEscapeCrush);
+                    stage = 8;
+                    break;
+                case 8:
+                    if (!FinishFailureTransition()) return;
                     Check(Rules().Stage == PlayerGameplayStage.Exploration && Actor("spirit") != null,
                         "负面逃生死亡后正常返回探索");
+                    Time.timeScale = 1f;
+                        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchaseEscapeAbility(0),
+                            "退出回归建立第三次正式逃生");
+                        Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && SceneChangeMgr.Instance.IsFailureRecovering,
+                            "第三次死亡启动独立失败演出");
+                        Check(SceneChangeMgr.Instance.ReturnToMenu(), "渐暗尚未完成时可以显式退出本关");
+                    stage = 9;
+                    break;
+                case 9:
+                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
+                    Check(!SceneChangeMgr.Instance.IsFailureRecovering && Time.timeScale == 1f
+                        && !WorldPaused(typeof(BasicEntity)), "失败演出退出清理恢复时间与世界许可");
+                    UIMgr.Instance.GetOnePanel<FailureRecoveryPanel>(value =>
+                        Check(!value.gameObject.activeSelf, "失败演出退出撤销独立遮罩"));
                     DataAndInitMgr.Instance.SaveLevelIndex(0);
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 5;
                     break;
                 case 5:
                     if (!Ready(sceneOrder[0])) return;
-                    Check(SceneLevelSetup.Current.Teaching && Actor("body").GetInstanceID() == bodyId
+                    Check(SceneLevelSetup.Current.Teaching && Actor("body").GetInstanceID() != bodyId
                         && Actor("spirit") == null && Players().Length == 1,
-                        "转入教学仍复用长期实体，不创建精神体");
+                        "失败演出退出后重进教学创建唯一实体，不残留旧精神体");
+                    body = Actor("body"); bodyId = body.GetInstanceID();
                     teachingRules = Rules(); teachingSetupId = SceneLevelSetup.Current.GetInstanceID();
                     Check(teachingRules.Stage == PlayerGameplayStage.Tutorial && !LevelStageMgr.Instance.HasExploration,
                         "教学组装独立死亡规则，未建立探索阶段");
@@ -230,6 +252,11 @@ public static class P8P9LevelFlowChecks
         Check(explorationRules.BindExplorationMap(setup) && explorationRules.MapRecord.IsValid,
             "本关临时格子由性质配置关联并建立唯一记录");
         explorationRules.NotifyMapRelocated();
+        RefreshPanel();
+        MapView mapView = panel.transform.Find("MapArea").GetComponent<MapView>();
+        typeof(MapView).GetMethod("Update", Hidden).Invoke(mapView, null);
+        Check(((System.Collections.IDictionary)typeof(MapView).GetField("tiles", Hidden).GetValue(mapView)).Count == 0,
+            "尚未探索时地图不创建未知格子的图形或点击热区");
 
         Check(ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.1f, PlayerEffectScope.Permanent),
             "夹具模拟此前已经取得的永久效果");
@@ -253,6 +280,13 @@ public static class P8P9LevelFlowChecks
         CharacterPhysics physics = spirit.GetComponent<CharacterPhysics>();
         // 格外移动保留上一格；先进入另一格，再返回起始格，才能经正常移动点亮两格。
         MoveCenter(physics, new Vector2(8030f, 8003f)); explorationRules.AdvanceExplorationMap();
+        MapView reveal = panel.transform.Find("MapArea").GetComponent<MapView>();
+        typeof(MapView).GetMethod("Update", Hidden).Invoke(reveal, null);
+        var revealedTiles = (System.Collections.IDictionary)typeof(MapView).GetField("tiles", Hidden).GetValue(reveal);
+        Check(revealedTiles.Count == 1 && revealedTiles.Contains(secondCell) && !revealedTiles.Contains(firstCell),
+            "只显示新点亮的单格，未点亮相邻格不提供标记和热区");
+        RectTransform single = ((Image)revealedTiles[secondCell]).rectTransform;
+        Near(single.anchoredPosition, Vector2.zero, "只有一格时按已亮范围居中，未知格不影响布局");
         MoveCenter(physics, new Vector2(8010f, 8003f)); explorationRules.AdvanceExplorationMap();
         MoveCenter(physics, new Vector2(8030f, 8003f)); explorationRules.AdvanceExplorationMap();
         Check(explorationRules.MapRecord.IsLit(firstCell) && explorationRules.MapRecord.IsLit(secondCell),
@@ -415,6 +449,17 @@ public static class P8P9LevelFlowChecks
         Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Electrocuted,
             "P15 真实固定带电触发器经统一电击请求触发完整失败重开");
         escapeDeath = observer.Last;
+        Check(SceneChangeMgr.Instance.IsFailureRecovering && body.PendingDeath.HasValue
+            && body.DeathStatus == PlayerDeathStatus.Pending && Rules() == escapeRules && Actor("spirit") == null,
+            "失败只受理异步死亡，全黑前不提前重建探索");
+        Near(box.DebugActualPosition, boxHome + Vector2.right * 15f, "渐暗开始保持箱子现场");
+        Check(!InputControlMgr.Instance.InputEnabled && InputControlMgr.Instance.Player == null
+            && !SceneChangeMgr.Instance.ToggleGameMenu(), "失败渐暗禁用控制和暂停菜单");
+        Check(escapeRules.ReceiveDeath(escapeDeath) == PlayerDeathStatus.Pending
+            && SceneChangeMgr.Instance.IsFailureRecovering, "同死亡周期演出期间重放不再启动一次恢复");
+        sawDarkening = sawBlack = sawBrightening = false;
+        failureChecks = () =>
+        {
         Player replacement = Actor("spirit");
         Check(replacement != null && replacement.GetInstanceID() != previousSpiritId && replacement._ActionData.isFlying
             && Actor("body") == body && body.GetInstanceID() == bodyId && InputControlMgr.Instance.Player == replacement,
@@ -436,10 +481,11 @@ public static class P8P9LevelFlowChecks
         Near(water.SurfaceY, waterDefault, "重刷新立即恢复本关默认水面");
         Check(!water.RisingAllowed && WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
             "新漫游停止水上涨并保持世界暂停");
-        Near(Rules().Cognition.Remaining, setup.InitialCognition, "失败新局认知回本关初始配置");
+        float occupied = 0f;
+        foreach (MapCell cell in Rules().MapRecord.Cells) occupied += Rules().MapRecord.ReservedCognition(cell);
+        Near(Rules().Cognition.Remaining + occupied, setup.InitialCognition, "失败认知重建后只发生新探索正常出生格占用");
         Check(!escapeRules.MapRecord.IsLit(firstCell) && !escapeRules.MapRecord.IsLit(secondCell)
-            && !Rules().MapRecord.IsLit(firstCell) && !Rules().MapRecord.IsLit(secondCell),
-            "旧格子记录清空，新规则不继承探索点亮");
+            && !Rules().MapRecord.IsLit(secondCell), "旧格子记录清空，新规则不继承远处探索点亮");
         Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 1,
             "失败撤销本关购买、本局和未确认永久效果，保留此前确认永久");
         Check(prop.gameObject.activeSelf && prop.transform.position == propHome
@@ -455,6 +501,7 @@ public static class P8P9LevelFlowChecks
             && Rules().ReceiveDeath(escapeDeath) == PlayerDeathStatus.Rejected
             && Actor("spirit").GetInstanceID() == replacementId,
             "同死亡周期重放不会再次刷新或重建精神体");
+        };
     }
 
     static void CheckEscapeCrush()
@@ -476,10 +523,53 @@ public static class P8P9LevelFlowChecks
         typeof(MonoPublicMgr).GetMethod("FixedUpdate", Hidden).Invoke(MonoPublicMgr.Instance, null);
         Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Crushed,
             $"P15 正式逃生门推向固定墙夹住实体，经模拟后死亡入口完整重开 [count={observer.Count}, cause={observer.Last.cause}, door={body.GetComponent<Collider2D>().Distance(door.GetComponent<Collider2D>()).distance}, wall={body.GetComponent<Collider2D>().Distance(wall.GetComponent<Collider2D>()).distance}]");
+        Check(SceneChangeMgr.Instance.IsFailureRecovering && Rules().Stage == PlayerGameplayStage.Escape,
+            "真实夹击也先进入独立失败演出，不立即复位门");
+        sawDarkening = sawBlack = sawBrightening = false;
+        failureChecks = () =>
+        {
         Near((Vector2)door.transform.position, doorHome, "P15 夹击失败恢复机关门默认位置");
         Check(!(bool)typeof(Taijie).GetField("easedMotion", Hidden).GetValue(door)
             && door.Delta == Vector2.zero && WorldPaused(typeof(BasicEntity)),
             "P15 夹击复位清门命令与携带贡献，返回漫游暂停");
+        };
+    }
+
+    static bool FinishFailureTransition()
+    {
+        SceneChangeMgr host = SceneChangeMgr.Instance;
+        if (host.IsFailureRecovering)
+        {
+            if (InputControlMgr.Instance.InputEnabled || host.CanTeleportMap || host.CanResetTrial)
+                throw new InvalidOperationException("失败演出提前放开操作、地图传送或重置。");
+            UIMgr.Instance.GetOnePanel<FailureRecoveryPanel>(value =>
+            {
+                if (!value.gameObject.activeInHierarchy) return;
+                if (!value.GetComponent<Image>().raycastTarget)
+                    throw new InvalidOperationException("失败遮罩未阻挡界面点击。");
+                if (Rules().Stage == PlayerGameplayStage.Escape)
+                {
+                    if (value.Weight > 0f && value.Weight < 1f) sawDarkening = true;
+                    if (value.Weight == 1f) sawBlack = true;
+                }
+                else if (!sawBrightening && value.Weight > 0f && value.Weight < 1f)
+                {
+                    sawBrightening = true;
+                    Near(Rules().Cognition.Remaining, setup.InitialCognition, "全黑复位后渐亮期间认知保持初始容量");
+                    Check(!Rules().MapRecord.IsLit(firstCell) && !Rules().MapRecord.IsLit(secondCell),
+                        "渐亮期间新探索尚未正常采样点亮出生格");
+                    Check(Time.timeScale == 0f && !InputControlMgr.Instance.InputEnabled,
+                        "渐亮期间世界和输入仍暂停");
+                }
+            });
+            return false;
+        }
+        Check(sawDarkening && sawBlack && sawBrightening, "真实帧序观察到渐暗、全黑后复位、渐亮三个阶段");
+        Check(InputControlMgr.Instance.InputEnabled && WorldPaused(typeof(BasicEntity))
+            && Rules().Stage == PlayerGameplayStage.Exploration, "渐亮结束才恢复漫游输入，世界仍暂停");
+        Time.timeScale = 0f; // 夹具继续手动推进物理，不让自动帧移动验证位置。
+        failureChecks(); failureChecks = null;
+        return true;
     }
 
     static void CheckZeroBudget()
@@ -520,26 +610,35 @@ public static class P8P9LevelFlowChecks
         Check(map.gameObject.activeInHierarchy && tile.interactable, "真实地图显示手工格子并接可操作按钮");
         float before = explorationRules.Cognition.Remaining;
         box.RefreshMotionState(boxHome + Vector2.right * 7f);
+        var state = (PlayerStateMachine)typeof(Player).GetField("fsm", Hidden).GetValue(spirit);
+        state.stamina = 17f; state.oxygen = 29f;
         tile.onClick.Invoke();
         Near(spirit.GetComponent<CharacterPhysics>().BodyBounds.center, firstCell.Center, "地图按钮把碰撞框中心传送至格中心");
         Check(explorationRules.MapRecord.CurrentCell == firstCell, "地图传送后当前格为所点目标");
-        Near(box.DebugActualPosition, boxHome, "地图传送复用全关箱子轻刷新");
+        Near(box.DebugActualPosition, boxHome + Vector2.right * 7f, "模拟地图传送保留移动箱子现场，不执行轻刷新");
+        Near(state.stamina, 17f, "地图传送不补满体力");
+        Near(state.oxygen, 29f, "地图传送不补满氧气");
+        Check(explorationRules.IsSimulation && !WorldPaused(typeof(BasicEntity)), "模拟传送保留行走与世界运行");
         Near(explorationRules.Cognition.Remaining, before, "地图传送不额外收转换或格子费用");
-        Button cancel = map.Find("CancelMapCellButton").GetComponent<Button>();
-        Check(cancel.interactable, "当前所选点亮格可取消记录");
-        cancel.onClick.Invoke();
-        Check(!explorationRules.MapRecord.IsLit(firstCell), "地图实际取消按钮清除当前格记录");
-        Near(explorationRules.Cognition.Remaining, before + 2f, "取消按该格实际预留释放认知");
-        cancel.onClick.Invoke();
-        Near(explorationRules.Cognition.Remaining, before + 2f, "重复取消不重复退款");
-        Check(!host.TryTeleport(firstCell), "已取消的目标不能再传送");
-        Check(host.ResetTrial(), "取消当前格仍可独立重置到所在格中心");
-        explorationRules.AdvanceExplorationMap();
-        Check(!explorationRules.MapRecord.IsLit(firstCell), "独立重置及格内采样不会补亮已取消格");
-        MoveCenter(spirit.GetComponent<CharacterPhysics>(), secondCell.Center); explorationRules.AdvanceExplorationMap();
-        MoveCenter(spirit.GetComponent<CharacterPhysics>(), firstCell.Center); explorationRules.AdvanceExplorationMap();
-        Check(explorationRules.MapRecord.IsLit(firstCell), "离格后正常重新进入才点亮并占用");
-        Near(explorationRules.Cognition.Remaining, before, "重新进入一次只重新占用一次认知");
+        Transform cancel = map.Find("CancelMapCellButton");
+        Check(cancel == null || !cancel.gameObject.activeSelf, "地图不开放主动取消记录／释放认知按钮");
+        Check(map.Find("MapHintText").GetComponent<Text>().text.Contains("点击已点亮格子传送")
+            && !map.Find("MapHintText").GetComponent<Text>().text.Contains("取消"), "真实面板明确说明传送与独立重置");
+        SetField(explorationRules, "nextManualChange", 0f); // 夹具在同帧核对两种模式，不等待手动切换冷却。
+        Check(host.SetSimulation(false), "地图联验可先切回漫游");
+        float roamBefore = explorationRules.Cognition.Remaining;
+        Check(host.TryTeleport(secondCell), "漫游也可点击已点亮格传送");
+        Near(spirit.GetComponent<CharacterPhysics>().BodyBounds.center, secondCell.Center, "漫游传送仍按碰撞框中心安置");
+        Check(spirit._ActionData.isFlying && !explorationRules.IsSimulation && WorldPaused(typeof(BasicEntity)),
+            "漫游传送保留飞行形态与世界暂停");
+        Near(box.DebugActualPosition, boxHome + Vector2.right * 7f, "漫游传送也保留箱子现场");
+        Near(state.stamina, 17f, "漫游传送仍不补资源");
+        Near(explorationRules.Cognition.Remaining, roamBefore, "漫游传送不增加认知消耗");
+        SetField(explorationRules, "nextManualChange", 0f);
+        Check(host.SetSimulation(true) && host.TryTeleport(firstCell), "返回模拟后地图仍只传送");
+        Check(host.ResetTrial(), "独立试验重置按钮仍可恢复现场");
+        Near(box.DebugActualPosition, boxHome, "只有独立试验重置才恢复箱子默认");
+        Near(state.stamina, state.staminaMax, "独立试验重置保留原有资源恢复职责");
         Vector2 validPoint = spirit.GetComponent<CharacterPhysics>().DebugActualPosition;
         box.RefreshMotionState(boxHome + Vector2.right * 6f);
         MoveCenter(spirit.GetComponent<CharacterPhysics>(), new Vector2(7900f, 8003f));
@@ -588,7 +687,11 @@ public static class P8P9LevelFlowChecks
     {
         float previous = Time.timeScale;
         try { Time.timeScale = 1f; action(); }
-        finally { Time.timeScale = previous; }
+        finally
+        {
+            // 新失败演出已接管时间时，夹具不能把宿主的暂停覆盖回运行。
+            if (!SceneChangeMgr.Instance.IsFailureRecovering) Time.timeScale = previous;
+        }
     }
     static void RefreshPanel() => typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
     static GameObject NewObject(string name, Vector2 position)

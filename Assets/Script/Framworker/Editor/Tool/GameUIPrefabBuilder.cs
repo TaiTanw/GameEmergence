@@ -6,7 +6,7 @@ using UnityEditor.AddressableAssets.Settings;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>生成关内 UI 基础预设；仅写这两个预设及其 UI 地址，运行时不依赖此工具。</summary>
+/// <summary>生成关内 UI 基础预设及地址；运行时不依赖此工具，定向升级只写本轮 UI。</summary>
 public static class GameUIPrefabBuilder
 {
     static readonly Color Ink = new Color(.88f, .94f, .96f);
@@ -18,8 +18,9 @@ public static class GameUIPrefabBuilder
     {
         BuildGameplay();
         BuildMenu();
+        BuildFailure();
         AssetDatabase.SaveAssets();
-        Debug.Log("Game UI prefabs saved: GameplayPanel, GameMenuPanel");
+        Debug.Log("Game UI prefabs saved: GameplayPanel, GameMenuPanel, FailureRecoveryPanel");
     }
 
     public static void RunForBatch()
@@ -32,6 +33,45 @@ public static class GameUIPrefabBuilder
     {
         try { BuildGameplay(); AssetDatabase.SaveAssets(); EditorApplication.Exit(0); }
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+    }
+
+    // 定向更新本轮两个 UI，保留用户对其它关内布局和样式的编辑。
+    public static void UpgradeMapAndFailureForBatch()
+    {
+        try
+        {
+            BuildFailure();
+            string path = "Assets/MyObjAssets/UIPanel/GameplayPanel.prefab";
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                Transform map = root.transform.Find("MapArea");
+                Transform cancel = map.Find("CancelMapCellButton");
+                if (cancel != null) UnityEngine.Object.DestroyImmediate(cancel.gameObject);
+                map.Find("MapSelectedText").GetComponent<Text>().text = "仅显示已点亮的地图";
+                Text hint = map.Find("MapHintText").GetComponent<Text>();
+                hint.text = "点击已点亮格子传送；\n试验重置使用独立按钮。";
+                hint.rectTransform.anchoredPosition = new Vector2(20f, -344f);
+                hint.rectTransform.sizeDelta = new Vector2(320f, 64f);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.SaveAssets();
+            EditorApplication.Exit(0);
+        }
+        catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+    }
+
+    static void BuildFailure()
+    {
+        RectTransform root = Root("FailureRecoveryPanel");
+        try
+        {
+            Background(root, Color.clear, true);
+            root.gameObject.AddComponent<FailureRecoveryPanel>();
+            Save(root);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(root.gameObject); }
     }
 
     static void BuildGameplay()
@@ -97,13 +137,8 @@ public static class GameUIPrefabBuilder
         Label(map, "MapTitleText", "认知地图", new Vector2(20, -12), new Vector2(320, 36), 24, Ink);
         RectTransform cells = Region(map, "MapCellsArea", new Vector2(0, 1), new Vector2(20, -56), new Vector2(320, 240));
         Background(cells, new Color(.025f, .045f, .065f, .7f), true); cells.gameObject.AddComponent<RectMask2D>();
-        Label(map, "MapSelectedText", "选择格子查看记录", new Vector2(20, -304), new Vector2(320, 30), 17, Muted);
-        RectTransform cancelRect = Region(map, "CancelMapCellButton", new Vector2(0, 1), new Vector2(20, -344), new Vector2(320, 42));
-        Image cancelImage = Background(cancelRect, new Color(.13f, .32f, .37f), true);
-        Button cancel = cancelRect.gameObject.AddComponent<Button>(); cancel.targetGraphic = cancelImage;
-        Text cancelLabel = Label(cancelRect, "Label", "取消记录", Vector2.zero, new Vector2(320, 42), 22, Ink);
-        Stretch(cancelLabel.rectTransform); cancelLabel.alignment = TextAnchor.MiddleCenter;
-        Text hint = Label(map, "MapHintText", "点击格子查看记录。", new Vector2(20, -394), new Vector2(320, 34), 16, Muted);
+        Label(map, "MapSelectedText", "仅显示已点亮的地图", new Vector2(20, -304), new Vector2(320, 30), 17, Muted);
+        Text hint = Label(map, "MapHintText", "点击已点亮格子传送；\n试验重置使用独立按钮。", new Vector2(20, -344), new Vector2(320, 64), 16, Muted);
         hint.horizontalOverflow = HorizontalWrapMode.Wrap;
         map.gameObject.AddComponent<MapView>();
         map.gameObject.SetActive(false);
