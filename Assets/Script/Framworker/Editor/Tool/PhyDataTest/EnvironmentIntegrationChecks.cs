@@ -1085,6 +1085,7 @@ public static class EnvironmentIntegrationChecks
     {
         Vector3 target = NextPosition();
         Taijie platform = Prefab<Taijie>("Taijie.prefab", target);
+        platform.transform.position = target + Vector3.up * 5f;
         platform.ToMovePoint(target);
         Vector2 expected = target - platform.transform.position;
         // 固定为已到达终点的时刻，避免真实等待造成测试不稳定。
@@ -1130,7 +1131,10 @@ public static class EnvironmentIntegrationChecks
     private static EnvironmentCheckBody Body(Vector3 position)
     {
         GameObject item = NewObject("environment receiver", position);
-        item.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+        // 原生执行已把 Kinematic 解释为锁定实体；速度能力夹具应像正常实体使用 Dynamic。
+        Rigidbody2D rigidbody = item.AddComponent<Rigidbody2D>();
+        rigidbody.bodyType = RigidbodyType2D.Dynamic;
+        rigidbody.gravityScale = 0f;
         item.AddComponent<BoxCollider2D>();
         var body = item.AddComponent<EnvironmentCheckBody>();
         body.InitializeForChecks();

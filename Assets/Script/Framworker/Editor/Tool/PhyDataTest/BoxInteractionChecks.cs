@@ -186,6 +186,7 @@ public static class BoxInteractionChecks
         w.ground.enabled = false;
         w.box.SetMotionParticipation(false);
         Taijie platform = Instantiate("Taijie.prefab").GetComponent<Taijie>();
+        platform.transform.position = new Vector3(w.player.BodyBounds.center.x, 99f, 0f);
         platform.ToMovePoint(new Vector3(w.player.BodyBounds.center.x, 94f, 0f));
         Physics2D.SyncTransforms();
         float top = platform.GetComponent<Collider2D>().bounds.max.y;
@@ -485,7 +486,7 @@ public static class BoxInteractionChecks
         Invoke(player, "UpdateBoxRelations");
         Check(receiver.count == 1 && receiver.last == PlayerDeathCause.Electrocuted,
             $"侧面贴合带电方块请求电击死亡 [count={receiver.count}, cause={receiver.last}, pending={player.PendingDeath.HasValue}, " +
-            $"touch={LevelBoxContext.TouchesElectrified(player.GetComponent<CharacterPhysics>().BodyBounds, .03f)}]");
+            $"touch={ElectricContact.Touches(player, .03f)}]");
         player.ResetDeathCycle();
         for (int i = 0; i < 5; i++) Invoke(player, "UpdateBoxRelations");
         Check(receiver.count == 1, "持续接触不在每个物理步重复请求死亡");

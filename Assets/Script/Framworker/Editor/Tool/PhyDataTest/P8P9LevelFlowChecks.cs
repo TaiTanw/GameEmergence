@@ -121,7 +121,7 @@ public static class P8P9LevelFlowChecks
                     break;
                 case 4:
                     InRunningTime(CheckZeroBudget);
-                    Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "零预算逃生仍能经统一死亡重新探索");
+                    InRunningTime(CheckEscapeCrush);
                     Check(Rules().Stage == PlayerGameplayStage.Exploration && Actor("spirit") != null,
                         "负面逃生死亡后正常返回探索");
                     DataAndInitMgr.Instance.SaveLevelIndex(0);
@@ -355,12 +355,48 @@ public static class P8P9LevelFlowChecks
 
     static void CheckRisingWaterMenuAndFailure()
     {
+        // P15 使用实际预设参与现有逃生／菜单／失败流程，不保存这些关卡夹具。
+        GameObject cartObject = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + "MechanismCart.prefab"),
+            new Vector3(8050f, 8000.775f, 0f), Quaternion.identity);
+        SceneManager.MoveGameObjectToScene(cartObject, setup.gameObject.scene); fixtures.Add(cartObject);
+        MechanismCart cart = cartObject.GetComponent<MechanismCart>();
+        Vector2 cartHome = cart.DebugActualPosition;
+        GameObject plateObject = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + "PressurePlate.prefab"),
+            new Vector3(8058f, 8000.125f, 0f), Quaternion.identity);
+        SceneManager.MoveGameObjectToScene(plateObject, setup.gameObject.scene); fixtures.Add(plateObject);
+        MechanismPressurePlate plate = plateObject.GetComponent<MechanismPressurePlate>();
+        Taijie door = (Taijie)plate.TargetComponent;
+        Vector3 doorHome = door.transform.position;
+        PhysicalBox pressureBox = BoxOnFloor(8058f, 8000f);
+        Vector2 pressureHome = pressureBox.DebugActualPosition;
+        Physics2D.SyncTransforms();
+        MoveCenter(body.GetComponent<CharacterPhysics>(), cart.BodyBounds.center);
+        SceneProp cartProp = Prop(cart.BodyBounds.center);
+        Check(MechanismCart.FindInteractTarget(body) == cart,
+            $"P15 实际小车可被发现 [ready={cart.IsMotionReady}, participating={cart.IsMotionParticipating}, player={body.Permissions.movement}/{body.Permissions.motionUpdates}, distance={cart.GetComponent<Collider2D>().Distance(body.GetComponent<Collider2D>()).distance}]");
+        TapInteract(body);
+        Check(cart.IsOn && !Used(cartProp), $"P15 真实受控实体点按开启小车，同次不领取重叠道具 [on={cart.IsOn}, prop={Used(cartProp)}]");
+        TapInteract(body); Check(!cart.IsOn && !Used(cartProp), "P15 再次点按关闭，仍独占该次交互");
+        TapInteract(body);
+        MethodInfo fixedTick = typeof(MonoPublicMgr).GetMethod("FixedUpdate", Hidden);
+        for (int i = 0; i < 4; i++) fixedTick.Invoke(MonoPublicMgr.Instance, null);
+        Check(plate.IsPressed && plate.OccupantCount == 1, "P15 正式逃生的实际调度采集箱子顶部接触并启动门");
+        typeof(Taijie).GetField("nowtime", Hidden).SetValue(door, AudioSettings.dspTime - .75d);
+        typeof(Taijie).GetMethod("FixFun", Hidden).Invoke(door, null);
+        Check(door.transform.position.y > doorHome.y + 1f && cart.DebugActualPosition.x > cartHome.x,
+            "P15 逃生运行小车和关联实心门");
+        Vector2 pausedCart = cart.DebugActualPosition;
+        Vector3 pausedDoor = door.transform.position;
         float before = water.SurfaceY;
         for (int i = 0; i < 5; i++) typeof(WaterRegion).GetMethod("AdvanceWaterLevel", Hidden).Invoke(water, null);
         Check(water.SurfaceY > before, "实际水相位按逃生上涨许可推进水面");
         Near(water.GetComponent<BoxCollider2D>().bounds.min.y, waterBottom, "实际上涨固定制作水底");
         Check(SceneChangeMgr.Instance.ToggleGameMenu() && SceneChangeMgr.Instance.GameMenuOpen
             && Time.timeScale == 0f && WorldPaused(typeof(BasicEntity)), "逃生菜单复用现有世界暂停");
+        fixedTick.Invoke(MonoPublicMgr.Instance, null);
+        Near(cart.DebugActualPosition, pausedCart, "P15 菜单暂停小车");
+        Near((Vector2)door.transform.position, pausedDoor, "P15 菜单暂停实心门");
+        Check(plate.IsPressed && cart.IsOn && door.Delta == Vector2.zero, "P15 暂停保留压感／开关，清本步携带贡献");
         Check(SceneChangeMgr.Instance.ToggleGameMenu() && !SceneChangeMgr.Instance.GameMenuOpen
             && Time.timeScale == 1f && !WorldPaused(typeof(BasicEntity)) && !WorldPaused(typeof(Taijie))
             && InputControlMgr.Instance.Player == body && InputControlMgr.Instance.InputEnabled,
@@ -370,8 +406,13 @@ public static class P8P9LevelFlowChecks
         int previousSpiritId = spiritId;
         var observer = new DeathObserver(escapeRules);
         body.BindDeathReceiver(observer);
-        Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && observer.Count == 1,
-            "实际实体死亡经一次统一请求触发完整失败重开");
+        GameObject electricObject = NewObject("P15 escape electric contact", body.GetComponent<CharacterPhysics>().BodyBounds.center);
+        electricObject.AddComponent<BoxCollider2D>().isTrigger = true;
+        electricObject.AddComponent<BaseGround>(); electricObject.AddComponent<FixedElectricHazard>();
+        Physics2D.SyncTransforms();
+        typeof(Player).GetMethod("UpdateBoxRelations", Hidden).Invoke(body, null);
+        Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Electrocuted,
+            "P15 真实固定带电触发器经统一电击请求触发完整失败重开");
         escapeDeath = observer.Last;
         Player replacement = Actor("spirit");
         Check(replacement != null && replacement.GetInstanceID() != previousSpiritId && replacement._ActionData.isFlying
@@ -385,6 +426,12 @@ public static class P8P9LevelFlowChecks
         Near(ground.SlowingEffect, groundDefault, "重刷新由原环境来源恢复制作默认");
         Near(box.DebugActualPosition, boxHome, "重刷新恢复全关第一个箱子");
         Near(storedBox.DebugActualPosition, storedHome, "重刷新恢复全关另一个箱子");
+        Near(cart.DebugActualPosition, cartHome, "P15 失败恢复小车默认位置");
+        Check(!cart.IsOn && cart.GetPlanarVelocity() == Vector2.zero && !plate.IsPressed,
+            "P15 失败恢复小车默认开关／速度并清压感状态");
+        Near((Vector2)door.transform.position, doorHome, "P15 失败恢复门默认位置");
+        Near(pressureBox.DebugActualPosition, pressureHome, "P15 失败恢复压住机关的箱子默认位置");
+        Check(door.Delta == Vector2.zero, "P15 失败不留下旧平台位移");
         Near(water.SurfaceY, waterDefault, "重刷新立即恢复本关默认水面");
         Check(!water.RisingAllowed && WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
             "新漫游停止水上涨并保持世界暂停");
@@ -407,6 +454,31 @@ public static class P8P9LevelFlowChecks
             && Rules().ReceiveDeath(escapeDeath) == PlayerDeathStatus.Rejected
             && Actor("spirit").GetInstanceID() == replacementId,
             "同死亡周期重放不会再次刷新或重建精神体");
+    }
+
+    static void CheckEscapeCrush()
+    {
+        Vector2 center = body.GetComponent<CharacterPhysics>().BodyBounds.center;
+        GameObject doorObject = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + "MechanismDoor.prefab"),
+            center + Vector2.left * 1.77f, Quaternion.identity);
+        SceneManager.MoveGameObjectToScene(doorObject, setup.gameObject.scene); fixtures.Add(doorObject);
+        Taijie door = doorObject.GetComponent<Taijie>();
+        Vector2 doorHome = door.transform.position;
+        typeof(Taijie).GetField("mechanismOffset", Hidden).SetValue(door, new Vector2(1.55f, 0f));
+        GameObject wall = NewObject("P15 escape crush wall", center + Vector2.right * 5.53f);
+        wall.layer = LayerMask.NameToLayer("Ground");
+        wall.AddComponent<BoxCollider2D>().size = new Vector2(10f, 8f); wall.AddComponent<Wall>();
+        var observer = new DeathObserver(Rules()); body.BindDeathReceiver(observer);
+        door.TrySetMechanismActive(true);
+        typeof(Taijie).GetField("nowtime", Hidden).SetValue(door, AudioSettings.dspTime - 2d);
+        // 使用真实调度：相位 0 推门，唯一相位 4 模拟，相位 5 残留夹击死亡。
+        typeof(MonoPublicMgr).GetMethod("FixedUpdate", Hidden).Invoke(MonoPublicMgr.Instance, null);
+        Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Crushed,
+            $"P15 正式逃生门推向固定墙夹住实体，经模拟后死亡入口完整重开 [count={observer.Count}, cause={observer.Last.cause}, door={body.GetComponent<Collider2D>().Distance(door.GetComponent<Collider2D>()).distance}, wall={body.GetComponent<Collider2D>().Distance(wall.GetComponent<Collider2D>()).distance}]");
+        Near((Vector2)door.transform.position, doorHome, "P15 夹击失败恢复机关门默认位置");
+        Check(!(bool)typeof(Taijie).GetField("easedMotion", Hidden).GetValue(door)
+            && door.Delta == Vector2.zero && WorldPaused(typeof(BasicEntity)),
+            "P15 夹击复位清门命令与携带贡献，返回漫游暂停");
     }
 
     static void CheckZeroBudget()
