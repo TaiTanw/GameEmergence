@@ -49,6 +49,7 @@ public class MovementData
     /// <summary>本次按键将作用的目标与预期结果；只有受控且有操作许可时才有。表现只读，用于单目标高光与提示。</summary>
     public PlayerInteractHint interactHint;
     public PhysicalBox interactTarget;
+    public MechanismCart interactCart;
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -76,6 +77,7 @@ public class ReadOnly_ActionData
     public PushPullAction PushPullAction => _data.pushPullAction;
     public PlayerInteractHint InteractHint => _data.interactHint;
     public PhysicalBox InteractTarget => _data.interactTarget;
+    public MechanismCart InteractCart => _data.interactCart;
     public bool PushPullEnabled => _data.pushPullBox != null;
     public bool isFlying => NowState == PlayerStateMachine.E_playerState.flying;
     public FourWayMode FourWay => isFlying ? FourWayMode.Flying : isSurfaceSwimming ? FourWayMode.SurfaceSwimming
@@ -116,13 +118,13 @@ public readonly struct PlayerResourceFacts
 
 public class Player : MonoBehaviour
 {
-    /// <summary>玩家层。同层不互相碰撞，所以精神体、待命实体和以后推箱的小车都走这一层。</summary>
+    /// <summary>玩家层。同层角色不互相碰撞；小车独立使用世界渲染层和碰撞排除配置。</summary>
     public const int PlayerLayer = 8;
     [SerializeField] private PlayerIdentity identity;
     [SerializeField, Tooltip("选中外部箱的最大水平碰撞框间隙；选中后须接触才开始共同推拉，开发期参数")] private float interactContactGap = 0.5f;
     [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除；须大于选中间隙，开发期参数")] private float interactReleaseGap = 0.8f;
     [SerializeField, Tooltip("发现收纳箱以便取出的最大水平碰撞框间隙，开发期参数")] private float storedReachGap = 0.6f;
-    [SerializeField, Tooltip("与带电方块碰撞框间隙不超过此值即算触碰，开发期参数")] private float electrifiedContactTolerance = 0.03f;
+    [SerializeField, Tooltip("与带电箱／固定带电实心表面的接触容差；触发器须实际重叠，开发期参数")] private float electrifiedContactTolerance = 0.03f;
     private PlayerCapabilityContext capabilities;
     private IPlayerDeathReceiver deathReceiver;
     private PlayerDeathRequest? pendingDeath;
@@ -132,6 +134,8 @@ public class Player : MonoBehaviour
     private IPlayerFlightExecution flightExecution;
     private PlayerBoxSelection boxSelection;
     private bool electrifiedDeathLatched;
+    private bool crushedDeathLatched;
+    private readonly List<Collider2D> crushOverlaps = new List<Collider2D>();
     public PlayerDeathRequest? PendingDeath => pendingDeath;
     public PlayerDeathStatus DeathStatus { get; private set; } = PlayerDeathStatus.Handled;
     public PlayerIdentity Identity => identity;
@@ -142,6 +146,9 @@ public class Player : MonoBehaviour
     internal float InteractContactGap => interactContactGap;
     internal float StoredReachGap => storedReachGap;
     internal bool OnGroundForInteraction => _ActionData.NowState == PlayerStateMachine.E_playerState.isOnGround;
+    // 长期本体在 DontDestroyOnLoad 场景；机关／电源归当前关卡，不归角色所在的持久场景。
+    internal bool IsInGameplayScene(UnityEngine.SceneManagement.Scene scene)
+        => scene == (SceneLevelSetup.Current != null ? SceneLevelSetup.Current.gameObject.scene : gameObject.scene);
 
     /// <summary>组装侧绑定本体和精神体共读的效果记录；重复绑定不改基础参数或重复施加。</summary>
     public void BindEffectLedger(PlayerEffectLedger ledger)
@@ -242,6 +249,7 @@ public class Player : MonoBehaviour
         // 地图落点对齐碰撞框中心；出生点和未启用地图的试验起点仍使用原根坐标。
         if (position.HasValue && alignBodyCenter) position = playPDate.GetPositionForBodyCenter(position.Value);
         playPDate.RefreshMotionState(position, releaseEnvironmentEffects);
+        electrifiedDeathLatched = crushedDeathLatched = false;
         ResetDeathCycle();
         // 刷新后按当前水/几何重选行为，但不扣资源、不补点按，也不迁移未指定的位置。
         fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
@@ -388,6 +396,7 @@ public class Player : MonoBehaviour
     {
         // 相位 2：全体实体相位 1 采样完成后、相位 3 预测前核对箱子关系。
         MonoPublicMgr.Instance.AddPhysicalTimingUpdate(UpdateBoxRelations, 2);
+        MonoPublicMgr.Instance.AddPhysicalTimingUpdate(CheckMechanismCrush, 5);
     }
 
     private void OnDisable()
@@ -395,7 +404,11 @@ public class Player : MonoBehaviour
         // 生命周期：只有仍控制自己的管理器才解除绑定，旧角色不能解绑新目标。
         inputOwner?.UnbindPlayer(this);
         if (actionData != null) RemoveInput();
-        if (!MonoPublicMgr.IsQuitting) MonoPublicMgr.Instance.RemovePhysicalTimingUpdate(UpdateBoxRelations, 2);
+        if (!MonoPublicMgr.IsQuitting)
+        {
+            MonoPublicMgr.Instance.RemovePhysicalTimingUpdate(UpdateBoxRelations, 2);
+            MonoPublicMgr.Instance.RemovePhysicalTimingUpdate(CheckMechanismCrush, 5);
+        }
     }
 
     private void UpdateBoxRelations()
@@ -403,8 +416,40 @@ public class Player : MonoBehaviour
         ValidateBoxSelection();
         // 实际逻辑：碰到带电方块走统一死亡入口，飞行免死由 TryRequestDeath 判断；同一段持续接触只成功请求一次，
         // 离开后才重开，避免死亡处理完成后仍贴着方块时每个物理步重复死亡。
-        if (!LevelBoxContext.TouchesElectrified(BodyBounds, electrifiedContactTolerance)) electrifiedDeathLatched = false;
+        if (!ElectricContact.Touches(this, electrifiedContactTolerance)) electrifiedDeathLatched = false;
         else if (!electrifiedDeathLatched && TryRequestDeath(PlayerDeathCause.Electrocuted)) electrifiedDeathLatched = true;
+    }
+
+    private void CheckMechanismCrush()
+    {
+        // 安全：暂停和未初始化角色不查夹击，保留暂停前的接触周期。
+        if (playPDate == null || !playPDate.IsMotionParticipating) return;
+        Collider2D body = GetComponent<Collider2D>();
+        if (body == null || !body.isActiveAndEnabled) return;
+        var filter = new ContactFilter2D { useTriggers = false };
+        filter.SetLayerMask(Physics2D.GetLayerCollisionMask(gameObject.layer) & ~body.excludeLayers.value);
+        crushOverlaps.Clear();
+        body.OverlapCollider(filter, crushOverlaps);
+        bool inDoor = false, inFixedWall = false, deepOverlap = false;
+        foreach (Collider2D other in crushOverlaps)
+        {
+            // 安全：明确排除非碰撞对和单向台阶，不把平台脚下接触当门夹击。
+            if (other == null || other.isTrigger || Physics2D.GetIgnoreCollision(body, other)
+                || (other.excludeLayers.value & (1 << gameObject.layer)) != 0) continue;
+            PlatformEffector2D effector = other.GetComponent<PlatformEffector2D>();
+            if (other.usedByEffector && effector != null && effector.enabled) continue;
+            ColliderDistance2D distance = body.Distance(other);
+            // 实际逻辑：模拟后两侧仍重叠，且至少一侧超出 0.03 接触容差；原生可能只把另一侧压浅。
+            if (!distance.isValid || !distance.isOverlapped || distance.distance >= -.001f) continue;
+            Taijie target = other.GetComponent<Taijie>();
+            if (target != null && target.isActiveAndEnabled && target.HasMechanismMotion)
+            { inDoor = true; deepOverlap |= distance.distance < -.03f; }
+            else if (target == null && (other.attachedRigidbody == null
+                || other.attachedRigidbody.bodyType == RigidbodyType2D.Static))
+            { inFixedWall = true; deepOverlap |= distance.distance < -.03f; }
+        }
+        if (!inDoor || !inFixedWall || !deepOverlap) crushedDeathLatched = false;
+        else if (!crushedDeathLatched && TryRequestDeath(PlayerDeathCause.Crushed)) crushedDeathLatched = true;
     }
 
     private void ValidateBoxSelection()
@@ -460,8 +505,11 @@ public class Player : MonoBehaviour
     {
         PhysicalBox previous = boxSelection.Selected;
         PlayerCapabilityPermissions permissions = Permissions;
-        // 实际逻辑：没有箱子目标的点按留给道具；有目标时仍只交给箱子。
-        bool freeTap = inputData != null && inputData.interactTapped && boxSelection.ResolveTarget() == null;
+        // 实际逻辑：箱子优先；无箱子时小车独占点按，再无小车才交给道具。
+        // 漫游飞行仍可领普通道具，推拉许可只约束箱子；小车自行拒绝飞行角色。
+        bool freeTap = permissions.movement && permissions.motionUpdates && inputData != null
+            && inputData.interactTapped && !inputData.interactLongPressed && !inputData.jumpPressed
+            && boxSelection.ResolveTarget() == null;
         // 实际逻辑：撤权、推拉许可关闭或本帧按下跳跃先退出选中，并丢弃同帧交互，不能先收纳再跳。
         if (!(permissions.movement && permissions.motionUpdates && permissions.pushPull)
             || (inputData != null && inputData.jumpPressed))
@@ -469,7 +517,12 @@ public class Player : MonoBehaviour
         // 实际逻辑：长按与点按互斥，长按成功的这一次不再按点按处理；无控制权时没有边沿可读。
         else if (inputData != null && inputData.interactLongPressed) boxSelection.Consume(PlayerInteractKind.LongPress);
         else if (inputData != null && inputData.interactTapped) boxSelection.Consume(PlayerInteractKind.Tap);
-        if (freeTap) SceneProp.OfferInteract(this);
+        if (freeTap)
+        {
+            MechanismCart cart = MechanismCart.FindInteractTarget(this);
+            if (cart != null) cart.Interact(new PlayerInteractRequest(this, PlayerInteractKind.Tap, false));
+            else SceneProp.OfferInteract(this);
+        }
         // 有效推拉能力只由成立的选中关系托起。
         actionData.pushPullBox = boxSelection.Selected;
         if (previous != boxSelection.Selected) ForgetPairContacts(previous);
@@ -519,6 +572,7 @@ public class Player : MonoBehaviour
             return;
         }
         actionData.interactHint = boxSelection.Preview(out actionData.interactTarget);
+        actionData.interactCart = actionData.interactTarget == null ? MechanismCart.FindInteractTarget(this) : null;
     }
 
     private void ClearInteractHint()
@@ -527,6 +581,7 @@ public class Player : MonoBehaviour
         if (actionData == null) return;
         actionData.interactHint = PlayerInteractHint.None;
         actionData.interactTarget = null;
+        actionData.interactCart = null;
     }
 
     // 关系变化只撤销原生水平约束，不清箱子或玩家的真实受力速度。

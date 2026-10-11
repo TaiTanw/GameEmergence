@@ -10,8 +10,16 @@ public static class LevelBoxContext
 {
     private static readonly List<PhysicalBox> boxes = new List<PhysicalBox>();
 
-    public static void Register(PhysicalBox box) { if (!boxes.Contains(box)) boxes.Add(box); }
-    public static void Unregister(PhysicalBox box) => boxes.Remove(box);
+    public static void Register(PhysicalBox box)
+    {
+        if (!boxes.Contains(box)) boxes.Add(box);
+        ElectricContact.Register(box, box.GetComponent<Collider2D>());
+    }
+    public static void Unregister(PhysicalBox box)
+    {
+        boxes.Remove(box);
+        ElectricContact.Unregister(box);
+    }
 
     /// <summary>面板的占用提示：读已登记箱子的实际矩形，暂停未模拟仍可查到；不决定转换许可。</summary>
     public static int CountPushableOverlaps(BasicPhysicalObject region)
@@ -127,22 +135,6 @@ public static class LevelBoxContext
     }
 
     private const float OverlapEpsilon = .001f;
-
-    /// <summary>身体是否碰到任一参与运动的带电方块：任意一面（含站在顶面）间隙不超过 tolerance 即算接触。</summary>
-    public static bool TouchesElectrified(Bounds body, float tolerance)
-    {
-        // 实际逻辑：两轴间隙都不超过容差即接触；用几何接触事实，不看接触是否产生了推力。
-        foreach (PhysicalBox box in boxes)
-        {
-            if (box == null || !box.IsElectrified || !box.IsMotionParticipating) continue;
-            Bounds other = box.BodyBounds;
-            // 实际逻辑：只比较 XY，Transform 的 Z 不同也不影响二维接触。
-            float gapX = Mathf.Max(other.min.x - body.max.x, body.min.x - other.max.x);
-            float gapY = Mathf.Max(other.min.y - body.max.y, body.min.y - other.max.y);
-            if (gapX <= tolerance && gapY <= tolerance) return true;
-        }
-        return false;
-    }
 
     /// <summary>两个世界包围盒是否左右贴合：竖直重叠至少为较矮一方的一半，水平间隙不超过 maxGap。</summary>
     public static bool IsSideContact(Bounds body, Bounds other, float maxGap) => IsSideContact(body, other, maxGap, out _);

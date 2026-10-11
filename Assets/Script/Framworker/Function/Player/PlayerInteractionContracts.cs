@@ -2,7 +2,7 @@
 public enum PlayerInteractKind { Tap, LongPress }
 
 /// <summary>接收者对一次交互的处理结果。Rejected 表示接收者状态完全未变。</summary>
-public enum PlayerInteractOutcome { Rejected, Selected, Stored, Restored }
+public enum PlayerInteractOutcome { Rejected, Selected, Stored, Restored, Activated }
 
 /// <summary>
 /// 本次按键将作用的目标及其预期结果，供表现层显示单目标高光与提示；与按键消费共用同一候选规则。

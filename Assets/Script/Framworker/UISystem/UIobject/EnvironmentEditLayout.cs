@@ -27,6 +27,13 @@ public static class EnvironmentEditLayout
         areaRect.anchoredPosition = new Vector2(0f, 80f); areaRect.sizeDelta = new Vector2(720f, 430f);
         // 同名节点只构造一次，面板停用再启用不会复制背包或事件控件。
         if (area.Find("EnvironmentEditorContent") == null) BuildEditor(area);
+        Transform editor = area.Find("EnvironmentEditorContent");
+        // 固定特性只读行独立于能力槽，较早生成的面板也在同一入口补齐。
+        if (editor.Find("EnvironmentFixedFeatureText") == null)
+            Label(editor, "EnvironmentFixedFeatureText", "", new Vector2(20, -150), new Vector2(680, 26), 18, Ink);
+        RectTransform abilityScroll = (RectTransform)editor.Find("EnvironmentAbilityScroll");
+        abilityScroll.anchoredPosition = new Vector2(20, -184);
+        abilityScroll.sizeDelta = new Vector2(680, 120);
         if (panel.Find("CognitionBackpackArea") == null) BuildBackpack(panel);
         Transform bag = panel.Find("CognitionBackpackArea");
         // 已生成侧栏同样补齐容量说明，避免较早制作的预设漏掉预览占用口径。

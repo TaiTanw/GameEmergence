@@ -270,6 +270,15 @@ public class PresentationLayer : MonoBehaviour
     /// <summary>只显示逻辑层给出的本次按键目标；文字配颜色区分可操作、已选中与受阻，不只依赖颜色。</summary>
     private void UpdateInteractHint()
     {
+        MechanismCart cart = actionData.InteractCart;
+        if (cart != null)
+        {
+            Bounds bounds = cart.BodyBounds;
+            Rigidbody2D body = cart.GetComponent<Rigidbody2D>();
+            bounds.center += cart.transform.position - (Vector3)body.position;
+            interactHintView.Show(bounds, cart.IsOn ? "点按关闭小车" : "点按开启小车", new Color(.3f, .9f, 1f));
+            return;
+        }
         PhysicalBox target = actionData.InteractTarget;
         string text;
         Color color;

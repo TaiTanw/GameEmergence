@@ -47,7 +47,10 @@ public class Point : MonoBehaviour
         if (AudioSettings.dspTime >= nextBeat && musicIson)
         {
             transform.position += Vector3.right * 5;
-            PoolMgr.Instance.GetPoolValue("Taijie").GetComponent<Taijie>().ToMovePoint(this.transform.position);
+            // 出场位置由生成者明确安置；平台移动入口只从实际位置去终点。
+            Taijie platform = PoolMgr.Instance.GetPoolValue("Taijie").GetComponent<Taijie>();
+            platform.transform.position = transform.position + Vector3.up * 5f;
+            platform.ToMovePoint(transform.position);
 
             nextBeat += beatInterval;
         }

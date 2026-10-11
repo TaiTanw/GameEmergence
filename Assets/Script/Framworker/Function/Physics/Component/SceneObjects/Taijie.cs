@@ -7,8 +7,15 @@ using UnityEngine.U2D;
 /// 移动平台在相位 0 更新位置并记录 delta；实体踩在上面时，经 ENV-S1 读到该帧位移。
 /// 职能：平台自身运动与位移能力提供者；启停钩子只管理自身回调，环境解除由旧基类统一处理。
 /// </summary>
-public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
+public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier, IMechanismTarget
 {
+    [Header("机关目标（平台／实心门共用位移入口）")]
+    [SerializeField, Tooltip("相对首次场景位置的世界 XY 偏移；门与平台均从实际位置往返。")]
+    Vector2 mechanismOffset = new Vector2(0f, 3f);
+    [SerializeField, Tooltip("每次压住或释放后的完整缓动时长，必须大于零。")]
+    float mechanismTravelTime = 1.5f;
+    Vector3 defaultPosition;
+    bool defaultsCaptured, mechanismActive, easedMotion;
     static readonly List<Taijie> activePlatforms = new List<Taijie>();
     static bool worldPaused;
     bool paused;
@@ -43,6 +50,8 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
     protected Vector2 delta;
     /// <summary>采样：通过 IPlatformMotion 供脚下实体读取，随后并入其运动快照。</summary>
     public Vector2 Delta => delta;
+    /// <summary>曾接受机关往返命令的目标；夹击只判实心门，不把旧生成动画当机关门。</summary>
+    internal bool HasMechanismMotion => easedMotion;
 
     [SerializeField] protected float speedChangeNum; // 主动速度加性修饰，旧序列化名称保留。
     public float MovementSpeedOffset => speedChangeNum;
@@ -59,7 +68,6 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
     /// <summary>
     /// 生成时高度
     /// </summary>
-    float startPoint=5;
     /// <summary>
     /// 到目标点时间
     /// </summary>
@@ -83,6 +91,7 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
 
     protected override void OnSourceEnabled()
     {
+        CaptureDefaults();
         if (!activePlatforms.Contains(this)) activePlatforms.Add(this);
         SetPaused(worldPaused);
         MonoPublicMgr.Instance.AddPhysicalTimingUpdate(FixFun, 0);
@@ -93,16 +102,66 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
     /// <param name="v3"></param>
     public void ToMovePoint(Vector3 v3)
     {
+        CaptureDefaults();
+        // 安全：错误终点拒绝移动，不用原位置代替配置。
+        if (!Finite(v3.x) || !Finite(v3.y) || !Finite(v3.z))
+        { Debug.LogError($"{name}：平台目标位置必须是有限数值。", this); return; }
         toPoint = v3;
-        this.transform.position = new Vector3(v3.x, v3.y+startPoint,v3.z);
-
+        // 实际逻辑：从当前位置移动，机关和旧调用都不隐式跳到高处。
         startPos = transform.position;
-
+        endTime = 3d;
+        easedMotion = false;
         nowtime= AudioSettings.dspTime;
         //lastT = 0;
         start = true;
         if (paused) pausedAt = nowtime;
     }
+
+    void CaptureDefaults()
+    {
+        if (defaultsCaptured) return;
+        defaultPosition = transform.position;
+        defaultsCaptured = true;
+    }
+
+    public bool ValidateMechanismConfiguration(out string error)
+    {
+        error = null;
+        if (!Finite(mechanismTravelTime) || mechanismTravelTime <= 0f)
+            error = $"{name}：机关缓动时长必须是大于零的有限数值。";
+        else if (!Finite(mechanismOffset.x) || !Finite(mechanismOffset.y))
+            error = $"{name}：机关目标偏移必须是有限数值。";
+        return error == null;
+    }
+
+    public bool TrySetMechanismActive(bool active)
+    {
+        // 安全：目标无效时不覆盖原运行进度。
+        if (!ValidateMechanismConfiguration(out string error))
+        { Debug.LogError(error, this); return false; }
+        CaptureDefaults();
+        if (mechanismActive == active) return true;
+        mechanismActive = active;
+        startPos = transform.position;
+        toPoint = active ? defaultPosition + (Vector3)mechanismOffset : defaultPosition;
+        endTime = mechanismTravelTime;
+        nowtime = AudioSettings.dspTime;
+        easedMotion = true;
+        start = true;
+        // 实际逻辑：暂停中的命令记录起点，恢复后才推进。
+        if (paused) pausedAt = nowtime;
+        return true;
+    }
+
+    public void RestoreMechanismDefaults()
+    {
+        CaptureDefaults();
+        start = mechanismActive = easedMotion = false;
+        delta = Vector2.zero;
+        transform.position = defaultPosition;
+    }
+
+    static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     void FixFun()
     {
         if (!start || paused)
@@ -129,7 +188,8 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
         }
         else
         {
-            newPos = Vector3.Lerp(startPos, toPoint, t);
+            float progress = easedMotion ? t * t * (3f - 2f * t) : t;
+            newPos = Vector3.Lerp(startPos, toPoint, progress);
         }
 
         delta = (Vector2)(newPos - transform.position);
@@ -140,6 +200,7 @@ public class Taijie : BaseGround, IPlatformMotion, IMovementSpeedModifier
 
     protected override void OnSourceDisabled()
     {
+        SetPaused(true);
         activePlatforms.Remove(this);
         delta = Vector2.zero;
         if (!MonoPublicMgr.IsQuitting)

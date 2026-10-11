@@ -15,7 +15,7 @@ public sealed class EnvironmentEditView : MonoBehaviour
     EnvironmentEditDraft draft;
     RectTransform editor, backpack, abilityContent, backpackContent;
     GameObject selectionHint;
-    Text objectText, listStateText, hintText, occupancyText, costText, backpackModeText, backpackSelectionText, backpackCapacityText;
+    Text objectText, listStateText, hintText, occupancyText, costText, backpackModeText, backpackSelectionText, backpackCapacityText, fixedFeatureText;
     Button confirmButton, cancelButton, colliderViewButton, triggerViewButton, geometryButton, extractTriggerButton;
     Button openBackpackButton, closeBackpackButton;
     readonly List<RaycastResult> uiHits = new List<RaycastResult>();
@@ -47,6 +47,7 @@ public sealed class EnvironmentEditView : MonoBehaviour
         abilityContent = (RectTransform)editor.Find("EnvironmentAbilityScroll/Viewport/Content");
         backpackContent = (RectTransform)backpack.Find("CognitionBackpackScroll/Viewport/Content");
         objectText = editor.Find("EnvironmentSelectionTitleText").GetComponent<Text>();
+        fixedFeatureText = editor.Find("EnvironmentFixedFeatureText").GetComponent<Text>();
         listStateText = editor.Find("EnvironmentListStateText").GetComponent<Text>();
         hintText = editor.Find("EnvironmentDraftHintText").GetComponent<Text>();
         occupancyText = editor.Find("EnvironmentOccupancyText").GetComponent<Text>();
@@ -348,6 +349,8 @@ public sealed class EnvironmentEditView : MonoBehaviour
     {
         if (editor == null) return;
         objectText.text = draft == null ? "环境性质" : selected.name;
+        fixedFeatureText.text = selected != null && selected.GetComponent<FixedElectricHazard>() != null
+            ? FixedElectricHazard.ReadOnlyDescription : "";
         hintText.text = message;
         selectionHint.GetComponentInChildren<Text>().text = message;
         if (draft != null)

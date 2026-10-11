@@ -156,7 +156,15 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     /// <summary>整关轻刷新只恢复运行状态，不动环境编辑、地图、认知或道具效果。</summary>
     public static void RestoreWorldDefaults(UnityEngine.SceneManagement.Scene scene)
     {
+        // 复位顺序：目标位置和驱动先回默认，再恢复箱子，最后清压感接触；不保存整世界快照。
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            foreach (Taijie target in root.GetComponentsInChildren<Taijie>(true)) target.RestoreMechanismDefaults();
+            foreach (MechanismCart cart in root.GetComponentsInChildren<MechanismCart>(true)) cart.RestoreDefault();
+        }
         LevelBoxContext.RestoreDefaults(scene);
+        foreach (GameObject root in scene.GetRootGameObjects())
+            foreach (MechanismPressurePlate plate in root.GetComponentsInChildren<MechanismPressurePlate>(true)) plate.RestoreDefault();
         Physics2D.SyncTransforms();
     }
 
@@ -263,6 +271,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     {
         BasicEntity.SetWorldPaused(paused);
         Taijie.SetWorldPaused(paused);
+        MechanismPressurePlate.SetWorldPaused(paused);
     }
 
     public PlayerDeathStatus ReceiveDeath(PlayerDeathRequest request)
