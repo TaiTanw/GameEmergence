@@ -15,10 +15,19 @@ public sealed class EnvironmentParameterEditor : Editor
         SerializedProperty legacyWall = serializedObject.FindProperty("wallFriction");
         using (new EditorGUI.DisabledScope(Application.isPlaying))
         {
-            DrawPropertiesExcluding(serializedObject, "environmentParameters", "slowingEffect", "jumpHeightNum", "wallFriction");
+            DrawPropertiesExcluding(serializedObject, "environmentParameters", "slowingEffect", "jumpHeightNum", "wallFriction",
+                "colliderOpacity", "triggerOpacity", "environmentCalculationPointLimit");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("environmentCalculationPointLimit"),
+                new GUIContent("单槽计算点上限", "此环境两套列表的每个数值槽共用；默认 3，至少 1。"));
             DrawLegacy(parameters, legacySlowing, EnvironmentParameterKind.GroundSlowing, "旧地面消退倍率");
             DrawLegacy(parameters, legacyJump, EnvironmentParameterKind.GroundJumpMultiplier, "旧普通起跳加成");
             DrawLegacy(parameters, legacyWall, EnvironmentParameterKind.WallSlideMultiplier, "旧墙滑下落倍率");
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("形态外观", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("colliderOpacity"), new GUIContent("实心不透明度"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("triggerOpacity"), new GUIContent("触发器不透明度"));
+            EditorGUILayout.HelpBox("0 为完全透明，1 为完全不透明。制作时用下方按钮同步初始颜色；运行时只在确认切换／恢复形态时使用对应值。", MessageType.None);
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("环境参数", EditorStyles.boldLabel);
@@ -46,6 +55,14 @@ public sealed class EnvironmentParameterEditor : Editor
         }
         serializedObject.ApplyModifiedProperties();
 
+        using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+            if (GUILayout.Button("按当前碰撞形态同步不透明度"))
+            {
+                var sources = new System.Collections.Generic.List<BasicPhysicalObject>();
+                foreach (Object item in targets) if (item is BasicPhysicalObject source) sources.Add(source);
+                EnvironmentOpacityTool.Synchronize(sources);
+            }
+
         foreach (Object item in targets)
             if (item is BasicPhysicalObject host && !host.ValidateEnvironmentParameters(out string error))
                 EditorGUILayout.HelpBox(error, MessageType.Error);
@@ -64,7 +81,7 @@ public sealed class EnvironmentParameterEditor : Editor
         {
             EnvironmentParameter parameter = slots[i];
             EditorGUILayout.LabelField($"槽 {i + 1}：{parameter?.DisplayName ?? "空"}", parameter == null ? ""
-                : $"{parameter.ValueText}（{parameter.CalculationPoint?.DisplayName ?? "未附加计算点"}）");
+                : $"{parameter.ValueText}（{(parameter.CalculationCount > 0 ? parameter.CalculationText : "未附加计算点")}）");
         }
     }
 

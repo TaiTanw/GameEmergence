@@ -9,8 +9,14 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     private EnvironmentRegistration environmentRegistration;
     [SerializeField, Min(1), Tooltip("实心与触发器列表各自拥有此数量的槽，独特几何槽不占用此上限。")]
     private int environmentSlotCapacity = 6;
+    [SerializeField, Min(1), Tooltip("每个数值性质槽允许附加的计算点数；实心与触发器列表共用此配置。")]
+    private int environmentCalculationPointLimit = 3;
     [SerializeReference, Tooltip("有限环境性质；同类最多一项，按照性质种类进入实心或触发器列表。")]
     private List<EnvironmentParameter> environmentParameters = new List<EnvironmentParameter>();
+    [SerializeField, Range(0f, 1f), Tooltip("实心时主体精灵的不透明度；0 完全透明，1 完全不透明。初始外观由制作工具同步。")]
+    private float colliderOpacity = 1f;
+    [SerializeField, Range(0f, 1f), Tooltip("触发器时主体精灵的不透明度；直接使用此值，不乘旧颜色 Alpha。")]
+    private float triggerOpacity = .5f;
     private EnvironmentParameter[] colliderSlots, triggerSlots, defaultColliderSlots, defaultTriggerSlots;
     private bool parametersInitialized, parameterConfigurationValid, triggerEnvironment, defaultTriggerEnvironment;
     private int defaultEnvironmentLayer, solidEnvironmentLayer;
@@ -21,6 +27,7 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     private ConfiguredWaterRegion configuredWaterRegion;
     public int EnvironmentParameterVersion { get; private set; }
     public int EnvironmentSlotCapacity => EnsureEnvironmentParameters() ? colliderSlots.Length : 0;
+    public int EnvironmentCalculationPointLimit => environmentCalculationPointLimit;
     public bool IsTriggerEnvironment => EnsureEnvironmentParameters() && triggerEnvironment;
     public bool AllowsEnvironmentEditing => IsEnvironmentActive
         && (SceneLevelSetup.Current == null || SceneLevelSetup.Current.RisingWater != this);
@@ -105,13 +112,16 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
         bool trigger, out string error)
     {
         if (!ValidateEnvironmentEdit(colliderSlots, triggerSlots, trigger, out error)) return false;
-        bool changed = triggerEnvironment != trigger || !SameSlots(this.colliderSlots, colliderSlots)
+        bool geometryChanged = triggerEnvironment != trigger;
+        bool changed = geometryChanged || !SameSlots(this.colliderSlots, colliderSlots)
             || !SameSlots(this.triggerSlots, triggerSlots);
         // 确认时复制草稿，后续界面修改不能回写已提交的来源配置。
         this.colliderSlots = CopySlots(colliderSlots);
         this.triggerSlots = CopySlots(triggerSlots);
         triggerEnvironment = trigger;
         ApplyGeometryMode(trigger);
+        // 只有已确认的形态切换更新外观；能力改值与面板草稿不覆盖制作颜色。
+        if (geometryChanged) ApplyEnvironmentOpacity(trigger);
         if (changed) EnvironmentParameterVersion++;
         return true;
     }
@@ -119,7 +129,8 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     public void RestoreEnvironmentDefaults()
     {
         if (!EnsureEnvironmentParameters()) return;
-        bool changed = triggerEnvironment != defaultTriggerEnvironment
+        bool geometryChanged = triggerEnvironment != defaultTriggerEnvironment;
+        bool changed = geometryChanged
             || !SameSlots(colliderSlots, defaultColliderSlots) || !SameSlots(triggerSlots, defaultTriggerSlots);
         colliderSlots = CopySlots(defaultColliderSlots);
         triggerSlots = CopySlots(defaultTriggerSlots);
@@ -129,7 +140,20 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
             if (defaultGeometry[i] != null) defaultGeometry[i].isTrigger = defaultGeometryTriggers[i];
         gameObject.layer = defaultEnvironmentLayer;
         Physics2D.SyncTransforms();
+        // 重刷新随默认形态恢复外观；同形态、启停与初次读取不做颜色补正。
+        if (geometryChanged) ApplyEnvironmentOpacity(defaultTriggerEnvironment);
         if (changed) EnvironmentParameterVersion++;
+    }
+    public float GetEnvironmentOpacity(bool trigger) => Mathf.Clamp01(trigger ? triggerOpacity : colliderOpacity);
+
+    private void ApplyEnvironmentOpacity(bool trigger)
+    {
+        SpriteRenderer visual = GetComponent<SpriteRenderer>();
+        // 无主体精灵的环境仍可按原流程切换几何。
+        if (visual == null) return;
+        Color color = visual.color;
+        color.a = GetEnvironmentOpacity(trigger);
+        visual.color = color;
     }
     private void ApplyGeometryMode(bool trigger)
     {
@@ -232,6 +256,8 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
         var kinds = new HashSet<EnvironmentParameterKind>();
         if (environmentSlotCapacity < 1)
         { error = $"{name} 的环境能力槽上限至少为 1。"; return false; }
+        if (environmentCalculationPointLimit < 1)
+        { error = $"{name} 的单槽计算点上限至少为 1。"; return false; }
         if (environmentParameters != null)
             foreach (EnvironmentParameter parameter in environmentParameters)
             {
@@ -265,8 +291,11 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
             { error = "此性质不属于当前能力列表。"; return false; }
             if (!kinds.Add(parameter.Kind))
             { error = "同一列表不能注入重复类型的性质。"; return false; }
-            if (parameter.CalculationPoint != null && !calculations.Add(parameter.CalculationPoint))
-            { error = "同一个计算点不能同时用于多个性质。"; return false; }
+            if (parameter.CalculationCount > EnvironmentCalculationPointLimit)
+            { error = "此性质超过环境的单槽计算点上限。"; return false; }
+            foreach (EnvironmentCalculationPoint point in parameter.CalculationPoints)
+                if (!calculations.Add(point))
+                { error = "同一个计算点不能同时用于多个性质。"; return false; }
         }
         return true;
     }
@@ -294,8 +323,10 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
         {
             EnvironmentParameter a = left[i], b = right[i];
             if (a == null || b == null) { if (a != b) return false; continue; }
-            if (a.Kind != b.Kind || a.BaseValue != b.BaseValue || a.CalculationPoint != b.CalculationPoint
+            if (a.Kind != b.Kind || a.BaseValue != b.BaseValue || a.CalculationCount != b.CalculationCount
                 || a.ValueText != b.ValueText) return false;
+            for (int j = 0; j < a.CalculationCount; j++)
+                if (a.CalculationPoints[j] != b.CalculationPoints[j]) return false;
         }
         return true;
     }

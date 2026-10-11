@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 public enum EnvironmentParameterKind
@@ -17,7 +19,8 @@ public abstract class EnvironmentParameter
     [NonSerialized] private bool defaultsCaptured;
     [NonSerialized] private float defaultValue;
     [NonSerialized] private float runtimeValue;
-    [NonSerialized] private EnvironmentCalculationPoint calculationPoint;
+    [NonSerialized] private readonly List<EnvironmentCalculationPoint> calculationPoints = new List<EnvironmentCalculationPoint>();
+    [NonSerialized] private System.Collections.ObjectModel.ReadOnlyCollection<EnvironmentCalculationPoint> readOnlyCalculationPoints;
 
     public abstract string DisplayName { get; }
     public abstract EnvironmentParameterKind Kind { get; }
@@ -25,15 +28,53 @@ public abstract class EnvironmentParameter
     protected abstract float ConfiguredValue { get; }
     public float DefaultValue => defaultsCaptured ? defaultValue : ConfiguredValue;
     public float BaseValue => defaultsCaptured ? runtimeValue : ConfiguredValue;
-    public float Value => BaseValue * (calculationPoint?.Multiplier ?? 1f);
+    protected virtual string BaseValueText => BaseValue.ToString("g");
+    public float Value
+    {
+        get
+        {
+            float result = BaseValue;
+            foreach (EnvironmentCalculationPoint point in calculationPoints) result *= point.Multiplier;
+            return result;
+        }
+    }
     public virtual string ValueText => Value.ToString("g");
     public virtual bool IsTriggerProperty => false;
     public virtual bool SupportsCalculation => true;
-    public EnvironmentCalculationPoint CalculationPoint => calculationPoint;
+    public IReadOnlyList<EnvironmentCalculationPoint> CalculationPoints => readOnlyCalculationPoints ??= calculationPoints.AsReadOnly();
+    public int CalculationCount => calculationPoints.Count;
+    public string CalculationText
+    {
+        get
+        {
+            var text = new StringBuilder();
+            foreach (EnvironmentCalculationPoint point in calculationPoints)
+            {
+                if (text.Length > 0) text.Append(" → ");
+                text.Append(point.DisplayName);
+            }
+            return text.ToString();
+        }
+    }
+    public string CalculationFormula => BaseValueText
+        + (CalculationCount == 0 ? "" : " " + CalculationText.Replace(" → ", " ")) + " = " + ValueText;
 
     internal virtual bool IsConfigurationValid => IsValidBaseValue(ConfiguredValue);
-    internal bool IsRuntimeValid => IsValidBaseValue(BaseValue) && IsValidBaseValue(Value)
-        && (calculationPoint == null || (SupportsCalculation && IsValidValue(calculationPoint.Multiplier)));
+    internal bool IsRuntimeValid
+    {
+        get
+        {
+            if (!IsValidBaseValue(BaseValue) || (CalculationCount > 0 && !SupportsCalculation)) return false;
+            float result = BaseValue;
+            foreach (EnvironmentCalculationPoint point in calculationPoints)
+            {
+                if (point == null || !IsValidValue(point.Multiplier)) return false;
+                result *= point.Multiplier;
+                if (!IsValidBaseValue(result)) return false;
+            }
+            return true;
+        }
+    }
     protected virtual bool IsValidBaseValue(float value) => IsValidValue(value);
     internal static bool IsValidValue(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
     internal abstract EnvironmentParameter CreateRuntimeCopy();
@@ -45,25 +86,43 @@ public abstract class EnvironmentParameter
         copy.defaultsCaptured = true;
         copy.defaultValue = DefaultValue;
         copy.runtimeValue = BaseValue;
-        copy.calculationPoint = calculationPoint;
+        copy.calculationPoints.AddRange(calculationPoints);
         return copy;
     }
 
     public bool TryAttachCalculation(EnvironmentCalculationPoint point)
     {
-        // 安全：不支持计算、已有附加点或非有限结果时保留原性质。
-        if (!SupportsCalculation || calculationPoint != null || point == null
-            || !IsValidValue(point.Multiplier) || !IsValidBaseValue(BaseValue * point.Multiplier)) return false;
+        // 安全：同一个点不能叠加两次；上限由目标环境校验，非法结果不改现有序列。
+        if (!SupportsCalculation || point == null || ContainsCalculation(point)
+            || !IsRuntimeValid || !IsValidValue(point.Multiplier) || !IsValidBaseValue(Value * point.Multiplier)) return false;
         CaptureDefaults();
-        calculationPoint = point;
+        calculationPoints.Add(point);
         return true;
     }
 
     public EnvironmentCalculationPoint RemoveCalculation()
     {
-        EnvironmentCalculationPoint point = calculationPoint;
-        calculationPoint = null;
+        if (CalculationCount == 0) return null;
+        EnvironmentCalculationPoint point = calculationPoints[CalculationCount - 1];
+        calculationPoints.RemoveAt(CalculationCount - 1);
         return point;
+    }
+
+    public bool ContainsCalculation(EnvironmentCalculationPoint point) => calculationPoints.Contains(point);
+
+    // 未确认点改选目标时只解除该点，其余附加点的顺序不变；正式抽取始终出栈。
+    internal bool RemoveCalculation(EnvironmentCalculationPoint point)
+    {
+        if (!ContainsCalculation(point)) return false;
+        // 移走中间的零倍率可能暴露溢出；先重算，再解除预览归属。
+        float result = BaseValue;
+        foreach (EnvironmentCalculationPoint remaining in calculationPoints)
+        {
+            if (remaining == point) continue;
+            result *= remaining.Multiplier;
+            if (!IsValidBaseValue(result)) return false;
+        }
+        return calculationPoints.Remove(point);
     }
 
     internal void CaptureDefaults()
@@ -85,8 +144,8 @@ public abstract class EnvironmentParameter
     internal bool RestoreDefault()
     {
         CaptureDefaults();
-        bool changed = calculationPoint != null;
-        calculationPoint = null;
+        bool changed = CalculationCount > 0;
+        calculationPoints.Clear();
         return SetRuntimeValue(defaultValue) || changed;
     }
 }
@@ -139,6 +198,7 @@ public sealed class PassiveVelocityParameter : EnvironmentParameter
         && !float.IsNaN(velocity.x) && !float.IsInfinity(velocity.x)
         && !float.IsNaN(velocity.y) && !float.IsInfinity(velocity.y);
     public Vector2 EffectiveVelocity => velocity.sqrMagnitude > 0f ? velocity.normalized * Value : Vector2.zero;
+    protected override string BaseValueText => $"({velocity.x:g}, {velocity.y:g})";
     public override string ValueText => $"({EffectiveVelocity.x:g}, {EffectiveVelocity.y:g})";
     public PassiveVelocityParameter() { }
     public PassiveVelocityParameter(Vector2 value) => velocity = value;
