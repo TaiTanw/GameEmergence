@@ -118,12 +118,44 @@ public class PresentationLayer : MonoBehaviour
     private float postWallActiveVerticalSpeed;
 
     private bool isInitialized;
+    private bool transitionPlayback, transitionHidden;
+    private AnimatorUpdateMode updateModeBeforeTransition;
+    private bool renderingOffBeforeTransition;
     private readonly InteractionHintView interactHintView = new InteractionHintView();
 
     private void Awake()
     {
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+    }
+
+    /// <summary>换关保留当前动画，用真实时间继续播放，结束后交还正常表现选择。</summary>
+    public void SetTransitionPlayback(bool on)
+    {
+        // 安全：缺少动画组件时不接管播放。
+        if (animator == null || transitionPlayback == on) return;
+        if (on)
+        {
+            updateModeBeforeTransition = animator.updateMode;
+            animator.updateMode = AnimatorUpdateMode.UnscaledTime;
+            interactHintView.Hide();
+        }
+        else animator.updateMode = updateModeBeforeTransition;
+        transitionPlayback = on;
+    }
+
+    /// <summary>过场控制角色显示；全黑缓冲隐藏实体，精神体等恢复跟随再出现，不改变规则或物理许可。</summary>
+    public void SetTransitionHidden(bool hidden)
+    {
+        // 安全：没有显示组件或重复设置时保持现状。
+        if (spriteRenderer == null || transitionHidden == hidden) return;
+        if (hidden)
+        {
+            renderingOffBeforeTransition = spriteRenderer.forceRenderingOff;
+            interactHintView.Hide();
+        }
+        spriteRenderer.forceRenderingOff = hidden || renderingOffBeforeTransition;
+        transitionHidden = hidden;
     }
 
     /// <summary>
@@ -160,6 +192,8 @@ public class PresentationLayer : MonoBehaviour
 
     private void Update()
     {
+        // 实际逻辑：过场期间继续采样现有动画，不因安置刷新切换动作。
+        if (transitionPlayback) return;
         if (!isInitialized)
         {
             return;
@@ -254,7 +288,7 @@ public class PresentationLayer : MonoBehaviour
     // 实际逻辑：提示在 LateUpdate 绘制，读取本帧已写入的刚体插值位置。
     private void LateUpdate()
     {
-        if (isInitialized) UpdateInteractHint();
+        if (isInitialized && !transitionPlayback && !transitionHidden) UpdateInteractHint();
     }
 
     private void OnDisable() => interactHintView.Hide();
