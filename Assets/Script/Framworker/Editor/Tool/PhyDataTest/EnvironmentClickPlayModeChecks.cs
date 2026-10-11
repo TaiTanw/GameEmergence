@@ -215,6 +215,9 @@ public static class EnvironmentClickPlayModeChecks
             typeof(EnvironmentEditView).GetMethod("SelectAt", Hidden).Invoke(view, new object[] { (Vector2)item.transform.position });
             Check((BasicPhysicalObject)typeof(EnvironmentEditView).GetField("selected", Hidden).GetValue(view) == extra
                 && !paused.simulated, "暂停矩形经只读几何可以选中，未打开刚体模拟", passed);
+            // 点空处保留当前选中；先清掉上一步的矩形，才能检验空角是否产生了错误命中。
+            typeof(EnvironmentEditView).GetMethod("ClearSelection", Hidden).Invoke(view,
+                new object[] { "检查旋转矩形外包空角。" });
             typeof(EnvironmentEditView).GetMethod("SelectAt", Hidden).Invoke(view,
                 new object[] { (Vector2)item.transform.position + Vector2.one * .6f });
             Check((BasicPhysicalObject)typeof(EnvironmentEditView).GetField("selected", Hidden).GetValue(view) != extra,

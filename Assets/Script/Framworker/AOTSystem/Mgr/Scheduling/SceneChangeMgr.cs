@@ -17,6 +17,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     bool refreshing;
     bool loading;
     int loadSerial;
+    bool enterFromMenu;
     public bool GameMenuOpen { get; private set; }
     float timeScaleBeforeMenu;
     string gameplayMessage;
@@ -277,6 +278,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;
         loading = false;
+        InputControlMgr.Instance.EndTransitionView(true);
+        body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionPlayback(false);
         Time.timeScale = 1f;
         ReleaseLevelRules();
         effects.ResetCurrentLevel();
@@ -292,7 +295,10 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             return false;
         }
         UIMgr.Instance.HideOneUI<ChangePanel>();
-        UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top);
+        UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
+        {
+            if (serial == loadSerial) panel.SetTransitionWeight(1f);
+        });
         LoadSceneAsync(MenuSceneName, () =>
         {
             // 实际逻辑：加载被新的进入或返回作废时，不能关掉新的加载页。
@@ -331,23 +337,56 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         loading = true;
         CloseGameMenu();
         UIMgr.Instance.HideOneUI<GameplayPanel>();
+        int serial = ++loadSerial;
+        enterFromMenu = SceneManager.GetActiveScene().name == MenuSceneName;
+        // 实际逻辑：从渐暗开始暂停世界；镜头和实体动画独立使用真实时间。
+        Time.timeScale = 0f;
+        // 实际逻辑：主菜单只做黑屏淡入淡出。关与关之间才把镜头缓动到实体。
+        InputControlMgr.Instance.InputOpenOrClose(false);
+        if (!enterFromMenu && body != null)
+        {
+            body.GetComponentInChildren<PresentationLayer>()?.SetTransitionPlayback(true);
+            spirit?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(true);
+            InputControlMgr.Instance.BeginTransitionView(body.transform, false);
+        }
+        UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
+        {
+            if (serial != loadSerial || panel == null) return;
+            MonoPublicMgr.Instance.StartCoroutine(DarkenThenLoad(panel, index, order, confirmPrevious, serial));
+        });
+    }
+
+    IEnumerator DarkenThenLoad(LoadingPanel panel, int index, LevelOrderFile order, bool confirmPrevious, int serial)
+    {
+        yield return FadeTransition(panel, 0f, 1f, serial);
+        if (serial != loadSerial) yield break;
         ReleaseLevelRules();
-        // 实际逻辑：跨关加载时旧目标先交出操作，留下的实体停止运动，不能在加载途中继续控制。
         InputControlMgr.Instance.BindPlayer(null);
         if (body != null) body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
         if (spirit != null) spirit.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
-        // 精神体不跨关；显式交还引用，教学重开不能调用上一关已卸载的对象。
         DestroyActor(ref spirit);
-        int serial = ++loadSerial;
-        InputControlMgr.Instance.InputOpenOrClose(false);
-        // 实际逻辑：加载页盖住画面时停住物理，新关物体不会在安置前先动。
-        Time.timeScale = 0f;
-        UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top);
+        // 实际逻辑：全暗后才卸载旧关，新关物体在安置前保持暂停。
         LoadSceneAsync(order.scenes[index], () =>
         {
             if (serial != loadSerial) return;
             PlaceBody(index, serial, placed => FinishEnter(index, serial, placed, confirmPrevious));
         });
+    }
+
+    IEnumerator FadeTransition(LoadingPanel panel, float from, float to, int serial)
+    {
+        float duration = panel != null ? (to > from ? panel.FadeOutDuration : panel.FadeInDuration) : .7f;
+        float elapsed = 0f;
+        panel?.SetTransitionWeight(from);
+        while (elapsed < duration)
+        {
+            // 实际逻辑：作废的协程只退出，清理由取消入口处理，不能关掉新一轮镜头。
+            if (serial != loadSerial) yield break;
+            elapsed += Mathf.Min(Time.unscaledDeltaTime, .05f);
+            panel?.SetTransitionWeight(Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / duration)));
+            yield return null;
+        }
+        if (serial == loadSerial) panel?.SetTransitionWeight(to);
     }
 
     void FinishEnter(int index, int serial, bool placed, bool confirmPrevious)
@@ -359,20 +398,59 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             if (!loading) Time.timeScale = 1f;
             return;
         }
-        Time.timeScale = 1f;
         if (!placed)
         {
             // 安全：新关已经换上，安置失败不能停在没有操作的场景里。上一关进度和效果确认都未写入。
+            Time.timeScale = 1f;
             loading = false;
-            Debug.LogError("关卡安置失败，返回菜单。");
+            InputControlMgr.Instance.EndTransitionView();
+            Debug.Log("关卡安置失败，返回菜单。");
             ReturnToMenu();
             return;
         }
-        InputControlMgr.Instance.SnapCameraToPlayer();
-        loading = false;
-        UIMgr.Instance.HideOneUI<LoadingPanel>();
+        // 实际逻辑：全黑缓冲也隐藏前景实体，避免新出生点的下落穿过遮罩；精神体等演出结束再显示。
+        body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(true);
+        if (!enterFromMenu && body != null)
+        {
+            spirit?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(true);
+            InputControlMgr.Instance.BeginTransitionView(body.transform, true);
+        }
+        else InputControlMgr.Instance.SnapCameraToPlayer();
         if (confirmPrevious) effects.CommitLevel();
         DataAndInitMgr.Instance.SaveLevelIndex(index);
+        // 实际逻辑：角色和规则安置成功就恢复物理，输入仍关闭；探索的世界许可继续由阶段规则决定。
+        Time.timeScale = 1f;
+        UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
+        {
+            if (serial != loadSerial) return;
+            MonoPublicMgr.Instance.StartCoroutine(BrightenThenPlay(panel, serial));
+        });
+    }
+
+    IEnumerator BrightenThenPlay(LoadingPanel panel, int serial)
+    {
+        float settleDuration = panel != null ? panel.PhysicsSettleDuration : .25f;
+        float elapsed = 0f;
+        // 实际逻辑：用有限的全黑时间容纳出生点小幅下落，不额外模拟物理，也不无限等待落地。
+        panel?.SetTransitionWeight(1f);
+        while (elapsed < settleDuration)
+        {
+            if (serial != loadSerial) yield break;
+            yield return null;
+            elapsed += Time.unscaledDeltaTime;
+        }
+        if (serial != loadSerial) yield break;
+        // 实际逻辑：缓冲结束后按实际位置重新对齐镜头，再显露实体和背景。
+        if (!enterFromMenu && body != null) InputControlMgr.Instance.BeginTransitionView(body.transform, true);
+        else InputControlMgr.Instance.SnapCameraToPlayer();
+        body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(false);
+        yield return FadeTransition(panel, 1f, 0f, serial);
+        if (serial != loadSerial) yield break;
+        InputControlMgr.Instance.EndTransitionView();
+        body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionPlayback(false);
+        spirit?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(false);
+        loading = false;
+        UIMgr.Instance.HideOneUI<LoadingPanel>();
         InputControlMgr.Instance.InputOpenOrClose(true);
         UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom);
     }

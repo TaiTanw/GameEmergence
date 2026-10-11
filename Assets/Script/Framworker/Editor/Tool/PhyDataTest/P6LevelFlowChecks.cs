@@ -51,6 +51,7 @@ public static class P6LevelFlowChecks
         previousSimulation = Physics2D.simulationMode;
         previousTimeScale = Time.timeScale;
         passed.Clear(); stage = 0; failure = null; runtimeError = null; panel = null; menu = null;
+        P66TransitionChecks.Reset();
         expectedLoadError = null; receivedExpectedLoadError = false;
         EditorSettings.enterPlayModeOptionsEnabled = true;
         EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload;
@@ -75,6 +76,7 @@ public static class P6LevelFlowChecks
                 throw new TimeoutException("P6/P7 真实关卡流程超时，当前步骤=" + stage);
             if (runtimeError != null) throw new InvalidOperationException(runtimeError);
             if (!Application.isPlaying) return;
+            P66TransitionChecks.Observe(passed);
             switch (stage)
             {
                 case 0:
@@ -110,29 +112,32 @@ public static class P6LevelFlowChecks
                     stage = 20;
                     break;
                 case 20:
-                    if (!FailedLoadFinished()) return;
-                    CheckPendingEffects("下一关缺失配置后");
-                    Check(SceneLevelSetup.Current == null && Actor("spirit") == null && !InputControlMgr.Instance.InputEnabled,
-                        "配置缺失真实安置失败，不开放输入或创建精神体");
+                    if (!ReturnedToMenuAfterFailedLoad()) return;
+                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0
+                        && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
+                        "配置缺失后回菜单，不确认永久效果也不推进进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 21;
                     break;
                 case 21:
                     if (!Ready(sceneOrder[0])) return;
-                    CheckPendingEffects("普通进入原关成功后");
+                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0,
+                        "回菜单后重进不保留失败前的本局新增");
+                    AddPendingEffects();
                     StartFailedNextLevel(false);
                     stage = 22;
                     break;
                 case 22:
-                    if (!FailedLoadFinished()) return;
-                    CheckPendingEffects("下一关无法创建精神体后");
-                    Check(SceneLevelSetup.Current != null && Actor("spirit") == null && !InputControlMgr.Instance.InputEnabled,
-                        "无效精神体配置真实安置失败，不开放输入");
+                    if (!ReturnedToMenuAfterFailedLoad()) return;
+                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0
+                        && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
+                        "精神体无效后回菜单，不确认永久效果也不推进进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 23;
                     break;
                 case 23:
                     if (!Ready(sceneOrder[0])) return;
+                    AddPendingEffects();
                     SceneChangeMgr.Instance.EnterNextLevel();
                     CheckPendingEffects("被返回菜单作废前");
                     int cancelledSerial = (int)typeof(SceneChangeMgr).GetField("loadSerial", Hidden).GetValue(SceneChangeMgr.Instance);
@@ -151,6 +156,25 @@ public static class P6LevelFlowChecks
                     if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
                     Check(effects.ConfirmedPermanentEffects.Count == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
                         "作废请求及菜单实际加载结束仍不提前确认或推进进度");
+                    SceneChangeMgr.Instance.EnterSavedLevel();
+                    stage = 241;
+                    break;
+                case 241:
+                    LoadingPanel loadingPanel = Object.FindObjectOfType<LoadingPanel>();
+                    if (SceneManager.GetActiveScene().name != sceneOrder[0] || Time.timeScale != 1f
+                        || loadingPanel == null || loadingPanel.TransitionWeight != 1f || InputControlMgr.Instance.InputEnabled) return;
+                    Check(Actor("body").GetComponentInChildren<SpriteRenderer>().forceRenderingOff,
+                        "新关物理已恢复但全黑缓冲的实体仍隐藏");
+                    Check(SceneChangeMgr.Instance.ReturnToMenu(), "全黑物理缓冲期间也可作废演出并返回菜单");
+                    cooldownEnds = EditorApplication.timeSinceStartup + .4;
+                    stage = 242;
+                    break;
+                case 242:
+                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0
+                        || EditorApplication.timeSinceStartup < cooldownEnds) return;
+                    Check(InputControlMgr.Instance.Player == null && !InputControlMgr.Instance.InputEnabled
+                        && Time.timeScale == 1f && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
+                        "缓冲作废后旧协程不会重新显示角色、开放输入或改变进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 25;
                     break;
@@ -196,17 +220,19 @@ public static class P6LevelFlowChecks
                         "环境槽编辑与右侧认知背包来自实际游戏显示预设");
                     Check(panel.transform.Find("MapArea").gameObject.activeSelf == SceneChangeMgr.Instance.CanViewMap,
                         "实际地图区域按本关已启用地图显示，暂停不冒充未接地图");
-                    foreach (string reserved in new[] { "ActionArea", "MessageArea" })
-                        Check(panel.transform.Find(reserved) != null && !panel.transform.Find(reserved).gameObject.activeSelf,
-                            "实际预设安排并隐藏预留节点 " + reserved);
+                    Check(panel.transform.Find("MessageArea") != null && !panel.transform.Find("MessageArea").gameObject.activeSelf,
+                        "实际预设安排并隐藏消息区");
+                    Check(panel.transform.Find("ActionArea") != null && panel.transform.Find("ActionArea").gameObject.activeSelf,
+                        "非教学漫游显示环境操作区");
                     GameMenuInputChecks.Capture("gameplay.png");
                     BaseGround editedGround = CheckEnvironmentEditUI();
                     // 测试布置：避开出生点附近的占用，检验实际场景模式入口；不写场景文件。
                     oldSpirit.GetComponent<CharacterPhysics>().RefreshMotionState(new Vector2(5000f, 5000f));
+                    float beforeSwitch = LevelStageMgr.Instance.CognitionRemaining;
                     Check(SceneChangeMgr.Instance.SetSimulation(true), "场景模式入口成功进入模拟");
                     Check(LevelStageMgr.Instance.IsSimulation && !oldSpirit._ActionData.isFlying,
                         "场景入口同步提交模拟和行走");
-                    expectedCognition = Mathf.Max(0f, expectedCognition - formCost);
+                    expectedCognition = Mathf.Max(0f, beforeSwitch - formCost);
                     Near(LevelStageMgr.Instance.CognitionRemaining, expectedCognition,
                         "进入模拟仅扣一次场景配置的转换费用");
                     Check(InputControlMgr.Instance.Player == oldSpirit && oldSpirit.GetInstanceID() == spiritId,
@@ -270,8 +296,8 @@ public static class P6LevelFlowChecks
                     GameMenuInputChecks.Capture("game-menu.png");
                     menu.FindUIObj<Button>("ReturnToMenuButton").onClick.Invoke();
                     Check(!SceneChangeMgr.Instance.GameMenuOpen && !menu.gameObject.activeSelf
-                        && !panel.gameObject.activeSelf && Time.timeScale == 0f,
-                        "真实返回按钮关闭菜单与显示面板并恢复打开前时间");
+                        && !panel.gameObject.activeSelf && Time.timeScale == 1f,
+                        "真实返回按钮关闭菜单与显示面板，菜单不保持暂停");
                     Check(Actor("body") == null && Actor("spirit") == null && Rules() == null,
                         "返回菜单立即清除角色与本关规则引用");
                     Check(InputControlMgr.Instance.Player == null && !LevelStageMgr.Instance.HasExploration,
@@ -344,12 +370,12 @@ public static class P6LevelFlowChecks
         else typeof(SceneLevelSetup).GetField("spiritPrefab", Hidden).SetValue(incoming, null);
     }
 
-    private static bool FailedLoadFinished()
+    private static bool ReturnedToMenuAfterFailedLoad()
     {
-        if (SceneManager.GetActiveScene().name != sceneOrder[1]
-            || (bool)typeof(SceneChangeMgr).GetField("loading", Hidden).GetValue(SceneChangeMgr.Instance)) return false;
-        Check(receivedExpectedLoadError, "真实加载完成并报告预期的安置失败原因");
+        if (!receivedExpectedLoadError || SceneManager.GetActiveScene().name != "BeginScenes") return false;
+        if ((bool)typeof(SceneChangeMgr).GetField("loading", Hidden).GetValue(SceneChangeMgr.Instance)) return false;
         expectedLoadError = null;
+        receivedExpectedLoadError = false;
         return true;
     }
 
@@ -406,7 +432,6 @@ public static class P6LevelFlowChecks
 
     private static void CheckTrialResetUI(BaseGround editedGround)
     {
-        float previous = Time.timeScale;
         InputControlMgr input = InputControlMgr.Instance;
         SceneLevelSetup setup = SceneLevelSetup.Current;
         bool hadMap = setup.MapEnabled;
@@ -450,7 +475,7 @@ public static class P6LevelFlowChecks
             typeof(SceneLevelSetup).GetField("mapEnabled", Hidden).SetValue(setup, hadMap);
             typeof(PlayerLifecycleRules).GetField("<MapRecord>k__BackingField", Hidden).SetValue(oldRules, previousMap);
             input.PlayerInputData.jumpPressed = input.PlayerInputData.interactTapped = false;
-            Time.timeScale = previous;
+            Time.timeScale = 0f;
             typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
             Check(!panel.transform.Find("ActionArea").gameObject.activeSelf, "TimeScale 暂停再次隐藏操作区");
         }
@@ -525,7 +550,13 @@ public static class P6LevelFlowChecks
         EditorApplication.update -= Advance;
         Application.logMessageReceived -= RecordRuntimeError;
         SceneManager.sceneLoaded -= BreakIncomingSetup;
+        P66TransitionChecks.ReleaseFixture();
         if (failure == null && runtimeError != null) failure = new InvalidOperationException(runtimeError);
+        if (failure == null)
+        {
+            try { P66TransitionChecks.Verify(passed); }
+            catch (Exception error) { failure = error; Debug.LogException(error); }
+        }
         foreach (GameObject item in fixtures) if (item != null) Object.DestroyImmediate(item);
         fixtures.Clear();
         try

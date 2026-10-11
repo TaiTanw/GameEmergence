@@ -481,6 +481,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     {
         playerModle = name;
     }
+    Transform transitionFollow;
+
     /// <summary>
     /// 设置主摄像机
     /// </summary>
@@ -489,6 +491,22 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     {
         mainCamera = camera;
     }
+
+    /// <summary>换关期间镜头改看实体，并把实体画在变暗遮罩前面。搬到新位置时才立刻对齐。</summary>
+    public void BeginTransitionView(Transform target, bool snap)
+    {
+        transitionFollow = target;
+        mainCamera?.SetTransitionPortrait(true);
+        if (snap && mainCamera != null && target != null) mainCamera.SnapTo(target.position);
+    }
+
+    public void EndTransitionView(bool returningToMenu = false)
+    {
+        transitionFollow = null;
+        mainCamera?.SetTransitionPortrait(false);
+        // 实际逻辑：菜单保留镜头实例，但不让它与菜单镜头同时渲染或监听声音。
+        if (returningToMenu) mainCamera?.SetGameViewEnabled(false);
+    }
     void Update()
     {
         // 实际逻辑：ESC 固定为游戏菜单键，独立于可改键动作图；暂停输入后仍能关闭菜单。
@@ -496,10 +514,10 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
             && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             SceneChangeMgr.Instance.ToggleGameMenu();
         //摄像机与玩家均不为空
-        if (mainCamera != null && player != null)
+        if (mainCamera != null)
         {
-            mainCamera.SetPoint(player.transform.position);
-
+            Transform followed = transitionFollow != null ? transitionFollow : player != null ? player.transform : null;
+            if (followed != null) mainCamera.SetPoint(followed.position);
         }
         UpdateInteractHold();
     }

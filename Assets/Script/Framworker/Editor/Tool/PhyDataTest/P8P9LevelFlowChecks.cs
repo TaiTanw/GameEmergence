@@ -250,7 +250,8 @@ public static class P8P9LevelFlowChecks
         Check(Used(prop) && !prop.gameObject.activeSelf, "漫游实际近处交互领取普通道具并登记已用");
         prop.transform.position += Vector3.right * 5f;
         CharacterPhysics physics = spirit.GetComponent<CharacterPhysics>();
-        MoveCenter(physics, new Vector2(7970f, 8003f)); explorationRules.AdvanceExplorationMap();
+        // 格外移动保留上一格；先进入另一格，再返回起始格，才能经正常移动点亮两格。
+        MoveCenter(physics, new Vector2(8030f, 8003f)); explorationRules.AdvanceExplorationMap();
         MoveCenter(physics, new Vector2(8010f, 8003f)); explorationRules.AdvanceExplorationMap();
         MoveCenter(physics, new Vector2(8030f, 8003f)); explorationRules.AdvanceExplorationMap();
         Check(explorationRules.MapRecord.IsLit(firstCell) && explorationRules.MapRecord.IsLit(secondCell),
@@ -469,12 +470,25 @@ public static class P8P9LevelFlowChecks
         Vector2 validPoint = spirit.GetComponent<CharacterPhysics>().DebugActualPosition;
         box.RefreshMotionState(boxHome + Vector2.right * 6f);
         MoveCenter(spirit.GetComponent<CharacterPhysics>(), new Vector2(7900f, 8003f));
-        Check(!host.ResetTrial(), "地图外的独立重置在刷新前拒绝");
-        Near(box.DebugActualPosition, boxHome + Vector2.right * 6f, "无合法当前格时不先恢复箱子");
-        RefreshPanel();
-        Check(panel.transform.Find("MessageArea").gameObject.activeSelf
-            && panel.FindUIObj<Text>("RefreshMessageText").text.Contains("地图格子范围"),
-            "地图外拒绝以实际界面提示配置问题");
+        Check(host.ResetTrial(), "地图外仍可独立重置到保留的当前格");
+        Near(spirit.GetComponent<CharacterPhysics>().BodyBounds.center, firstCell.Center, "格外重置使用保留格中心");
+        Near(box.DebugActualPosition, boxHome, "格外重置同样完成整关箱子轻刷新");
+        // 只有尚未建立当前格才拒绝；临时换入未采样记录，保留原记录及其认知占用。
+        LevelMapRecord previousMap = explorationRules.MapRecord;
+        SetField(explorationRules, "<MapRecord>k__BackingField",
+            new LevelMapRecord(setup.MapCells, explorationRules.Cognition, setup.gameObject.scene));
+        try
+        {
+            MoveCenter(spirit.GetComponent<CharacterPhysics>(), new Vector2(7900f, 8003f));
+            box.RefreshMotionState(boxHome + Vector2.right * 6f);
+            Check(!host.ResetTrial(), "还没有当前格时独立重置在刷新前拒绝");
+            Near(box.DebugActualPosition, boxHome + Vector2.right * 6f, "无合法当前格时不先恢复箱子");
+            RefreshPanel();
+            Check(panel.transform.Find("MessageArea").gameObject.activeSelf
+                && panel.FindUIObj<Text>("RefreshMessageText").text.Contains("尚未进入任何地图格子"),
+                "没有当前格的拒绝以实际界面提示原因");
+        }
+        finally { SetField(explorationRules, "<MapRecord>k__BackingField", previousMap); }
         spirit.GetComponent<CharacterPhysics>().RefreshMotionState(validPoint); explorationRules.NotifyMapRelocated();
         Check(host.ResetTrial(), "回到合法当前格后可继续完整重置");
         RefreshPanel();
