@@ -118,8 +118,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             || setup.LowCognitionMovementMultiplier <= 0f || setup.LowCognitionMovementMultiplier > 1f) return false;
         foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
             if (offer == null || !offer.IsValid) return false;
-        if (setup.RisingWater != null && (setup.RisingWater.gameObject.scene != setup.gameObject.scene
-            || !setup.RisingWater.CanPrepareRun(setup.WaterRiseSpeed))) return false;
+        if (!setup.ValidateRisingWaterConfiguration(out string waterError))
+        { Debug.LogError(waterError, setup); return false; }
         return true;
     }
 
@@ -544,7 +544,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         }
         LevelStageMgr.Instance.BindRules(levelRules);
         levelRules.BindExplorationMap(setup);
-        if (setup.RisingWater != null && !setup.RisingWater.PrepareRun(setup.WaterRiseSpeed)) return false;
+        if (!setup.PrepareRisingWater(out string waterError))
+        { Debug.LogError(waterError, setup); return false; }
         MonoPublicMgr.Instance.AddUpdatEvent(AdvanceLevelCognition);
         return true;
     }
@@ -552,13 +553,13 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     static bool CanSpawnSpirit(SceneLevelSetup setup)
     {
         if (setup == null || setup.SpiritPrefab == null) return false;
+        if (!setup.ValidateRisingWaterConfiguration(out string waterError))
+        { Debug.LogError(waterError, setup); return false; }
         Player configured = setup.SpiritPrefab.GetComponent<Player>();
         Vector2 spiritPoint = setup.SpiritPoint, bodyPoint = setup.BodyPoint;
         return configured != null && configured.Identity == PlayerIdentity.Spirit
             && Finite(spiritPoint) && Finite(bodyPoint)
-            && Finite(setup.SpiritPose.z) && Finite(setup.BodyPose.z)
-            && (setup.RisingWater == null || (setup.RisingWater.gameObject.scene == setup.gameObject.scene
-                && setup.RisingWater.CanPrepareRun(setup.WaterRiseSpeed)));
+            && Finite(setup.SpiritPose.z) && Finite(setup.BodyPose.z);
     }
 
     static bool Finite(Vector2 point) => !float.IsNaN(point.x) && !float.IsInfinity(point.x)

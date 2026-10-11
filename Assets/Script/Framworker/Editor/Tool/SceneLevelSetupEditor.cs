@@ -9,7 +9,18 @@ public sealed class SceneLevelSetupEditor : Editor
     {
         serializedObject.Update();
         DrawPropertiesExcluding(serializedObject, "cognitionBackpackCapacity", "cognitionPropertyCost",
-            "cognitionCalculationCost", "initialCognitionProperties", "initialCognitionCalculations");
+            "cognitionCalculationCost", "initialCognitionProperties", "initialCognitionCalculations",
+            "risingWater", "waterRiseSpeed", "risingWaterMaximum");
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("上涨主水", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("可使用 WaterPoolWithEffects 保留减速／水流。指定主水后禁止玩家编辑。最高点用独立空物体的世界 Y，水面到此停止；普通水池不必关联。", MessageType.Info);
+        using (new EditorGUI.DisabledScope(Application.isPlaying))
+        {
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("risingWater"), new GUIContent("上涨主水"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("waterRiseSpeed"), new GUIContent("上涨速度（世界高度／秒）"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("risingWaterMaximum"), new GUIContent("上涨水最高点"));
+        }
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("认知背包", EditorStyles.boldLabel);
@@ -43,6 +54,25 @@ public sealed class SceneLevelSetupEditor : Editor
             AddButton(properties, new TriggerEnvironmentParameter());
         }
         serializedObject.ApplyModifiedProperties();
+        if (!((SceneLevelSetup)target).ValidateRisingWaterConfiguration(out string error))
+            EditorGUILayout.HelpBox(error, MessageType.Error);
+    }
+
+    void OnSceneGUI()
+    {
+        SceneLevelSetup setup = (SceneLevelSetup)target;
+        if (setup.RisingWater == null || setup.RisingWaterMaximum == null) return;
+        BoxCollider2D shape = setup.RisingWater.GetComponent<BoxCollider2D>();
+        if (shape == null) return;
+        Vector3 mark = setup.RisingWaterMaximum.position;
+        if (float.IsNaN(mark.y) || float.IsInfinity(mark.y)) return;
+        Bounds bounds = shape.bounds;
+        Color previous = Handles.color;
+        Handles.color = Color.cyan;
+        Handles.DrawLine(new Vector3(bounds.min.x, mark.y, setup.RisingWater.transform.position.z),
+            new Vector3(bounds.max.x, mark.y, setup.RisingWater.transform.position.z));
+        Handles.Label(mark, "最高水面");
+        Handles.color = previous;
     }
 
     static void AddButton(SerializedProperty properties, EnvironmentParameter value)

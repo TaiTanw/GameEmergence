@@ -19,13 +19,15 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     private float riseSpeed;
     private bool defaultsCaptured;
     private float defaultBottom, defaultSurface;
+    private bool hasSurfaceLimit;
+    private float maximumSurface;
     public float SurfaceY => GetComponent<BoxCollider2D>().bounds.max.y;
     public bool RisingAllowed => hasWaterLevel && risingAllowed;
 
     /// <summary>关卡就绪时从制作矩形保存上涨水的默认范围；普通池不主动调用此入口。</summary>
-    public bool PrepareRun(float speed)
+    public bool PrepareRun(float speed, float maximumSurfaceY)
     {
-        if (!CanPrepareRun(speed)) return false;
+        if (!CanPrepareRun(speed, maximumSurfaceY)) return false;
         if (!defaultsCaptured)
         {
             Bounds bounds = GetComponent<BoxCollider2D>().bounds;
@@ -33,18 +35,34 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
             defaultBottom = bounds.min.y; defaultSurface = bounds.max.y;
             defaultsCaptured = true;
         }
+        // 实际逻辑：关卡准备一次提交固定上限，不随场景标记或上涨水的 Transform 移动。
+        maximumSurface = maximumSurfaceY;
+        hasSurfaceLimit = true;
         if (!ConfigureWaterLevel(defaultBottom, defaultSurface, speed, false)) return false;
         CommitWaterGeometry();
         return true;
     }
 
-    public bool CanPrepareRun(float speed)
+    public bool CanPrepareRun(float speed, float maximumSurfaceY) =>
+        ValidateRunConfiguration(speed, maximumSurfaceY, out _);
+
+    public bool ValidateRunConfiguration(float speed, float maximumSurfaceY, out string error)
     {
         BoxCollider2D box = GetComponent<BoxCollider2D>();
-        // 所有配置先读后验；拒绝时不捕获默认或改变水位。
-        return IsEnvironmentActive && box.enabled && box.isTrigger && IsFinite(speed) && speed >= 0f
-            && box.bounds.size.y > 0f && Mathf.Abs(transform.lossyScale.y) >= .0001f
-            && Mathf.Abs(transform.up.y) >= .9999f;
+        error = null;
+        // 安全：所有制作配置先读后验，拒绝时不捕获默认或改水位。
+        if (!IsEnvironmentActive || box == null || !box.enabled || !box.isTrigger)
+            error = $"{name}：上涨主水必须启用并使用 BoxCollider2D 触发器。";
+        else if (!IsFinite(speed) || speed < 0f)
+            error = $"{name}：上涨速度必须是有限非负数值。";
+        else if (!IsFinite(maximumSurfaceY))
+            error = $"{name}：上涨水最高点的世界 Y 必须是有限数值。";
+        else if (!IsFinite(box.bounds.min.y) || !IsFinite(box.bounds.max.y) || box.bounds.size.y <= 0f
+            || Mathf.Abs(transform.lossyScale.y) < .0001f || Mathf.Abs(transform.up.y) < .9999f)
+            error = $"{name}：上涨主水必须是未旋转、非零高度与缩放的水平矩形。";
+        else if (maximumSurfaceY < (defaultsCaptured ? defaultSurface : box.bounds.max.y))
+            error = $"{name}：上涨水最高点不能低于初始水面。";
+        return error == null;
     }
 
     public void SetRisingAllowed(bool allowed)
@@ -70,7 +88,8 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     {
         // 配置边界：首版是水平矩形水域；非有限数、空范围、零缩放或旋转矩形拒绝提交。
         if (!IsFinite(bottom) || !IsFinite(surface) || !IsFinite(speed) || surface <= bottom || speed < 0f
-            || Mathf.Abs(transform.lossyScale.y) < .0001f || Mathf.Abs(transform.up.y) < .9999f) return false;
+            || Mathf.Abs(transform.lossyScale.y) < .0001f || Mathf.Abs(transform.up.y) < .9999f
+            || (hasSurfaceLimit && surface > maximumSurface)) return false;
         bottomY = bottom;
         surfaceY = surface;
         riseSpeed = speed;
@@ -85,7 +104,12 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     {
         // 普通静态池未配置水位时保持预设几何；上涨许可由外部规则给出。
         if (!hasWaterLevel) return;
-        if (risingAllowed) surfaceY += riseSpeed * Time.fixedDeltaTime;
+        if (risingAllowed)
+        {
+            float nextSurface = surfaceY + riseSpeed * Time.fixedDeltaTime;
+            // 实际逻辑：一次物理步越过上限时只到最高水面，仍保留水域与游泳／环境效果。
+            surfaceY = hasSurfaceLimit ? Mathf.Min(nextSurface, maximumSurface) : nextSurface;
+        }
         CommitWaterGeometry();
     }
 

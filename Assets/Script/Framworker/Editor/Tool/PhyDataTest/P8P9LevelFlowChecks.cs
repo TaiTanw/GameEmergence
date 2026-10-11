@@ -205,7 +205,8 @@ public static class P8P9LevelFlowChecks
         water = waterObject.AddComponent<WaterRegion>();
         Physics2D.SyncTransforms();
         SetField(setup, "risingWater", water); SetField(setup, "waterRiseSpeed", 1f);
-        Check(water.PrepareRun(setup.WaterRiseSpeed), "本关上涨水从实际制作矩形准备默认范围");
+        SetField(setup, "risingWaterMaximum", NewObject("P89 maximum water surface", new Vector2(8020f, floor + 30f)).transform);
+        Check(setup.PrepareRisingWater(out _), "本关上涨水从实际制作矩形及最高点准备默认范围");
         waterDefault = water.SurfaceY; waterBottom = waterCollider.bounds.min.y;
         SetField(setup, "escapeAbilities", new[] {
             new EscapeAbilityOffer("联测步伐强化", PlayerEffectKind.MovementMultiplier, 20f, 1.2f),

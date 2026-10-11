@@ -52,6 +52,7 @@ public static class EnvironmentIntegrationChecks
             CheckOxygenResources();
             CheckPlayerRefresh();
             CheckWaterLevel();
+            CheckRisingWaterLimit();
             CheckSwimmingPresentation();
             CheckCapabilities();
             CheckCapabilityOwnership();
@@ -282,6 +283,82 @@ public static class EnvironmentIntegrationChecks
         phase.Invoke(water, null);
         Physics2D.SyncTransforms();
         Check(Mathf.Abs(water.SurfaceY - risen.max.y) < .003f, "撤销上涨许可保留当前水位");
+    }
+
+    private static void CheckRisingWaterLimit()
+    {
+        const BindingFlags hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+        WaterWithEffects water = Prefab<WaterWithEffects>("WaterPoolWithEffects.prefab", NextPosition());
+        typeof(WaterWithEffects).GetField("flowVelocity", hidden).SetValue(water, new Vector2(2f, 0f));
+        Physics2D.SyncTransforms();
+        BoxCollider2D shape = water.GetComponent<BoxCollider2D>();
+        Bounds original = shape.bounds;
+        SceneLevelSetup setup = NewObject("capped rising water setup", NextPosition()).AddComponent<SceneLevelSetup>();
+        typeof(SceneLevelSetup).GetField("risingWater", hidden).SetValue(setup, water);
+        typeof(SceneLevelSetup).GetField("waterRiseSpeed", hidden).SetValue(setup, 7f);
+        Check(!setup.PrepareRisingWater(out string missing) && !string.IsNullOrEmpty(missing),
+            "主水缺最高点明确拒绝，不自行搜索场景或改水位");
+        Check(shape.bounds == original, "最高点配置拒绝保持制作水域不变");
+        Transform mark = NewObject("maximum water surface", new Vector3(original.center.x + 50f, original.max.y - 1f, 4f)).transform;
+        typeof(SceneLevelSetup).GetField("risingWaterMaximum", hidden).SetValue(setup, mark);
+        Check(!setup.PrepareRisingWater(out string below) && below.Contains("初始水面"),
+            "最高点低于初始水面拒绝，不抬高标记或替换上限");
+        mark.position = new Vector3(original.center.x + 50f, original.max.y + .08f, 4f);
+        mark.SetParent(water.transform, true);
+        Check(!setup.ValidateRisingWaterConfiguration(out _), "最高点挂在上涨水下拒绝，避免随水漂移");
+        mark.SetParent(null, true);
+        Check(!water.CanPrepareRun(float.NaN, mark.position.y)
+            && !water.CanPrepareRun(-1f, mark.position.y)
+            && !water.CanPrepareRun(7f, float.PositiveInfinity), "非法水速与最高水面拒绝");
+        Check(setup.PrepareRisingWater(out _), "独立最高点按世界 Y 准备带效果主水，X／Z 不限制水位");
+        float maximum = mark.position.y;
+        mark.position += Vector3.up * 20f;
+        MethodInfo phase = typeof(WaterRegion).GetMethod("AdvanceWaterLevel", hidden);
+        phase.Invoke(water, null);
+        Near(water.SurfaceY, original.max.y, "准备主水尚未放开上涨许可");
+        water.SetRisingAllowed(true);
+        phase.Invoke(water, null);
+        Near(water.SurfaceY, maximum, "单步越过最高点只到水面上限，不跟随运行中标记移动");
+        for (int i = 0; i < 20; i++) phase.Invoke(water, null);
+        Near(water.SurfaceY, maximum, "到顶持续运行不越过最高水面");
+        Near(shape.bounds.min.y, original.min.y, "限高上涨保留原水底");
+        Near(shape.bounds.size.x, original.size.x, "限高上涨保留原水宽");
+        Near(water.GetComponent<SpriteRenderer>().bounds.max.y, maximum, "到顶显示水面与触发范围一致");
+        Check(!water.ConfigureWaterLevel(original.min.y, maximum + 1f, 7f, true),
+            "已有主水上限时外部超高配置拒绝，不能绕过最高点");
+        Near(water.SurfaceY, maximum, "超高配置拒绝保持当前水面");
+        water.RestoreRunDefaults();
+        Near(water.SurfaceY, original.max.y, "失败恢复初始水面");
+        Check(!water.RisingAllowed && water.SwimmingEnabled, "复位停止上涨而保留游泳");
+        phase.Invoke(water, null);
+        Near(water.SurfaceY, original.max.y, "恢复漫游时水位不补涨");
+        water.SetRisingAllowed(true);
+        phase.Invoke(water, null);
+        Near(water.SurfaceY, maximum, "恢复后再次上涨沿已提交上限停止");
+
+        FieldInfo current = typeof(SceneLevelSetup).GetField("<Current>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic);
+        object previous = current.GetValue(null);
+        MethodInfo editable = typeof(EnvironmentEditView).GetMethod("EditableSource", BindingFlags.Static | BindingFlags.NonPublic);
+        try
+        {
+            current.SetValue(null, setup);
+            Check(!water.AllowsEnvironmentEditing && !(bool)editable.Invoke(null, new object[] { water }),
+                "指定带效果主水拒绝玩家编辑与选择框");
+            EnvironmentCheckBody body = Body(water.transform.position);
+            Refresh(body);
+            Check(body.EnvironmentContext.DebugSourceCount == 1 && body.DebugMovementModifierCount == 1
+                && body.DebugStateVelocityCount == 1, "主水不可编辑仍提供减速与水流绑定");
+            Near(water.StateVelocity.x, 2f, "上涨与复位保留宿主水流参数");
+            Check(water.MovementSpeedOffset < 0f, "上涨与复位保留制作水中减速");
+            WaterRegion ordinary = Prefab<WaterRegion>("WaterPool.prefab", NextPosition());
+            Check(ordinary.AllowsEnvironmentEditing && (bool)editable.Invoke(null, new object[] { ordinary }),
+                "关联主水不锁定本关其它普通水池");
+        }
+        finally { current.SetValue(null, previous); }
+        mark.position = new Vector3(mark.position.x, original.max.y, mark.position.z);
+        Check(setup.PrepareRisingWater(out _), "最高点等于初始水面可配置为不再上涨");
+        water.SetRisingAllowed(true); phase.Invoke(water, null);
+        Near(water.SurfaceY, original.max.y, "零上涨空间不越界");
     }
 
     private static void CheckSwimmingPresentation()

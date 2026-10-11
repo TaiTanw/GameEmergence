@@ -61,8 +61,12 @@ public class SceneLevelSetup : MonoBehaviour
     public IReadOnlyList<MapCell> MapCells => mapCells;
 
     [Header("逃生")]
-    [SerializeField] WaterRegion risingWater;
-    [SerializeField, Min(0f)] float waterRiseSpeed = 0.5f;
+    [SerializeField, Tooltip("拖入本场景的 WaterPool 或 WaterPoolWithEffects 实例；作为主水后保留环境效果，但禁止玩家编辑。")]
+    WaterRegion risingWater;
+    [SerializeField, Min(0f), Tooltip("水面每秒上涨的世界高度；只在正式逃生运行。")]
+    float waterRiseSpeed = 0.5f;
+    [SerializeField, Tooltip("关联主水后必填。拖入独立空物体，用其世界 Y 表示最高水面；不得挂在上涨水下。")]
+    Transform risingWaterMaximum;
     [SerializeField, Range(0.01f, 1f)] float lowCognitionMovementMultiplier = 0.8f;
     [SerializeField] EscapeAbilityOffer[] escapeAbilities = {
         new EscapeAbilityOffer("步伐强化", PlayerEffectKind.MovementMultiplier, 20f, 1.2f),
@@ -70,8 +74,38 @@ public class SceneLevelSetup : MonoBehaviour
     };
     public WaterRegion RisingWater => risingWater;
     public float WaterRiseSpeed => waterRiseSpeed;
+    public Transform RisingWaterMaximum => risingWaterMaximum;
     public float LowCognitionMovementMultiplier => lowCognitionMovementMultiplier;
     public System.Collections.Generic.IReadOnlyList<EscapeAbilityOffer> EscapeAbilities => escapeAbilities;
+
+    public bool ValidateRisingWaterConfiguration(out string error)
+    {
+        error = null;
+        // 安全：无主水的关卡不要求最高点；孤立的最高点不是有效主水配置。
+        if (risingWater == null)
+        {
+            if (risingWaterMaximum != null) error = $"{name}：设置了上涨水最高点，但没有关联上涨主水。";
+            return error == null;
+        }
+        if (risingWater.gameObject.scene != gameObject.scene)
+            error = $"{name}：上涨主水必须属于本场景。";
+        else if (risingWaterMaximum == null)
+            error = $"{name}：已关联上涨主水，必须指定上涨水最高点。";
+        else if (risingWaterMaximum.gameObject.scene != gameObject.scene)
+            error = $"{name}：上涨水最高点必须属于本场景。";
+        else if (risingWaterMaximum.IsChildOf(risingWater.transform))
+            error = $"{name}：上涨水最高点必须独立于水物体，不能随水一起移动。";
+        else if (!risingWater.ValidateRunConfiguration(waterRiseSpeed, risingWaterMaximum.position.y, out error))
+            return false;
+        return error == null;
+    }
+
+    public bool PrepareRisingWater(out string error)
+    {
+        if (!ValidateRisingWaterConfiguration(out error)) return false;
+        // 实际逻辑：关卡持有关联，水宿主只接收速度与水面上限，不自行搜索场景标记。
+        return risingWater == null || risingWater.PrepareRun(waterRiseSpeed, risingWaterMaximum.position.y);
+    }
 
     public static SceneLevelSetup Current { get; private set; }
 
