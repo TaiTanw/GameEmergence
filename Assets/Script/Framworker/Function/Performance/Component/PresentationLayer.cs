@@ -32,6 +32,16 @@ public class PresentationLayer : MonoBehaviour
     private static readonly int FlightStateHash = Animator.StringToHash("Base Layer.Flight");
     private static readonly int SurfaceSwimStateHash = Animator.StringToHash("Base Layer.SurfaceSwim");
     private static readonly int SurfaceSwimIdleStateHash = Animator.StringToHash("Base Layer.SurfaceSwimIdle");
+    private static readonly int DeathStateHash = Animator.StringToHash("Base Layer.Death");
+
+    public enum DeathPlaybackStatus { Invalid, Playing, Completed }
+    private uint deathPlaybackSequence;
+    private bool deathPlaybackActive;
+    private bool deathPlaybackFailed;
+    private AnimatorUpdateMode updateModeBeforeDeath;
+    private AnimatorCullingMode cullingModeBeforeDeath;
+    private RuntimeAnimatorController deathController;
+    private AnimationClip deathClip;
 
     private enum MotionMode
     {
@@ -136,12 +146,97 @@ public class PresentationLayer : MonoBehaviour
         if (animator == null || transitionPlayback == on) return;
         if (on)
         {
-            updateModeBeforeTransition = animator.updateMode;
+            updateModeBeforeTransition = deathPlaybackActive ? updateModeBeforeDeath : animator.updateMode;
             animator.updateMode = AnimatorUpdateMode.UnscaledTime;
             interactHintView.Hide();
         }
-        else animator.updateMode = updateModeBeforeTransition;
+        else animator.updateMode = deathPlaybackActive ? AnimatorUpdateMode.UnscaledTime : updateModeBeforeTransition;
         transitionPlayback = on;
+    }
+
+    /// <summary>制作入口：两套控制器都必须提供 Death 单次片段及 Base Layer.Death 状态。</summary>
+    public bool ValidateDeathPlayback(out string error)
+    {
+        error = null;
+        // 安全：禁用、缺失或未组装的表现不算可播放，不能靠延时替代。
+        if (!isInitialized || !isActiveAndEnabled || animator == null || !animator.isActiveAndEnabled
+            || animator.runtimeAnimatorController == null || !animator.HasState(BaseLayerIndex, DeathStateHash))
+        { error = $"{name}：死亡动画需要启用的表现组件及 Base Layer.Death 状态。"; return false; }
+        int count = 0;
+        foreach (AnimationClip clip in animator.runtimeAnimatorController.animationClips)
+        {
+            if (clip == null || clip.name != "Death") continue;
+            count++;
+            if (clip.isLooping || clip.length <= 0f || float.IsNaN(clip.length) || float.IsInfinity(clip.length))
+            { error = $"{name}：Death 片段必须有有效时长且不循环。"; return false; }
+        }
+        if (count != 1 || animator.speed <= 0f || float.IsNaN(animator.speed) || float.IsInfinity(animator.speed))
+        { error = $"{name}：需要唯一 Death 片段和有效的正播放速度。"; return false; }
+        return true;
+    }
+
+    /// <summary>共用单次播放；返回本次身份，完成后保持末帧，直到宿主明确释放。</summary>
+    public bool TryBeginDeathPlayback(out uint playback)
+    {
+        playback = 0;
+        if (deathPlaybackActive) return false;
+        if (!ValidateDeathPlayback(out string error)) { Debug.LogError(error, this); return false; }
+        updateModeBeforeDeath = transitionPlayback ? updateModeBeforeTransition : animator.updateMode;
+        cullingModeBeforeDeath = animator.cullingMode;
+        deathController = animator.runtimeAnimatorController;
+        foreach (AnimationClip clip in deathController.animationClips)
+            if (clip.name == "Death") deathClip = clip;
+        animator.updateMode = AnimatorUpdateMode.UnscaledTime;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        SetTransitionHidden(false);
+        interactHintView.Hide();
+        deathPlaybackActive = true;
+        deathPlaybackFailed = false;
+        if (++deathPlaybackSequence == 0) ++deathPlaybackSequence;
+        playback = deathPlaybackSequence;
+        animator.Play(DeathStateHash, BaseLayerIndex, 0f);
+        animator.Update(0f);
+        // 实际逻辑：核对真正进入的状态和关联片段；错误连线或素材不能伪造播放完成。
+        return GetDeathPlaybackStatus(playback) != DeathPlaybackStatus.Invalid;
+    }
+
+    public DeathPlaybackStatus GetDeathPlaybackStatus(uint playback)
+    {
+        // 生命周期：旧身份、禁用或已释放的播放永远不能完成新流程。
+        if (!deathPlaybackActive || playback == 0 || playback != deathPlaybackSequence || deathPlaybackFailed)
+            return DeathPlaybackStatus.Invalid;
+        if (!isActiveAndEnabled || animator == null || !animator.isActiveAndEnabled
+            || animator.runtimeAnimatorController != deathController)
+            return FailDeathPlayback();
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(BaseLayerIndex);
+        AnimatorClipInfo[] clips = animator.GetCurrentAnimatorClipInfo(BaseLayerIndex);
+        if (state.fullPathHash != DeathStateHash || state.loop || animator.IsInTransition(BaseLayerIndex)
+            || clips.Length != 1 || clips[0].clip == null || clips[0].clip != deathClip
+            || clips[0].clip.isLooping || state.speed <= 0f || state.speedMultiplier <= 0f
+            || animator.speed <= 0f || float.IsNaN(state.normalizedTime) || float.IsInfinity(state.normalizedTime))
+            return FailDeathPlayback();
+        return state.normalizedTime >= 1f ? DeathPlaybackStatus.Completed : DeathPlaybackStatus.Playing;
+    }
+
+    private DeathPlaybackStatus FailDeathPlayback()
+    {
+        deathPlaybackFailed = true;
+        Debug.LogError($"{name}：Death 播放配置无效或被打断，本次完成等待作废。", this);
+        return DeathPlaybackStatus.Invalid;
+    }
+
+    public void CancelDeathPlayback()
+    {
+        if (!deathPlaybackActive) return;
+        deathPlaybackActive = false;
+        if (animator != null)
+        {
+            animator.updateMode = transitionPlayback ? AnimatorUpdateMode.UnscaledTime : updateModeBeforeDeath;
+            animator.cullingMode = cullingModeBeforeDeath;
+        }
+        // 实际逻辑：交还正常选择时强制重新采样，避免旧 Idle/Flight 缓存让死亡末帧残留。
+        currentAnimation = AnimationState.None;
+        if (isInitialized) ResetMotionHistory();
     }
 
     /// <summary>过场控制角色显示；全黑缓冲隐藏实体，精神体等恢复跟随再出现，不改变规则或物理许可。</summary>
@@ -193,7 +288,7 @@ public class PresentationLayer : MonoBehaviour
     private void Update()
     {
         // 实际逻辑：过场期间继续采样现有动画，不因安置刷新切换动作。
-        if (transitionPlayback) return;
+        if (deathPlaybackActive || transitionPlayback) return;
         if (!isInitialized)
         {
             return;
@@ -297,10 +392,14 @@ public class PresentationLayer : MonoBehaviour
     // 实际逻辑：提示在 LateUpdate 绘制，读取本帧已写入的刚体插值位置。
     private void LateUpdate()
     {
-        if (isInitialized && !transitionPlayback && !transitionHidden) UpdateInteractHint();
+        if (isInitialized && !deathPlaybackActive && !transitionPlayback && !transitionHidden) UpdateInteractHint();
     }
 
-    private void OnDisable() => interactHintView.Hide();
+    private void OnDisable()
+    {
+        CancelDeathPlayback();
+        interactHintView.Hide();
+    }
     private void OnDestroy() => interactHintView.Dispose();
 
     /// <summary>

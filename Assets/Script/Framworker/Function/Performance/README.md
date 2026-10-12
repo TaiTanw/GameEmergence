@@ -23,6 +23,7 @@ Animator Controller 不需要建立 Transition 或参数连线。`PresentationLa
 | 水面待机 | `SurfaceSwimIdle` | 循环，4 帧 |
 | 水面移动 | `SurfaceSwim` | 循环，6 帧 |
 | 飞行 | `Flight` | 既有占位 |
+| 死亡／精神体退场 | `Death` | 单次，实体 8 帧／精神体 12 帧；共用播放及实际完成等待已接入，普通动作不能覆盖 |
 
 其中 `On` 与 `OnAir` 分别承载 `idle` 与 `OnAir_Up` 切片。五组新序列作为新资源导入，原有 `Swim`、`SurfaceSwim` 占位状态挂上移动片段，再新增疾跑及两种泳待机状态；新增状态没有连线，已有行走起步到行走循环的连线保留。
 
@@ -80,8 +81,18 @@ PresentationLayer
 
 推拉共 12 个切片，原像素已按待机头部尺度调整，使用 PPU=100；pivot 为 (192.5,244.5) 像素，以待机原图中心为基准，支撑脚底与待机对齐。每帧 0.16 秒，每组循环 0.96 秒；不包含箱子图像，也不修改角色预设体和碰撞框。
 
-原生 Unity 资源导入与核对工具为 `CatgirlSprintSwimAssets`（沿用入口并包含推拉）；表现层验收入口为 `CatgirlPresentationAnimationChecks.RunForBatch`。本轮导入和验收记录写入 `output/animation-integration-20261009`。物理与逻辑层生产代码保持不变。
+原生 Unity 资源导入与核对工具为 `CatgirlSprintSwimAssets`（沿用入口并包含推拉）；表现层验收入口为 `CatgirlPresentationAnimationChecks.RunForBatch`。10/09 资源阶段的导入和验收记录写入 `output/animation-integration-20261009`，该阶段未修改物理与逻辑层生产代码。
+
+2026-10-11 已导入确认的死亡／退场图片：实体和精神体各自的 `Art/sequence frame`、`Art/sequence frame2` 都使用 `catgirl-death.png`，切片名统一为 `catgirl-death_00` 起的两位序号。`Animation/Death.anim` 与 `Animation2/Death.anim` 的内部名称同为 `Death`，各自控制器统一通过 `Base Layer.Death` 寻址，关联对应素材，不添加 Transition、Any State 或参数。实体 8 格、单格 640×512、每帧 0.14 秒、总长 1.12 秒；精神体 12 格、单格 512×512、每帧 0.16 秒、总长 1.92 秒，最后一格完全透明。两者均非循环并保持末帧，PPU=100、固定像素 pivot=(192.5,244.5)，与原待机对齐。导入上限 4096，避免实体 2560 像素宽的图片被缩小。实际逐帧采样、结束保持、切片引用与既有状态保护通过，资源阶段记录见 `output/death-animation-integration-20261011`。
+
+## 死亡与探索退场播放
+
+`ValidateDeathPlayback` 校验制作配置；`TryBeginDeathPlayback` 返回本次播放身份；`GetDeathPlaybackStatus` 读取实际 `Base Layer.Death` 状态、对应非循环片段及 normalizedTime，报告无效／播放中／完成，不以固定秒数代替。播放独占期间停止普通动作与交互提示，使用真实时间且离屏仍推进，结束保持末帧；`CancelDeathPlayback` 作废旧身份并恢复 Animator 设置和普通动作选择。缺状态、片段不匹配、循环、无效速度或中途打断明确报错。
+
+`PlayerLifecycleRules` 区分模拟遇险和实体死亡。模拟遇险直接沿原转换回漫游并扣一次原费用，保留现场，不建立动画等待，也不依赖死亡动画组件；世界按漫游规则暂停。实体死亡关闭输入、角色行为和资源，继续被动惯性、重力、环境作用及共用碰撞，世界与上涨水继续运行，完整播放后才接逃生失败遮罩或教学重载。`CharacterPhysics` 的被动运动只关闭角色主动驱动、跳跃和游泳等动作执行，复用箱子的共用物理底层，显式刷新恢复角色执行。菜单暂停仍停止物理而动画使用真实时间；进入失败渐变或加载后沿原暂停规则。表现层不结算费用或切换阶段，刷新、禁用、返回菜单和受理换关均作废旧等待。
+
+`SceneChangeMgr.CompleteEscapePreparation(bool preserveScene = false)` 是准备最终确认后的统一入口，当前由原购买／低预算路径调用；消散完成后才保留／复位现场、安置实体、等待镜头抵达，再开放操作和涨水，不发送死亡请求或收转换费。新多项购买和负面确认面板后续复用此入口，当前尚未实现。隔离 Unity 实际流程验收入口为 `DeathAnimationFlowChecks.RunForBatch`，覆盖上述流程、重复死亡、暂停、退出和换关。
 
 ## 运行时校验
 
-初始化时会检查全部必需 Animator 状态。任一状态缺失时，组件会输出明确错误并停用自身，避免状态名变更后静默播放错误动画。
+初始化时检查普通动作必需 Animator 状态，缺失会输出明确错误并停用自身；死亡／退场受理前另行校验 `Death` 状态、片段及播放配置，避免状态名变更后静默播放错误动画。10/11 串联后原动作表现回归 512 项通过，证据见 `.utmp/DeathExitValidation/motion-checks.txt`。
