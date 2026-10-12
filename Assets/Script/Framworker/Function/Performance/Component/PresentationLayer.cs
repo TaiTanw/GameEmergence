@@ -369,6 +369,12 @@ public partial class PresentationLayer : MonoBehaviour
     /// <summary>只显示逻辑层给出的本次按键目标；文字配颜色区分可操作、已选中与受阻，不只依赖颜色。</summary>
     private void UpdateInteractHint()
     {
+        SceneProp prop = actionData.InteractProp;
+        if (prop != null)
+        {
+            interactHintView.Show(prop.DisplayBounds, "点按交互", new Color(1f, .85f, .2f));
+            return;
+        }
         MechanismCart cart = actionData.InteractCart;
         if (cart != null)
         {
