@@ -25,14 +25,24 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
 
     public float speed = 15;    // 基础水平移速
     [SerializeField, Min(0f)] private float fourWaySpeed = 6f; // 首版可调四向主动速度，后续定标。
+    public float BaseFourWaySpeed => fourWaySpeed;
 
     public float upSpeed = 15;//基础跳跃速度
     private PlayerEffectLedger effectLedger;
-    public float EffectiveMovementSpeed => speed * (effectLedger?.MovementMultiplier ?? 1f);
-    public float EffectiveJumpSpeed => upSpeed * (effectLedger?.JumpMultiplier ?? 1f);
-    private float MovementMultiplier => effectLedger?.MovementMultiplier ?? 1f;
+    public float EffectiveMovementSpeed => ResolveAttribute(PlayerUpgradeKind.MovementSpeed, speed, effectLedger?.MovementMultiplier ?? 1f);
+    public float EffectiveJumpSpeed => ResolveAttribute(PlayerUpgradeKind.JumpStrength, upSpeed, effectLedger?.JumpMultiplier ?? 1f);
+    private float EffectiveFourWaySpeed => ResolveAttribute(PlayerUpgradeKind.MovementSpeed, fourWaySpeed, effectLedger?.MovementMultiplier ?? 1f);
     /// <summary>只绑定共享记录；消费时从角色自身基础值重算，不回写配置或积累加成。</summary>
     internal void BindEffectLedger(PlayerEffectLedger ledger) => effectLedger = ledger;
+
+    private float ResolveAttribute(PlayerUpgradeKind kind, float baseValue, float ordinaryMultiplier)
+    {
+        double value = (effectLedger?.GetUpgradedValue(kind, baseValue) ?? baseValue) * (double)ordinaryMultiplier;
+        // 安全：实际角色基础值与普通效果共同导致溢出时，拒绝本步执行，避免写入无穷速度。
+        if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > float.MaxValue)
+            throw new System.InvalidOperationException($"{name} 的 {kind} 基础属性与效果组合无效或溢出。");
+        return (float)value;
+    }
     const float SpawnGroundSearchDistance = 4f;
     readonly List<RaycastHit2D> spawnDropHits = new List<RaycastHit2D>();
     #endregion
@@ -73,7 +83,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
             if (playActionData == null) return Vector2.zero;
             Vector2 input = Vector2.ClampMagnitude(new Vector2(playActionData.onMove, playActionData.verticalInput), 1f);
             // 实际逻辑：倍率乘在已归一的方向上，斜向两轴一起缩放，不单改水平。
-            return input * fourWaySpeed * MovementMultiplier;
+            return input * EffectiveFourWaySpeed;
         }
     }
     [SerializeField, Tooltip("选中箱与玩家碰撞框水平间隙不超过此值才开始共同推拉，开发期参数")]
@@ -235,7 +245,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         // 安全：角色尚未组装动作时没有主动操作。
         if (playActionData == null) return 0f;
         if (playActionData.FourWay != FourWayMode.None)
-            return playActionData.onMove * fourWaySpeed * MovementMultiplier;
+            return playActionData.onMove * EffectiveFourWaySpeed;
         // 实际逻辑：先乘行为给出的速率倍率，环境修饰仍在后面乘 nowPhyNum。
         return playActionData.onMove * EffectiveMovementSpeed * playActionData.speedScale;
     }
@@ -316,7 +326,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         if (playActionData != null && playActionData.FourWay != FourWayMode.None)
         {
             // 实际逻辑：游泳竖直与水平使用同一移动倍率，环境修饰仍只乘这一次。
-            playerPhysicsData.verticalSpeed = playActionData.verticalInput * fourWaySpeed * MovementMultiplier
+            playerPhysicsData.verticalSpeed = playActionData.verticalInput * EffectiveFourWaySpeed
                 * (1f + playerPhysicsData.nowPhyNum);
             return;
         }

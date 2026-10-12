@@ -10,7 +10,7 @@ public sealed class SceneLevelSetupEditor : Editor
         serializedObject.Update();
         DrawPropertiesExcluding(serializedObject, "cognitionBackpackCapacity", "cognitionPropertyCost",
             "cognitionCalculationCost", "initialCognitionProperties", "initialCognitionCalculations",
-            "risingWater", "waterRiseSpeed", "risingWaterMaximum");
+            "risingWater", "waterRiseSpeed", "risingWaterMaximum", "escapeAbilities", "lowCognitionMovementMultiplier");
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("上涨主水", EditorStyles.boldLabel);
@@ -56,6 +56,8 @@ public sealed class SceneLevelSetupEditor : Editor
         serializedObject.ApplyModifiedProperties();
         if (!((SceneLevelSetup)target).ValidateRisingWaterConfiguration(out string error))
             EditorGUILayout.HelpBox(error, MessageType.Error);
+        if (!((SceneLevelSetup)target).ValidateEscapePreparation(out string preparationError))
+            EditorGUILayout.HelpBox(preparationError, MessageType.Error);
     }
 
     void OnSceneGUI()

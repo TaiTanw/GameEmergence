@@ -15,9 +15,8 @@ public static class DeathAnimationFlowChecks
     const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
     static readonly List<string> passed = new List<string>();
     static readonly List<Object> fixtures = new List<Object>();
-    static string progressPath, runtimeError;
-    static byte[] previousProgress;
-    static bool hadProgress, previousOptionsEnabled, finished;
+    static string progressDirectory, previousProgressDirectory, runtimeError;
+    static bool previousOptionsEnabled, finished;
     static EnterPlayModeOptions previousOptions;
     static Exception failure;
     static double deadline;
@@ -28,9 +27,10 @@ public static class DeathAnimationFlowChecks
     {
         if (!Application.isBatchMode || Application.isPlaying) throw new InvalidOperationException("要求独立 batch editor。");
         passed.Clear(); fixtures.Clear(); runtimeError = null; failure = null; finished = false;
-        progressPath = Path.Combine(Application.persistentDataPath, "LevelProgress.txt");
-        hadProgress = File.Exists(progressPath);
-        previousProgress = hadProgress ? File.ReadAllBytes(progressPath) : null;
+        previousProgressDirectory = DataAndInitMgr.debugPlayerProgressDirectory;
+        progressDirectory = Path.GetFullPath(Path.Combine(".utmp/DeathExitValidation", "Save-" + Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(progressDirectory);
+        DataAndInitMgr.debugPlayerProgressDirectory = progressDirectory;
         previousOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
         previousOptions = EditorSettings.enterPlayModeOptions;
         EditorSettings.enterPlayModeOptionsEnabled = true;
@@ -122,10 +122,14 @@ public static class DeathAnimationFlowChecks
         Near(box.DebugActualPosition, boxScene, "准备面板未提前复位现场");
         Near(body.GetComponent<CharacterPhysics>().DebugActualPosition, bodyBefore, "准备面板未提前搬移实体");
         cognition = rules.Cognition.Remaining;
-        Check(SceneChangeMgr.Instance.PurchaseEscapeAbility(0), "最终购买确认后受理精神体消散");
+        float upgradeCost = SceneChangeMgr.Instance.EscapeOffers[0].Cost;
+        Check(SceneChangeMgr.Instance.PurchaseEscapeAbility(0)
+            && SceneChangeMgr.Instance.EscapeSelectionPending && !SceneChangeMgr.Instance.IsEscapeHandoff,
+            "购买升级后保持准备，下一步前不受理精神体消散");
+        Check(SceneChangeMgr.Instance.NextEscapeStep(), "下一步最终确认后受理精神体消散");
         float paid = rules.Cognition.Remaining;
         float waterBefore = setup.RisingWater.SurfaceY;
-        Near(paid, cognition - setup.EscapeAbilities[0].Cost, "购买只收原能力价，不额外收转换费");
+        Near(paid, cognition - upgradeCost, "购买只收原能力价，不额外收转换费");
         Check(SceneChangeMgr.Instance.IsEscapeHandoff && !SceneChangeMgr.Instance.EscapeSelectionPending
             && !spirit.PendingDeath.HasValue && InputControlMgr.Instance.Player == null,
             "退场隐藏已确认选择且不发送死亡请求");
@@ -233,11 +237,12 @@ public static class DeathAnimationFlowChecks
         rules = Rules();
         box.RefreshMotionState(boxScene);
         cognition = rules.Cognition.Remaining;
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.CompleteEscapePreparation(true),
+        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchasePreserveScene()
+            && SceneChangeMgr.Instance.NextEscapeStep(),
             "后续面板可复用同一最终确认入口并选择保留现场");
         while (rules.Stage != PlayerGameplayStage.Escape) yield return null;
         Near(box.DebugActualPosition.x, boxScene.x, "保留分支跳过现场运行默认复位");
-        Near(rules.Cognition.Remaining, cognition, "保留交接没有额外转换费用");
+        Near(rules.Cognition.Remaining, cognition - setup.PreserveSceneCost, "保留交接只支付一次现场保留费，没有额外转换费用");
         Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "第二次实体死亡重开独立播放周期");
         Check(SceneChangeMgr.Instance.ToggleGameMenu(), "第二次死亡中打开菜单");
         while (!SceneChangeMgr.Instance.IsFailureRecovering && Rules() == rules) yield return null;
@@ -248,7 +253,8 @@ public static class DeathAnimationFlowChecks
         while (Rules() == rules || SceneChangeMgr.Instance.IsFailureRecovering) yield return null;
 
         rules = Rules();
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.CompleteEscapePreparation(true),
+        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchasePreserveScene()
+            && SceneChangeMgr.Instance.NextEscapeStep(),
             "退出回归进入实体逃生");
         while (rules.Stage != PlayerGameplayStage.Escape) yield return null;
         Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "退出回归建立未完成实体死亡");
@@ -263,7 +269,8 @@ public static class DeathAnimationFlowChecks
         Enter(1);
         while (!Ready(1)) yield return null;
         Rules().Cognition.TryPayAbilityCost(Rules().Cognition.Remaining);
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.IsEscapeHandoff,
+        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.EscapeNegativePending
+            && SceneChangeMgr.Instance.ConfirmEscapePenalty() && SceneChangeMgr.Instance.IsEscapeHandoff,
             "低预算路径等待消散，不提前切逃生阶段");
         rules = Rules(); cognition = rules.Cognition.Remaining;
         Check(SceneChangeMgr.Instance.ReturnToMenu(), "消散交接中途退出");
@@ -277,7 +284,8 @@ public static class DeathAnimationFlowChecks
         Enter(1);
         while (!Ready(1)) yield return null;
         rules = Rules(); body = Actor("body");
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.CompleteEscapePreparation(true),
+        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchasePreserveScene()
+            && SceneChangeMgr.Instance.NextEscapeStep(),
             "换关回归进入实体逃生");
         while (rules.Stage != PlayerGameplayStage.Escape) yield return null;
         Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "换关回归建立未完成实体死亡");
@@ -364,7 +372,10 @@ public static class DeathAnimationFlowChecks
         PhysicalBox box = boxObject.GetComponent<PhysicalBox>();
         box.RefreshMotionState(new Vector2(8010f, 8001f));
         Physics2D.SyncTransforms();
-        Set(setup, "escapeAbilities", new[] { new EscapeAbilityOffer("验收步伐", PlayerEffectKind.MovementMultiplier, 20f, 1.2f) });
+        var upgrades = ScriptableObject.CreateInstance<PlayerUpgradeCatalog>(); fixtures.Add(upgrades);
+        foreach (PlayerUpgradeDefinition definition in upgrades.Definitions)
+            definition.Enabled = definition.Kind == PlayerUpgradeKind.MovementSpeed;
+        Check(SceneChangeMgr.Instance.PlayerEffects.Configure(upgrades), "死亡回归使用独立单项升级配置，不改制作资产");
         var waterObject = new GameObject("Death validation rising water"); fixtures.Add(waterObject);
         waterObject.transform.position = new Vector3(8010f, 7995f, 0f);
         BoxCollider2D waterCollider = waterObject.AddComponent<BoxCollider2D>();
@@ -416,8 +427,12 @@ public static class DeathAnimationFlowChecks
         EditorApplication.update -= Advance; Application.logMessageReceived -= RecordError;
         foreach (Object item in fixtures) if (item != null) Object.DestroyImmediate(item);
         fixtures.Clear();
-        if (hadProgress) File.WriteAllBytes(progressPath, previousProgress);
-        else if (File.Exists(progressPath)) File.Delete(progressPath);
+        try
+        {
+            DataAndInitMgr.Instance.ClearLevelProgress();
+            if (Directory.Exists(progressDirectory)) Directory.Delete(progressDirectory);
+        }
+        finally { DataAndInitMgr.debugPlayerProgressDirectory = previousProgressDirectory; }
         EditorSettings.enterPlayModeOptionsEnabled = previousOptionsEnabled;
         EditorSettings.enterPlayModeOptions = previousOptions;
         Directory.CreateDirectory(".utmp/DeathExitValidation");

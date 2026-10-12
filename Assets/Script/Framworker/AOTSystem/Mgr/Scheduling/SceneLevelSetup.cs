@@ -52,6 +52,8 @@ public class SceneLevelSetup : MonoBehaviour
     public float InitialCognition => Mathf.Max(0f, initialCognition);
     public float FormChangeCost => Mathf.Max(0f, formChangeCost);
     public float SimulationCognitionPerSecond => Mathf.Max(0f, simulationCognitionPerSecond);
+    public float CognitionPropertyCost => cognitionPropertyCost;
+    public float CognitionCalculationCost => cognitionCalculationCost;
     public Vector2 BodyPoint => Pose(bodySpawn);
     public Vector2 SpiritPoint => Pose(spiritSpawn);
     public Vector2 TrialPoint => Pose(trialStart);
@@ -77,6 +79,41 @@ public class SceneLevelSetup : MonoBehaviour
     public Transform RisingWaterMaximum => risingWaterMaximum;
     public float LowCognitionMovementMultiplier => lowCognitionMovementMultiplier;
     public System.Collections.Generic.IReadOnlyList<EscapeAbilityOffer> EscapeAbilities => escapeAbilities;
+
+    [SerializeField, Min(0f), Tooltip("主动逃生准备中一次性购买保留现场；不受认知降费影响。")]
+    float preserveSceneCost = 10f;
+    [SerializeField, Tooltip("只配置本关适用的负面。上涨水变快要求有关联主水且基础速度大于 0。")]
+    EscapePenaltyOffer[] escapePenalties = {
+        new EscapePenaltyOffer(EscapePenaltyKind.Movement, .8f),
+        new EscapePenaltyOffer(EscapePenaltyKind.Jump, .9f)
+    };
+    public float PreserveSceneCost => preserveSceneCost;
+    public IReadOnlyList<EscapePenaltyOffer> EscapePenalties => escapePenalties;
+
+    public bool ValidateEscapePreparation(out string error)
+    {
+        error = null;
+        if (float.IsNaN(preserveSceneCost) || float.IsInfinity(preserveSceneCost) || preserveSceneCost < 0f)
+            error = $"{name}：保留现场价格必须是有限非负数。";
+        else if (escapePenalties == null || escapePenalties.Length == 0)
+            error = $"{name}：至少配置一个本关适用的负面候选。";
+        else
+        {
+            var kinds = new HashSet<EscapePenaltyKind>();
+            foreach (EscapePenaltyOffer item in escapePenalties)
+            {
+                if (item == null || !item.IsValid)
+                { error = $"{name}：负面候选类型或倍率无效。"; break; }
+                if (!kinds.Add(item.Kind))
+                { error = $"{name}：负面类型 {item.Kind} 重复。"; break; }
+                if (item.Kind == EscapePenaltyKind.WaterRise && (risingWater == null || waterRiseSpeed <= 0f
+                    || float.IsInfinity(waterRiseSpeed * item.Multiplier)))
+                { error = $"{name}：上涨水负面需要有效主水、正基础水速及有限最终速度。"; break; }
+            }
+        }
+        if (error == null) return ValidateRisingWaterConfiguration(out error);
+        return false;
+    }
 
     public bool ValidateRisingWaterConfiguration(out string error)
     {

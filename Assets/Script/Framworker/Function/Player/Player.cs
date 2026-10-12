@@ -121,6 +121,9 @@ public class Player : MonoBehaviour
     /// <summary>玩家层。同层角色不互相碰撞；小车独立使用世界渲染层和碰撞排除配置。</summary>
     public const int PlayerLayer = 8;
     [SerializeField] private PlayerIdentity identity;
+    [SerializeField, Min(0), Tooltip("基础额外空中跳次数；地面起跳不占此次数。升级从此基础值重算。")]
+    private int baseAirJumps = 1;
+    public int BaseAirJumps => baseAirJumps;
     [SerializeField, Tooltip("选中外部箱的最大水平碰撞框间隙；选中后须接触才开始共同推拉，开发期参数")] private float interactContactGap = 0.5f;
     [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除；须大于选中间隙，开发期参数")] private float interactReleaseGap = 0.8f;
     [SerializeField, Tooltip("发现收纳箱以便取出的最大水平碰撞框间隙，开发期参数")] private float storedReachGap = 0.6f;
@@ -156,6 +159,8 @@ public class Player : MonoBehaviour
     {
         EnsureRuntimeReady();
         playPDate.BindEffectLedger(ledger);
+        fsm.jumpNum = baseAirJumps;
+        fsm.BindEffectLedger(ledger);
     }
 
     public void BindDeathReceiver(IPlayerDeathReceiver receiver)
@@ -400,6 +405,8 @@ public class Player : MonoBehaviour
         _ActionData = new ReadOnly_ActionData(actionData);
         //逻辑状态机/物理状态/表现层初始化（保证存在
         fsm = new PlayerStateMachine();
+        fsm.jumpNum = baseAirJumps;
+        fsm.JumpCountToNum();
         playPDate = gameObject.GetComponentInChildren<CharacterPhysics>();
         animatorFSM = gameObject.GetComponentInChildren<PresentationLayer>();
 
@@ -409,6 +416,8 @@ public class Player : MonoBehaviour
     void EnsureRuntimeReady()
     {
         if (runtimeReady) return;
+        // 安全：基础次数来自角色制作配置，负次数不能由运行时自动改成零掩盖错误。
+        if (baseAirJumps < 0) throw new System.InvalidOperationException($"{name} 的基础额外空中跳次数不能为负。");
         fsm.InitData(playPDate.ReadOnly_GeometryPhysicsData, inputData, actionData);
         playPDate.Init(_ActionData, fsm.EventSystem);
         animatorFSM.Init(playPDate.ReadOnly_PlayersPhysicsData, playPDate.ReadOnly_GeometryPhysicsData, _ActionData);

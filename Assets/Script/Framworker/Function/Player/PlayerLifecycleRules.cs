@@ -15,6 +15,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     private float manualCooldown;
     private float nextManualChange;
     private readonly float formCost;
+    private PlayerEffectLedger effectLedger;
     private readonly float simulationCognitionPerSecond;
     private PlayerDeathRequest? animationDeath;
     private PlayerGameplayStage deathStage;
@@ -28,11 +29,24 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     public CognitionBackpack CognitionBackpack { get; private set; }
     public EnvironmentEditDraft ActiveEnvironmentEdit { get; private set; }
 
+    /// <summary>场景组装的一处绑定覆盖三类费用；尚未建立的地图和背包在创建时继续绑定。</summary>
+    public void BindEffectLedger(PlayerEffectLedger ledger)
+    {
+        effectLedger = ledger;
+        CognitionBackpack?.BindEffectLedger(ledger);
+        MapRecord?.BindEffectLedger(ledger);
+    }
+
     /// <summary>关卡创建新探索时装载背包；失败重开重新组装，模式切换与轻刷新不重建。</summary>
     public bool BindCognitionBackpack(SceneLevelSetup setup)
     {
         if (setup == null || setup.Teaching) return false;
-        try { CognitionBackpack = setup.CreateCognitionBackpack(); return true; }
+        try
+        {
+            CognitionBackpack = setup.CreateCognitionBackpack();
+            CognitionBackpack.BindEffectLedger(effectLedger);
+            return true;
+        }
         catch (ArgumentException error) { Debug.LogError(error.Message, setup); return false; }
     }
 
@@ -68,6 +82,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
         MapRecord = null;
         if (setup == null || setup.Teaching || !setup.MapEnabled) return true;
         MapRecord = new LevelMapRecord(setup.MapCells, Cognition, setup.gameObject.scene);
+        MapRecord.BindEffectLedger(effectLedger);
         if (MapRecord.IsValid) return true;
         Debug.LogError(MapRecord.ConfigurationError, setup);
         return false;
@@ -235,6 +250,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
             return false;
         }
         // 实际逻辑：失败不先恢复世界，也不提前撤销权限，保证重叠拒绝没有旁路效果。
+        float effectiveFormCost = effectLedger?.GetUpgradedValue(PlayerUpgradeKind.FormCost, formCost) ?? formCost;
         if (!subject.TryCommitSpiritForm(flying)) return false;
         CancelEnvironmentEdit();
         IsSimulation = !flying;
@@ -242,7 +258,7 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
         SetWorldPaused(flying);
         // 成功转换统一更新下一次手动冷却；强制本身仍不受此时间限制。
         nextManualChange = Time.unscaledTime + manualCooldown;
-        Cognition.PayFormCost(formCost);
+        Cognition.PayFormCost(effectiveFormCost);
         RequestCognitionExhaustion();
         FormCommitted?.Invoke(reason);
         return true;

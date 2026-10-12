@@ -18,7 +18,7 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     private float surfaceY;
     private float riseSpeed;
     private bool defaultsCaptured;
-    private float defaultBottom, defaultSurface;
+    private float defaultBottom, defaultSurface, defaultRiseSpeed;
     private bool hasSurfaceLimit;
     private float maximumSurface;
     public float SurfaceY => GetComponent<BoxCollider2D>().bounds.max.y;
@@ -37,6 +37,7 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
         }
         // 实际逻辑：关卡准备一次提交固定上限，不随场景标记或上涨水的 Transform 移动。
         maximumSurface = maximumSurfaceY;
+        defaultRiseSpeed = speed;
         hasSurfaceLimit = true;
         if (!ConfigureWaterLevel(defaultBottom, defaultSurface, speed, false)) return false;
         CommitWaterGeometry();
@@ -71,10 +72,18 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
         if (hasWaterLevel) risingAllowed = allowed;
     }
 
+    /// <summary>只改本次逃生运行水速，保留水位与制作基准。</summary>
+    public bool SetRunRiseSpeed(float speed)
+    {
+        if (!hasWaterLevel || !IsFinite(speed) || speed < 0f) return false;
+        riseSpeed = speed;
+        return true;
+    }
+
     public void RestoreRunDefaults()
     {
         if (!defaultsCaptured) return;
-        bottomY = defaultBottom; surfaceY = defaultSurface; risingAllowed = false;
+        bottomY = defaultBottom; surfaceY = defaultSurface; riseSpeed = defaultRiseSpeed; risingAllowed = false;
         CommitWaterGeometry();
     }
 

@@ -173,30 +173,25 @@ public static class GameUIPrefabBuilder
         finally { UnityEngine.Object.DestroyImmediate(root.gameObject); }
     }
 
-    static void BuildEscapeChoices(RectTransform root)
-    {
-        RectTransform overlay = NewRect("EscapeChoiceArea", root);
-        Stretch(overlay); Background(overlay, new Color(.015f, .025f, .04f, .82f), true);
-        RectTransform card = Region(overlay, "Choices", new Vector2(.5f, .5f), new Vector2(0, -20), new Vector2(680, 400));
-        Background(card, Card, true);
-        VerticalLayoutGroup layout = card.gameObject.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(24, 24, 24, 24); layout.spacing = 16;
-        layout.childControlWidth = true; layout.childControlHeight = true;
-        layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
-        Text budget = Label(overlay, "EscapeBudgetText", "选择一项能力开始逃生", Vector2.zero, new Vector2(760, 60), 28, Ink);
-        budget.rectTransform.anchorMin = budget.rectTransform.anchorMax = new Vector2(.5f, .5f);
-        budget.rectTransform.pivot = new Vector2(.5f, .5f); budget.rectTransform.anchoredPosition = new Vector2(0, 240);
-        budget.alignment = TextAnchor.MiddleCenter;
-        RectTransform template = NewRect("ChoiceTemplate", card);
-        Image background = Background(template, new Color(.13f, .32f, .37f), true);
-        Button choice = template.gameObject.AddComponent<Button>(); choice.targetGraphic = background;
-        LayoutElement size = template.gameObject.AddComponent<LayoutElement>(); size.preferredHeight = 64;
-        Text label = Label(template, "Label", "能力", Vector2.zero, new Vector2(632, 64), 25, Ink);
-        Stretch(label.rectTransform); label.alignment = TextAnchor.MiddleCenter;
-        template.gameObject.SetActive(false);
-        overlay.gameObject.AddComponent<EscapeChoiceView>(); overlay.gameObject.SetActive(false);
-    }
+    static void BuildEscapeChoices(RectTransform root) => EscapePreparationLayout.Build(root);
 
+    public static void UpgradeEscapeAndCatalogForBatch()
+    {
+        try
+        {
+            const string catalogPath = "Assets/Resources/PlayerUpgradeCatalog.asset";
+            if (AssetDatabase.LoadAssetAtPath<PlayerUpgradeCatalog>(catalogPath) == null)
+                AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<PlayerUpgradeCatalog>(), catalogPath);
+            const string panelPath = "Assets/MyObjAssets/UIPanel/GameplayPanel.prefab";
+            GameObject root = PrefabUtility.LoadPrefabContents(panelPath);
+            try { EscapePreparationLayout.Build(root.transform); PrefabUtility.SaveAsPrefabAsset(root, panelPath); }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            AssetDatabase.SaveAssets();
+            Debug.Log("Escape preparation prefab and upgrade catalog saved.");
+            EditorApplication.Exit(0);
+        }
+        catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+    }
     static RectTransform Root(string name)
     {
         RectTransform root = NewRect(name, null);

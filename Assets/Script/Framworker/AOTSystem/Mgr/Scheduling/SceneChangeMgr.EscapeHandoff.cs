@@ -23,7 +23,7 @@ public partial class SceneChangeMgr
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
         if (loading || refreshing || GameMenuOpen || escapeHandoff || !EscapeSelectionPending
-            || levelRules == null || !ValidateEscapeHandoff(setup)) return false;
+            || !preparationConfirmed || levelRules == null || !ValidateEscapeHandoff(setup)) return false;
         if (!spirit.Presentation.TryBeginDeathPlayback(out uint playback)) return false;
         escapeHandoff = true;
         int serial = ++loadSerial;
@@ -37,12 +37,25 @@ public partial class SceneChangeMgr
     {
         while (serial == loadSerial && escapeHandoff && rules == levelRules && departing != null)
         {
-            PresentationLayer.DeathPlaybackStatus status = departing.Presentation.GetDeathPlaybackStatus(playback);
-            if (status == PresentationLayer.DeathPlaybackStatus.Invalid) yield break;
+            PresentationLayer.DeathPlaybackStatus status = departing.Presentation != null
+                ? departing.Presentation.GetDeathPlaybackStatus(playback)
+                : PresentationLayer.DeathPlaybackStatus.Invalid;
+            if (status == PresentationLayer.DeathPlaybackStatus.Invalid)
+            {
+                Debug.LogError("精神体退场动画被打断，返回菜单并撤销本关准备。");
+                ReturnToMenu();
+                yield break;
+            }
             if (status == PresentationLayer.DeathPlaybackStatus.Completed) break;
             yield return null;
         }
-        if (serial != loadSerial || !escapeHandoff || rules != levelRules || departing == null || setup == null) yield break;
+        if (serial != loadSerial || !escapeHandoff || rules != levelRules) yield break;
+        if (departing == null || setup == null)
+        {
+            Debug.LogError("探索退场对象被移除，返回菜单并撤销本关准备。");
+            ReturnToMenu();
+            yield break;
+        }
         // 确认消散完成后才处理现场及实体；探索交接不发死亡请求、不收转换费。
         if (!preserveScene) PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
         body.BindEffectLedger(effects);
@@ -67,6 +80,9 @@ public partial class SceneChangeMgr
         Physics2D.SyncTransforms();
         LevelBoxContext.Resample(setup.gameObject.scene);
         body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+        float waterMultiplier = escapePenalty != null && escapePenalty.Kind == EscapePenaltyKind.WaterRise
+            ? escapePenalty.Multiplier : 1f;
+        setup.RisingWater?.SetRunRiseSpeed(setup.WaterRiseSpeed * waterMultiplier);
         setup.RisingWater?.SetRisingAllowed(true);
         escapeHandoff = false;
         InputControlMgr.Instance.InputOpenOrClose(true);

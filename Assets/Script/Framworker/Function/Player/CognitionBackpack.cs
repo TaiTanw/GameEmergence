@@ -43,6 +43,7 @@ public sealed class CognitionBackpack
     readonly List<CognitionBackpackItem> items = new List<CognitionBackpackItem>();
     readonly System.Collections.ObjectModel.ReadOnlyCollection<CognitionBackpackItem> readOnlyItems;
     readonly float propertyCost, calculationCost;
+    private PlayerEffectLedger effectLedger;
     int nextId;
     public int Capacity { get; }
     public int Version { get; private set; }
@@ -75,7 +76,13 @@ public sealed class CognitionBackpack
         new CognitionBackpackItem(++nextId, property.CopyRuntime(), null);
     internal CognitionBackpackItem NewCalculation(EnvironmentCalculationPoint point) =>
         new CognitionBackpackItem(++nextId, null, point);
-    internal float AcquisitionCost(CognitionBackpackItem item) => item.IsCalculation ? calculationCost : propertyCost;
+    public void BindEffectLedger(PlayerEffectLedger ledger) => effectLedger = ledger;
+
+    internal float AcquisitionCost(CognitionBackpackItem item)
+    {
+        float baseCost = item.IsCalculation ? calculationCost : propertyCost;
+        return effectLedger?.GetUpgradedValue(PlayerUpgradeKind.BackpackCost, baseCost) ?? baseCost;
+    }
 
     internal void ReplaceValidated(List<CognitionBackpackItem> replacement)
     {

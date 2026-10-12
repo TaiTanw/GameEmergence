@@ -79,50 +79,43 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         && !levelRules.EscapeSelectionPending && body != null && spirit != null;
     public bool EscapeSelectionPending => levelRules != null && levelRules.EscapeSelectionPending && !escapeHandoff;
 
-    /// <summary>手动和耗尽共用一次探索结束；选择时暂停，低预算直接接受本局负面并开始逃生。</summary>
+    /// <summary>主动进入固定三项购买；探索耗尽直接锁定负面，均由最终确认入口交接。</summary>
     public bool StartEscape()
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
-        if (!CanStartEscape || setup == null || !ValidEscapeSetup(setup)) return false;
+        if (!CanStartEscape || setup == null || !EnsureUpgradeCatalog() || !ValidEscapeSetup(setup)) return false;
         // 配置错误在购买／暂停前指出；不以占位延时跳过消散。
         if (!ValidateEscapeHandoff(setup)) return false;
         if (!levelRules.BeginEscapeSelection()) return false;
         InputControlMgr.Instance.BindPlayer(null);
-        bool affordable = false;
-        foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
-            affordable |= levelRules.Cognition.Remaining >= offer.Cost;
-        if (!affordable)
-        {
-            if (!CompleteEscapePreparation()) return false;
-            effects.GrantEffect(PlayerEffectKind.MovementMultiplier, setup.LowCognitionMovementMultiplier);
-        }
+        ResetEscapePreparation();
+        if (levelRules.Cognition.IsExhausted) LockEscapePenalty(setup);
+        else DrawEscapeOffers();
         return true;
     }
 
     public bool PurchaseEscapeAbility(int index)
     {
-        SceneLevelSetup setup = SceneLevelSetup.Current;
-        // 选择只提交一次；无效或买不起的选项不先扣余额或给效果。
-        if (loading || refreshing || GameMenuOpen || Time.timeScale <= 0f || !EscapeSelectionPending || setup == null
-            || index < 0 || index >= setup.EscapeAbilities.Count) return false;
-        EscapeAbilityOffer offer = setup.EscapeAbilities[index];
-        if (offer == null || !offer.IsValid || levelRules.Cognition.Remaining < offer.Cost) return false;
-        if (!CompleteEscapePreparation()) return false;
-        if (!effects.GrantEffect(offer.Kind, offer.Multiplier)) return false;
-        levelRules.Cognition.TryPayAbilityCost(offer.Cost);
-        return true;
+        // 本次三项固定，重复购买只提升该项等级，不交接或重新抽取。
+        if (!CanPrepareEscape || negativePending || preparationConfirmed || index < 0 || index >= escapeOffers.Count)
+            return false;
+        PlayerUpgradeDefinition item = escapeOffers[index];
+        if (!effects.CanUpgrade(item.Kind)) return false;
+        int nextLevel = effects.GetUpgradeLevel(item.Kind) + 1;
+        if (!ValidateActorUpgradeValues(body, out string error, item.Kind, nextLevel)
+            || !ValidateActorUpgradeValues(spirit, out error, item.Kind, nextLevel))
+        {
+            ShowGameplayMessage(error);
+            return false;
+        }
+        return effects.TryUpgrade(escapeOffers[index].Kind, levelRules.Cognition);
     }
 
     static bool ValidEscapeSetup(SceneLevelSetup setup)
     {
-        if (setup.EscapeAbilities == null || setup.EscapeAbilities.Count == 0
-            || float.IsNaN(setup.LowCognitionMovementMultiplier) || float.IsInfinity(setup.LowCognitionMovementMultiplier)
-            || setup.LowCognitionMovementMultiplier <= 0f || setup.LowCognitionMovementMultiplier > 1f) return false;
-        foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
-            if (offer == null || !offer.IsValid) return false;
-        if (!setup.ValidateRisingWaterConfiguration(out string waterError))
-        { Debug.LogError(waterError, setup); return false; }
-        return true;
+        if (setup.ValidateEscapePreparation(out string error)) return true;
+        Debug.LogError(error, setup);
+        return false;
     }
 
     /// <summary>受理一次异步失败演出，返回 false 保持死亡待处理；全黑后才重建同关探索。</summary>
@@ -216,6 +209,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             foreach (SceneProp prop in root.GetComponentsInChildren<SceneProp>(true)) prop.RestoreDefault();
         levelRules.MapRecord?.Reset();
         effects.ResetCurrentLevel();
+        ResetEscapePreparation();
         body.RefreshRuntime(setup.BodyPoint, true);
         PlaceDepth(body, setup.BodyPose);
         ReleaseLevelRules();
@@ -309,8 +303,10 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>按已保存的关序号进入。没有存档时是第一关。</summary>
     public void EnterSavedLevel()
     {
+        if (!EnsureUpgradeCatalog()) return;
         LevelOrderFile order = DataAndInitMgr.Instance.LoadLevelOrder();
-        int index = DataAndInitMgr.Instance.LoadLevelIndex();
+        if (!DataAndInitMgr.Instance.LoadPlayerProgress(effects, out int index))
+        { ShowGameplayMessage("进度读取失败，请检查存档。已保留原存档。"); return; }
         // 安全：进度超出当前顺序时回到第一关。
         if (order.scenes == null || index < 0 || index >= order.scenes.Length) index = 0;
         EnterLevel(index, order);
@@ -339,6 +335,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         Time.timeScale = 1f;
         ReleaseLevelRules();
         effects.ResetCurrentLevel();
+        ResetEscapePreparation();
         InputControlMgr.Instance.BindPlayer(null);
         InputControlMgr.Instance.InputOpenOrClose(false);
         // 实际逻辑：不在开始场景就结束本局。实体跨场景，必须显式销毁。
@@ -480,8 +477,17 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             InputControlMgr.Instance.BeginTransitionView(body.transform, true);
         }
         else InputControlMgr.Instance.SnapCameraToPlayer();
+        int[] previousLevels = effects.CaptureConfirmedUpgradeLevels();
+        PlayerEffectRecord[] previousEffects = effects.CaptureConfirmedEffects();
         if (confirmPrevious) effects.CommitLevel();
-        DataAndInitMgr.Instance.SaveLevelIndex(index);
+        if (!DataAndInitMgr.Instance.SavePlayerProgress(index, effects))
+        {
+            // 写盘失败不留下内存已确认／磁盘未确认的两套进度。
+            effects.RestoreConfirmed(previousLevels, previousEffects);
+            Debug.LogError("关序及永久升级保存失败，返回菜单并保留此前进度。");
+            ReturnToMenu();
+            return;
+        }
         // 实际逻辑：角色和规则安置成功就恢复物理，输入仍关闭；探索的世界许可继续由阶段规则决定。
         Time.timeScale = 1f;
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
@@ -541,6 +547,13 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
                 done?.Invoke(false);
                 return;
             }
+            // 制作配置及当前等级先核对；坏基础值不进入绑定、刷新或后续永久确认。
+            if (!ValidateActorUpgradeValues(body, out string attributeError))
+            {
+                Debug.LogError(attributeError, body);
+                done?.Invoke(false);
+                return;
+            }
             // 实际逻辑：先绑输入再刷新，状态机才能在 Start 之前拿到操作数据。
             InputControlMgr.Instance.BindPlayer(body);
             body.BindEffectLedger(effects);
@@ -569,6 +582,12 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             Debug.LogError("精神体预设、出生点或上涨水配置无效，不能开始探索。", setup);
             return false;
         }
+        // 预设基础值与当前永久等级须在实例化前兼容，不能让坏预设的 Awake／Start 先执行。
+        if (!ValidateActorUpgradeValues(setup.SpiritPrefab.GetComponent<Player>(), out string attributeError))
+        {
+            Debug.LogError(attributeError, setup.SpiritPrefab);
+            return false;
+        }
         // 实际逻辑：上一只还在时先去掉，这一关再新建。
         DestroyActor(ref spirit);
         // 安全：没指定预设时不造精神体，实体保持待机。
@@ -594,6 +613,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         levelRules = new PlayerLifecycleRules(body, spirit, this,
             cognition: new LevelCognition(setup.InitialCognition), formCost: setup.FormChangeCost,
             simulationCognitionPerSecond: setup.SimulationCognitionPerSecond);
+        levelRules.BindEffectLedger(effects);
         if (!levelRules.BindCognitionBackpack(setup))
         {
             DestroyActor(ref spirit);

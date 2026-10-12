@@ -17,9 +17,8 @@ public static class P8P9LevelFlowChecks
     const BindingFlags StaticHidden = BindingFlags.Static | BindingFlags.NonPublic;
     static readonly List<string> passed = new List<string>();
     static readonly List<GameObject> fixtures = new List<GameObject>();
-    static string progressPath;
-    static byte[] previousProgress;
-    static bool hadProgress, previousOptionsEnabled;
+    static string progressDirectory, previousProgressDirectory;
+    static bool previousOptionsEnabled;
     static EnterPlayModeOptions previousOptions;
     static SimulationMode2D previousSimulation;
     static float previousTimeScale;
@@ -31,6 +30,7 @@ public static class P8P9LevelFlowChecks
     static Player body, spirit;
     static PlayerLifecycleRules explorationRules, escapeRules, teachingRules;
     static PlayerEffectLedger ledger;
+    static PlayerUpgradeCatalog fixtureCatalog;
     static SceneLevelSetup setup;
     static GameplayPanel panel;
     static BaseGround ground;
@@ -49,9 +49,10 @@ public static class P8P9LevelFlowChecks
     {
         if (!Application.isBatchMode || Application.isPlaying)
             throw new InvalidOperationException("P8/P9 关卡流程检查要求新开的 batch editor。");
-        progressPath = Path.Combine(Application.persistentDataPath, "LevelProgress.txt");
-        hadProgress = File.Exists(progressPath);
-        previousProgress = hadProgress ? File.ReadAllBytes(progressPath) : null;
+        previousProgressDirectory = DataAndInitMgr.debugPlayerProgressDirectory;
+        progressDirectory = Path.GetFullPath(Path.Combine(".utmp/P89Validation", "Save-" + Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(progressDirectory);
+        DataAndInitMgr.debugPlayerProgressDirectory = progressDirectory;
         previousOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
         previousOptions = EditorSettings.enterPlayModeOptions;
         previousSimulation = Physics2D.simulationMode;
@@ -137,7 +138,9 @@ public static class P8P9LevelFlowChecks
                     Check(Rules().Stage == PlayerGameplayStage.Exploration && Actor("spirit") != null,
                         "负面逃生死亡后正常返回探索");
                     Time.timeScale = 1f;
-                    Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchaseEscapeAbility(0),
+                    Check(SceneChangeMgr.Instance.StartEscape()
+                        && SceneChangeMgr.Instance.PurchaseEscapeAbility(OfferIndex(PlayerUpgradeKind.MovementSpeed))
+                        && SceneChangeMgr.Instance.NextEscapeStep(),
                         "退出回归受理第三次精神体消散与实体交接");
                     stage = 11;
                     break;
@@ -244,11 +247,14 @@ public static class P8P9LevelFlowChecks
         SetField(setup, "risingWaterMaximum", NewObject("P89 maximum water surface", new Vector2(8020f, floor + 30f)).transform);
         Check(setup.PrepareRisingWater(out _), "本关上涨水从实际制作矩形及最高点准备默认范围");
         waterDefault = water.SurfaceY; waterBottom = waterCollider.bounds.min.y;
-        SetField(setup, "escapeAbilities", new[] {
-            new EscapeAbilityOffer("联测步伐强化", PlayerEffectKind.MovementMultiplier, 20f, 1.2f),
-            new EscapeAbilityOffer("联测高价选项", PlayerEffectKind.JumpMultiplier, 200f, 1.2f)
-        });
-        SetField(setup, "lowCognitionMovementMultiplier", .8f);
+        fixtureCatalog = ScriptableObject.CreateInstance<PlayerUpgradeCatalog>();
+        foreach (PlayerUpgradeDefinition definition in fixtureCatalog.Definitions)
+            definition.Enabled = definition.Kind == PlayerUpgradeKind.MovementSpeed || definition.Kind == PlayerUpgradeKind.JumpStrength;
+        fixtureCatalog.Get(PlayerUpgradeKind.MovementSpeed).Label = "联测步伐强化";
+        fixtureCatalog.Get(PlayerUpgradeKind.JumpStrength).Label = "联测高价选项";
+        fixtureCatalog.Get(PlayerUpgradeKind.JumpStrength).Cost = 200f;
+        Check(ledger.Configure(fixtureCatalog), "联测使用独立升级配置并按能力标识核对随机顺序");
+        SetField(setup, "escapePenalties", new[] { new EscapePenaltyOffer(EscapePenaltyKind.Movement, .8f) });
         prop = Prop(new Vector2(7990f, floor + 1f));
         propHome = prop.transform.position;
 
@@ -352,11 +358,14 @@ public static class P8P9LevelFlowChecks
             "实际开始按钮进入唯一选择入口，暂停角色与世界并撤销探索控制");
         Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "进入购买准备保持箱子现场，不提前复位");
         Check(!water.RisingAllowed, "等待购买时水不取得上涨许可");
-        Check(!host.StartEscape() && !host.PurchaseEscapeAbility(-1) && !host.PurchaseEscapeAbility(1),
+        int movementIndex = OfferIndex(PlayerUpgradeKind.MovementSpeed);
+        int expensiveIndex = OfferIndex(PlayerUpgradeKind.JumpStrength);
+        float upgradeCost = host.EscapeOffers[movementIndex].Cost;
+        Check(!host.StartEscape() && !host.PurchaseEscapeAbility(-1) && !host.PurchaseEscapeAbility(expensiveIndex),
             "连续开始、非法索引与买不起选项均拒绝");
         Near(explorationRules.Cognition.Remaining, balance, "拒绝操作不产生部分扣费");
         Check(host.ToggleGameMenu() && host.GameMenuOpen && Time.timeScale == 0f
-            && !host.PurchaseEscapeAbility(0), "选择期间仍可暂停菜单，暂停时不可提交购买");
+            && !host.PurchaseEscapeAbility(movementIndex), "选择期间仍可暂停菜单，暂停时不可提交购买");
         Check(host.ToggleGameMenu() && !host.GameMenuOpen && Time.timeScale == 1f
             && host.EscapeSelectionPending && WorldPaused(typeof(BasicEntity)) && InputControlMgr.Instance.Player == null,
             "选择期间关闭菜单保留结算冻结与空控制目标");
@@ -364,21 +373,26 @@ public static class P8P9LevelFlowChecks
         Check(panel.FindUIObj<Text>("CognitionText").text == $"认知  {Mathf.Floor(explorationRules.Cognition.Remaining):0}",
             "购买等待时无受控角色也沿用认知向下取整显示");
         typeof(EscapeChoiceView).GetMethod("Refresh", Hidden).Invoke(panel.GetComponentInChildren<EscapeChoiceView>(), null);
-        Check(panel.transform.Find("EscapeChoiceArea/EscapeBudgetText").GetComponent<Text>().text
-            == $"选择一项能力开始逃生 · 可用认知 {Mathf.Floor(explorationRules.Cognition.Remaining):0}",
-            "逃生能力选择的可用余额显示同样向下取整");
-        Button purchaseButton = panel.transform.Find("EscapeChoiceArea/Choices/EscapeChoice0")?.GetComponent<Button>();
-        Button expensiveButton = panel.transform.Find("EscapeChoiceArea/Choices/EscapeChoice1")?.GetComponent<Button>();
+        Check(panel.transform.Find("EscapeChoiceArea/Choices/EscapeBudgetText").GetComponent<Text>().text
+            == $"逃生准备 · 剩余认知 {explorationRules.Cognition.Remaining:0.##}",
+            "逃生准备按共享认知显示当前实际余额");
+        Button purchaseButton = panel.transform.Find("EscapeChoiceArea/Choices/Viewport/Content/EscapeChoice" + movementIndex)?.GetComponent<Button>();
+        Button expensiveButton = panel.transform.Find("EscapeChoiceArea/Choices/Viewport/Content/EscapeChoice" + expensiveIndex)?.GetComponent<Button>();
         Check(purchaseButton != null && purchaseButton.gameObject.activeInHierarchy && purchaseButton.interactable
             && expensiveButton != null && !expensiveButton.interactable,
-            "真实固定池按同一预算显示可购与不可支付选项");
+            "本次固定候选按同一预算显示可购与不可支付选项");
         if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
             GameMenuInputChecks.Capture("p89-escape-choice.png");
         purchaseButton.onClick.Invoke();
-        Check(!host.EscapeSelectionPending && host.IsEscapeHandoff && Actor("spirit") == spirit
-            && InputControlMgr.Instance.Player == null, "实际能力按钮提交一次购买并开始精神体消散");
-        Near(explorationRules.Cognition.Remaining, balance - setup.EscapeAbilities[0].Cost,
+        Check(host.EscapeSelectionPending && !host.IsEscapeHandoff && Actor("spirit") == spirit
+            && InputControlMgr.Instance.Player == null && ledger.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 1,
+            "实际能力按钮提交一次等级购买并留在准备面板");
+        Near(explorationRules.Cognition.Remaining, balance - upgradeCost,
             "购买按配置价格仅扣一次共享认知");
+        Button nextButton = panel.transform.Find("EscapeChoiceArea/Choices/NextEscapeButton")?.GetComponent<Button>();
+        Check(nextButton != null && nextButton.interactable, "能力购买后独立下一步仍可使用");
+        nextButton.onClick.Invoke();
+        Check(!host.EscapeSelectionPending && host.IsEscapeHandoff, "下一步最终确认后才开始精神体消散");
         Check(!host.PurchaseEscapeAbility(0) && !host.StartEscape(), "已完成购买与交接不重复执行");
         Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "消散完成前仍保持购买现场");
         Check(!water.RisingAllowed && WorldPaused(typeof(BasicEntity)), "消散及镜头交接前不开放水与世界");
@@ -394,10 +408,10 @@ public static class P8P9LevelFlowChecks
             "逃生交接恢复世界并开放本关水上涨");
         Near(box.DebugActualPosition, boxHome, "未保留现场的消散完成后才复位全关箱子");
         Near(ground.SlowingEffect, .5f, "开始逃生保留本关环境改值");
-        Check(ledger.CurrentLevelEffects.Count == 3 && ledger.ConfirmedPermanentEffects.Count == 1,
-            "购买效果加入同一本关记录，未重复确认此前永久");
+        Check(ledger.CurrentLevelEffects.Count == 2 && ledger.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 1
+            && ledger.ConfirmedPermanentEffects.Count == 1, "购买等级加入本关待确认记录，未重复确认此前普通永久效果");
         Near(body.GetComponent<CharacterPhysics>().EffectiveMovementSpeed,
-            body.GetComponent<CharacterPhysics>().speed * ledger.MovementMultiplier,
+            ledger.GetUpgradedValue(PlayerUpgradeKind.MovementSpeed, body.GetComponent<CharacterPhysics>().speed) * ledger.MovementMultiplier,
             "实体实际有效速度消费共用购买效果");
         escapeRules = Rules();
         TapInteract(body);
@@ -509,7 +523,8 @@ public static class P8P9LevelFlowChecks
         Near(Rules().Cognition.Remaining + occupied, setup.InitialCognition, "失败认知重建后只发生新探索正常出生格占用");
         Check(!escapeRules.MapRecord.IsLit(firstCell) && !escapeRules.MapRecord.IsLit(secondCell)
             && !Rules().MapRecord.IsLit(secondCell), "旧格子记录清空，新规则不继承远处探索点亮");
-        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 1,
+        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 0
+            && ledger.ConfirmedPermanentEffects.Count == 1,
             "失败撤销本关购买、本局和未确认永久效果，保留此前确认永久");
         Check(prop.gameObject.activeSelf && prop.transform.position == propHome
             && !(bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop),
@@ -612,10 +627,13 @@ public static class P8P9LevelFlowChecks
         Check(rules.Cognition.IsExhausted && rules.CognitionExhaustionRequested
             && rules.Stage == PlayerGameplayStage.Exploration, "耗尽先留下唯一请求，不伪造已完成逃生");
         typeof(SceneChangeMgr).GetMethod("AdvanceLevelCognition", Hidden).Invoke(SceneChangeMgr.Instance, null);
-        Check(SceneChangeMgr.Instance.IsEscapeHandoff && !SceneChangeMgr.Instance.EscapeSelectionPending
+        Check(SceneChangeMgr.Instance.EscapeNegativePending && SceneChangeMgr.Instance.EscapeSelectionPending
+            && !SceneChangeMgr.Instance.IsEscapeHandoff
             && Actor("spirit") == replacement && InputControlMgr.Instance.Player == null,
-            "宿主更新通过同一消散交接处理零预算，不停在买不起的选择状态");
+            "宿主更新在零预算时直接锁定负面确认，确认前不开始消散交接");
         Near(rules.Cognition.Remaining, 0f, "零预算进入逃生仍保持零余额");
+        Check(ledger.CurrentLevelEffects.Count == 0 && SceneChangeMgr.Instance.ConfirmEscapePenalty(),
+            "负面等待不提前生效，确认后才提交一次并开始消散交接");
         Check(ledger.CurrentLevelEffects.Count == 1 && ledger.CurrentLevelEffects[0].Kind == PlayerEffectKind.MovementMultiplier,
             "零预算只获得一次当前局的固定负面");
         Near(ledger.MovementMultiplier, .8f, "低预算按本关配置应用 0.8 水平倍率");
@@ -778,6 +796,12 @@ public static class P8P9LevelFlowChecks
     static Player Actor(string name) => (Player)typeof(SceneChangeMgr).GetField(name, Hidden).GetValue(SceneChangeMgr.Instance);
     static PlayerLifecycleRules Rules() => (PlayerLifecycleRules)typeof(SceneChangeMgr).GetField("levelRules", Hidden).GetValue(SceneChangeMgr.Instance);
     static PlayerEffectLedger Effects() => (PlayerEffectLedger)typeof(SceneChangeMgr).GetField("effects", Hidden).GetValue(SceneChangeMgr.Instance);
+    static int OfferIndex(PlayerUpgradeKind kind)
+    {
+        for (int i = 0; i < SceneChangeMgr.Instance.EscapeOffers.Count; i++)
+            if (SceneChangeMgr.Instance.EscapeOffers[i].Kind == kind) return i;
+        throw new InvalidOperationException("联测候选缺少能力：" + kind);
+    }
     static Player[] Players() => Object.FindObjectsOfType<Player>(true);
     static bool WorldPaused(Type type) => (bool)type.GetField("worldPaused", StaticHidden).GetValue(null);
     static void Near(float actual, float expected, string message) => Check(Mathf.Abs(actual - expected) <= .002f, message + $" [{actual} / {expected}]");
@@ -799,15 +823,15 @@ public static class P8P9LevelFlowChecks
         if (failure == null && runtimeError != null) failure = new InvalidOperationException(runtimeError);
         foreach (GameObject item in fixtures) if (item != null) Object.DestroyImmediate(item);
         fixtures.Clear();
+        if (fixtureCatalog != null) Object.DestroyImmediate(fixtureCatalog);
         try
         {
-            if (hadProgress) File.WriteAllBytes(progressPath, previousProgress);
-            else if (File.Exists(progressPath)) File.Delete(progressPath);
-            Check(hadProgress ? File.Exists(progressPath)
-                && Convert.ToBase64String(File.ReadAllBytes(progressPath)) == Convert.ToBase64String(previousProgress)
-                : !File.Exists(progressPath), "测试后原样恢复关卡进度字节或文件缺席状态");
+            DataAndInitMgr.Instance.ClearLevelProgress();
+            if (Directory.Exists(progressDirectory)) Directory.Delete(progressDirectory);
+            Check(!Directory.Exists(progressDirectory), "测试仅清理独占目录的新旧进度，未改玩家实际存档");
         }
         catch (Exception error) { failure = error; Debug.LogException(error); }
+        finally { DataAndInitMgr.debugPlayerProgressDirectory = previousProgressDirectory; }
         Time.timeScale = previousTimeScale; Physics2D.simulationMode = previousSimulation;
         EditorSettings.enterPlayModeOptions = previousOptions;
         EditorSettings.enterPlayModeOptionsEnabled = previousOptionsEnabled;

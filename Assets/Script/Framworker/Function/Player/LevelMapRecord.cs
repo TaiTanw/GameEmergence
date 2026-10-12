@@ -10,11 +10,23 @@ public sealed class LevelMapRecord
     readonly Dictionary<MapCell, float> reserved = new Dictionary<MapCell, float>();
     readonly LevelCognition cognition;
     readonly Scene scene;
+    private PlayerEffectLedger effectLedger;
     MapCell blockedUntilExit;
     public IReadOnlyList<MapCell> Cells => cells;
     public MapCell CurrentCell { get; private set; }
     public string ConfigurationError { get; private set; }
     public bool IsValid => ConfigurationError == null;
+    public float TotalOccupiedCost
+    {
+        get
+        {
+            double total = 0d;
+            foreach (float cost in reserved.Values) total += cost;
+            return (float)total;
+        }
+    }
+
+    public void BindEffectLedger(PlayerEffectLedger ledger) => effectLedger = ledger;
 
     public LevelMapRecord(IReadOnlyList<MapCell> configuredCells, LevelCognition cognition, Scene scene)
     {
@@ -134,9 +146,10 @@ public sealed class LevelMapRecord
         if (next == CurrentCell) return false;
         CurrentCell = next;
         if (next == null || next == blockedUntilExit || IsLit(next)) return false;
-        float paid = cognition.OccupyMapCost(next.CognitionCost);
+        float cost = effectLedger?.GetUpgradedValue(PlayerUpgradeKind.MapCost, next.CognitionCost) ?? next.CognitionCost;
+        float paid = cognition.OccupyMapCost(cost);
         // 实际逻辑：余额只够一部分时仍点亮并只记实付；余额已是零时，正费用新格不记成点亮。
-        if (paid == 0f && next.CognitionCost != 0f) return false;
+        if (paid == 0f && cost != 0f) return false;
         reserved.Add(next, paid);
         return true;
     }

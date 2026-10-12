@@ -56,7 +56,7 @@ public sealed class PlayerPerformanceWindow : EditorWindow
             EditorGUILayout.LabelField(Fields[i, 1], from.floatValue.ToString("G5") + " → "
                 + to.floatValue.ToString("G5") + (different ? "  （不同）" : ""));
         }
-        EditorGUILayout.HelpBox("体力、氧气和跳跃次数目前使用同一状态机的代码默认值；能力倍率运行时共用同一份记录。基础性能统一由人工制作保证。", MessageType.None);
+        EditorGUILayout.HelpBox("体力和氧气仍使用状态机的代码默认值；额外空中跳次数在角色组件或“玩家基础属性与升级”面板制作。升级运行时共用同一份记录；两份角色的基础性能分别由人工保证。", MessageType.None);
         using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || differences == 0))
             if (GUILayout.Button("将来源基础性能同步到目标（" + differences + " 项差异）"))
                 Synchronize(sourceData, targetData);

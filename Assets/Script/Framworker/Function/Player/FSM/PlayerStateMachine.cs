@@ -61,6 +61,15 @@ public class PlayerStateMachine
     /// 在空中可跳跃跳跃数
     /// </summary>
     public int jumpNum = 1;
+    private PlayerEffectLedger effectLedger;
+    public int EffectiveAirJumps => (int)(effectLedger?.GetUpgradedValue(PlayerUpgradeKind.AirJumps, jumpNum) ?? jumpNum);
+
+    internal void BindEffectLedger(PlayerEffectLedger ledger)
+    {
+        effectLedger = ledger;
+        // 组装时地面状态允许补齐次数；空中重复绑定不凭空补一次跳跃。
+        if (onState == onGround) JumpCountToNum();
+    }
     /// <summary>
     /// 土狼时间
     /// </summary>
@@ -343,7 +352,7 @@ public class PlayerStateMachine
     /// </summary>
     public void JumpCountToNum()
     {
-        jumpCount = jumpNum;
+        jumpCount = EffectiveAirJumps;
     }
     /// <summary>
     /// 执行跳跃并判断是否可跳跃
