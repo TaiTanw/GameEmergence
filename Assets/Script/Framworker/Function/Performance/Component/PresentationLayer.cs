@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 [DefaultExecutionOrder(100)]
 [RequireComponent(typeof(Animator), typeof(SpriteRenderer))]
-public class PresentationLayer : MonoBehaviour
+public partial class PresentationLayer : MonoBehaviour
 {
     private const int BaseLayerIndex = 0;
     private const float MoveInputDeadZone = 0.01f;
@@ -146,11 +146,13 @@ public class PresentationLayer : MonoBehaviour
         if (animator == null || transitionPlayback == on) return;
         if (on)
         {
-            updateModeBeforeTransition = deathPlaybackActive ? updateModeBeforeDeath : animator.updateMode;
+            updateModeBeforeTransition = deathPlaybackActive ? updateModeBeforeDeath
+                : levelClearPlaybackActive ? updateModeBeforeLevelClear : animator.updateMode;
             animator.updateMode = AnimatorUpdateMode.UnscaledTime;
             interactHintView.Hide();
         }
-        else animator.updateMode = deathPlaybackActive ? AnimatorUpdateMode.UnscaledTime : updateModeBeforeTransition;
+        else animator.updateMode = deathPlaybackActive || levelClearPlaybackActive
+            ? AnimatorUpdateMode.UnscaledTime : updateModeBeforeTransition;
         transitionPlayback = on;
     }
 
@@ -179,7 +181,7 @@ public class PresentationLayer : MonoBehaviour
     public bool TryBeginDeathPlayback(out uint playback)
     {
         playback = 0;
-        if (deathPlaybackActive) return false;
+        if (deathPlaybackActive || levelClearPlaybackActive) return false;
         if (!ValidateDeathPlayback(out string error)) { Debug.LogError(error, this); return false; }
         updateModeBeforeDeath = transitionPlayback ? updateModeBeforeTransition : animator.updateMode;
         cullingModeBeforeDeath = animator.cullingMode;
@@ -287,6 +289,8 @@ public class PresentationLayer : MonoBehaviour
 
     private void Update()
     {
+        // 通关独占表现；即使移动、水、死亡事实改变，也只能继续本次前段或加载循环。
+        if (levelClearPlaybackActive) { GetLevelClearPlaybackStatus(levelClearPlaybackSequence); return; }
         // 实际逻辑：过场期间继续采样现有动画，不因安置刷新切换动作。
         if (deathPlaybackActive || transitionPlayback) return;
         if (!isInitialized)
@@ -392,12 +396,13 @@ public class PresentationLayer : MonoBehaviour
     // 实际逻辑：提示在 LateUpdate 绘制，读取本帧已写入的刚体插值位置。
     private void LateUpdate()
     {
-        if (isInitialized && !deathPlaybackActive && !transitionPlayback && !transitionHidden) UpdateInteractHint();
+        if (isInitialized && !deathPlaybackActive && !levelClearPlaybackActive && !transitionPlayback && !transitionHidden) UpdateInteractHint();
     }
 
     private void OnDisable()
     {
         CancelDeathPlayback();
+        CancelLevelClearPlayback();
         interactHintView.Hide();
     }
     private void OnDestroy() => interactHintView.Dispose();
