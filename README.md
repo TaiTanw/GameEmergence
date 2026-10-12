@@ -25,7 +25,8 @@ Unity 2022.3.54f1c1 项目。P5.4 操作与 K11 原生物理迁移已实现：�
 | 六相位与角色／箱子运动 | [MonoPublicMgr](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/MonoPublicMgr.cs) → [BasicEntity](Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs) → [CharacterPhysics](Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs) |
 | 环境事实与水位 | [EntityEnvironmentContext](Assets/Script/Framworker/Function/Physics/Base/EntityEnvironmentContext.cs)、[WaterRegion](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/WaterRegion.cs) |
 | 阶段、认知、逃生与退出 | [SceneChangeMgr](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.cs) → [PlayerLifecycleRules](Assets/Script/Framworker/Function/Player/PlayerLifecycleRules.cs) → [LevelCognition](Assets/Script/Framworker/Function/Player/LevelCognition.cs) |
-| 效果确认与进度 | [PlayerEffectLedger](Assets/Script/Framworker/Function/Player/PlayerEffectLedger.cs)、[DataAndInitMgr](Assets/Script/Framworker/AOTSystem/Mgr/MemoryMgr/DataAndInitMgr.cs)；当前永久效果仅内存，磁盘闭环在 P4 待办 |
+| 逃生准备与最终确认 | [SceneChangeMgr.EscapePreparation](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.EscapePreparation.cs) → [EscapeChoiceView](Assets/Script/Framworker/UISystem/UIobject/EscapeChoiceView.cs) → [EscapeHandoff](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.EscapeHandoff.cs)；最多三项固定候选、重复购买、独立下一步与负面确认，已实现并通过自动联验 |
+| 升级配置、效果确认与进度 | [PlayerUpgradeCatalog](Assets/Script/Framworker/Function/Player/PlayerUpgradeCatalog.cs) → [PlayerEffectLedger](Assets/Script/Framworker/Function/Player/PlayerEffectLedger.cs) → [DataAndInitMgr](Assets/Script/Framworker/AOTSystem/Mgr/MemoryMgr/DataAndInitMgr.cs)；六项等级与普通效果共用记录，关序及已确认永久数据同份保存，本轮自动联验通过 |
 | 提示与动画 | [PresentationLayer](Assets/Script/Framworker/Function/Performance/Component/PresentationLayer.cs)、[InteractionHintView](Assets/Script/Framworker/Function/Performance/Component/InteractionHintView.cs) |
 
 K11 顺序为平台／水并同步几何 → 原生接触与探针／区域事实 → 环境／能力／选中 → 合成并写入本步刚体速度 → 统一模拟一次 → 回读实际位置／速度。实际刚体速度是跨帧运动基准；跳跃／墙滑规则仍由行为与执行负责。推拉保留水平贴合与独立竖直运动，收纳和恢复沿用既有事务。
@@ -33,5 +34,7 @@ K11 顺序为平台／水并同步几何 → 原生接触与探针／区域事�
 ## 运行与验证
 
 使用项目版本与 New Input System；当前角色／箱子开启 Interpolate、物理根节点冻结旋转。冰面与推拉手感未最终定标，只要求可调结构。
+
+玩家基础值沿 `CharacterPhysics.speed`／`upSpeed` 与 `Player.baseAirJumps`；升级使用 [PlayerUpgradeCatalog.asset](Assets/Resources/PlayerUpgradeCatalog.asset)，每项配置开放、上限、固定价格、固定乘法或加减法及每级步长，首批六项合池。小型配置面板已实现并通过 Unity 全工程编译，人工制作入口与独立保存操作见[注意事项](注意事项.md#玩家基础属性与永久升级配置)，窗口操作及原关卡手感仍待人工验收。
 
 环境检查菜单为「自定义工具/EPhy 验证环境接入（Edit Mode）」，批处理入口 EnvironmentIntegrationChecks.RunForBatch；相关行为检查入口见专题。本轮环境、观测、游泳、真实 ICE 场景、箱子与死亡周期检查通过，证据集中在[历史回顾](Docs/历史回顾.md#近期完成与验证)。自动通过不等于人工手感或完整核心循环通过。
