@@ -6,7 +6,7 @@ public partial class SceneChangeMgr
     public LevelMapRecord CurrentMapRecord => levelRules?.MapRecord;
     public bool CanViewMap => !loading && !refreshing && !GameMenuOpen && CurrentMapRecord != null
         && (levelRules.Stage == PlayerGameplayStage.Exploration || levelRules.Stage == PlayerGameplayStage.Escape);
-    public bool CanTeleportMap => CanViewMap && !EscapeSelectionPending && Time.timeScale > 0f
+    public bool CanTeleportMap => CanViewMap && !levelRules.EscapeSelectionPending && Time.timeScale > 0f
         && levelRules.Stage == PlayerGameplayStage.Exploration && spirit != null
         && InputControlMgr.Instance.Player == spirit && CurrentMapRecord.IsValid;
 

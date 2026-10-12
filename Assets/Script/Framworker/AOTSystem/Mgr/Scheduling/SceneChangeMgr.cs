@@ -37,7 +37,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (GameMenuOpen) { CloseGameMenu(); return true; }
         // 安全：菜单和关卡加载期间没有可暂停的游戏，不显示关内菜单。
         if (loading || refreshing || body == null || SceneLevelSetup.Current == null
-            || (InputControlMgr.Instance.Player == null && !EscapeSelectionPending))
+            || (InputControlMgr.Instance.Player == null && !EscapeSelectionPending && !escapeHandoff))
             return false;
         GameMenuOpen = true;
         timeScaleBeforeMenu = Time.timeScale;
@@ -54,10 +54,11 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (!GameMenuOpen) return;
         GameMenuOpen = false;
         UIMgr.Instance.HideOneUI<GameMenuPanel>();
-        Time.timeScale = timeScaleBeforeMenu;
+        Time.timeScale = loading || refreshing ? 0f : timeScaleBeforeMenu;
         // 实际逻辑：漫游继续暂停世界；教学和模拟恢复，平台不会追赶菜单停留时间。
-        PlayerLifecycleRules.SetWorldPaused(levelRules != null &&
-            ((levelRules.Stage == PlayerGameplayStage.Exploration && !levelRules.IsSimulation) || levelRules.EscapeSelectionPending));
+        PlayerLifecycleRules.SetWorldPaused(loading || refreshing || (levelRules != null &&
+            ((levelRules.Stage == PlayerGameplayStage.Exploration && !levelRules.IsSimulation)
+                || levelRules.EscapeSelectionPending)));
         InputControlMgr.Instance.SetMenuInputPaused(false);
     }
 
@@ -70,30 +71,30 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
 
     public bool CanResetTrial => !loading && !refreshing && !GameMenuOpen && Time.timeScale > 0f
         && levelRules != null && levelRules.Stage == PlayerGameplayStage.Exploration
-        && levelRules.IsSimulation && !levelRules.EscapeSelectionPending && spirit != null && InputControlMgr.Instance.Player == spirit;
+        && levelRules.IsSimulation && !levelRules.EscapeSelectionPending
+        && spirit != null && InputControlMgr.Instance.Player == spirit;
 
     public bool CanStartEscape => !loading && !refreshing && !GameMenuOpen && Time.timeScale > 0f
         && levelRules != null && levelRules.Stage == PlayerGameplayStage.Exploration
         && !levelRules.EscapeSelectionPending && body != null && spirit != null;
-    public bool EscapeSelectionPending => levelRules != null && levelRules.EscapeSelectionPending;
+    public bool EscapeSelectionPending => levelRules != null && levelRules.EscapeSelectionPending && !escapeHandoff;
 
     /// <summary>手动和耗尽共用一次探索结束；选择时暂停，低预算直接接受本局负面并开始逃生。</summary>
     public bool StartEscape()
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
         if (!CanStartEscape || setup == null || !ValidEscapeSetup(setup)) return false;
+        // 配置错误在购买／暂停前指出；不以占位延时跳过消散。
+        if (!ValidateEscapeHandoff(setup)) return false;
         if (!levelRules.BeginEscapeSelection()) return false;
         InputControlMgr.Instance.BindPlayer(null);
-        PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
-        body.RefreshRuntime(setup.BodyPoint);
-        PlaceDepth(body, setup.BodyPose);
         bool affordable = false;
         foreach (EscapeAbilityOffer offer in setup.EscapeAbilities)
             affordable |= levelRules.Cognition.Remaining >= offer.Cost;
         if (!affordable)
         {
+            if (!CompleteEscapePreparation()) return false;
             effects.GrantEffect(PlayerEffectKind.MovementMultiplier, setup.LowCognitionMovementMultiplier);
-            CompleteEscape(setup);
         }
         return true;
     }
@@ -106,9 +107,9 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             || index < 0 || index >= setup.EscapeAbilities.Count) return false;
         EscapeAbilityOffer offer = setup.EscapeAbilities[index];
         if (offer == null || !offer.IsValid || levelRules.Cognition.Remaining < offer.Cost) return false;
+        if (!CompleteEscapePreparation()) return false;
         if (!effects.GrantEffect(offer.Kind, offer.Multiplier)) return false;
         levelRules.Cognition.TryPayAbilityCost(offer.Cost);
-        CompleteEscape(setup);
         return true;
     }
 
@@ -122,23 +123,6 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (!setup.ValidateRisingWaterConfiguration(out string waterError))
         { Debug.LogError(waterError, setup); return false; }
         return true;
-    }
-
-    void CompleteEscape(SceneLevelSetup setup)
-    {
-        body.BindEffectLedger(effects);
-        body.BindDeathReceiver(levelRules);
-        levelRules.ConfigureStage(PlayerGameplayStage.Escape);
-        InputControlMgr.Instance.BindPlayer(body);
-        PlayerLifecycleRules.SetWorldPaused(false);
-        Physics2D.SyncTransforms();
-        LevelBoxContext.Resample(setup.gameObject.scene);
-        body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
-        body.RefreshRuntime(setup.BodyPoint);
-        PlaceDepth(body, setup.BodyPose);
-        setup.RisingWater?.SetRisingAllowed(true);
-        DestroyActor(ref spirit);
-        InputControlMgr.Instance.InputOpenOrClose(true);
     }
 
     /// <summary>受理一次异步失败演出，返回 false 保持死亡待处理；全黑后才重建同关探索。</summary>
@@ -198,7 +182,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (serial != loadSerial) yield break;
         UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
         refreshing = false;
-        Time.timeScale = 1f;
+        Time.timeScale = GameMenuOpen ? 0f : 1f;
         InputControlMgr.Instance.InputOpenOrClose(true);
     }
 
@@ -297,6 +281,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
 
     void ReleaseLevelRules()
     {
+        CancelEscapeHandoff();
+        levelRules?.Release();
         // 生命周期：卸关或返回菜单时移除本关计时，下一关只登记一次。
         if (levelRules != null && !MonoPublicMgr.IsQuitting)
             MonoPublicMgr.Instance.RemoveUpdatEvent(AdvanceLevelCognition);
@@ -345,6 +331,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         int serial = ++loadSerial;
         loading = false;
         refreshing = false;
+        CancelEscapeHandoff();
         UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
         InputControlMgr.Instance.EndTransitionView(true);
         body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionPlayback(false);
@@ -403,8 +390,11 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             return;
         }
         refreshing = false;
+        CancelEscapeHandoff();
         UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
         loading = true;
+        // 换关被受理时立即作废旧死亡，不能等淡出结束后再阻止迟到扣费。
+        levelRules?.Release();
         CloseGameMenu();
         UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;

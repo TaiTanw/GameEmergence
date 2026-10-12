@@ -400,6 +400,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     /// <param name="isOpen"></param>
     public void InputOpenOrClose(bool isOpen)
     {
+        // 演出在菜单内结束时只登记恢复意图，不能越过菜单直接开放操作。
+        if (isOpen && menuInputPaused) { inputBeforeMenu = true; return; }
         if (isOpen)
         {
             input.currentActionMap.Enable();
@@ -482,6 +484,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         playerModle = name;
     }
     Transform transitionFollow;
+    public bool HasTransitionCamera => mainCamera != null && mainCamera.isActiveAndEnabled;
+    public bool TransitionViewComplete => HasTransitionCamera && mainCamera.HasReachedPoint;
 
     /// <summary>
     /// 设置主摄像机
@@ -497,6 +501,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     {
         transitionFollow = target;
         mainCamera?.SetTransitionPortrait(true);
+        if (mainCamera != null && target != null) mainCamera.SetPoint(target.position);
         if (snap && mainCamera != null && target != null) mainCamera.SnapTo(target.position);
     }
 
@@ -510,7 +515,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     void Update()
     {
         // 实际逻辑：ESC 固定为游戏菜单键，独立于可改键动作图；暂停输入后仍能关闭菜单。
-        if (player != null && rebindOperation == null && rebindFinishedFrame != Time.frameCount
+        if ((player != null || SceneChangeMgr.Instance.EscapeSelectionPending || SceneChangeMgr.Instance.IsEscapeHandoff)
+            && rebindOperation == null && rebindFinishedFrame != Time.frameCount
             && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             SceneChangeMgr.Instance.ToggleGameMenu();
         //摄像机与玩家均不为空

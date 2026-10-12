@@ -104,7 +104,8 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     {
         // 普通静态池未配置水位时保持预设几何；上涨许可由外部规则给出。
         if (!hasWaterLevel) return;
-        if (risingAllowed)
+        // 菜单和失败渐变等世界暂停期间，主水与箱子／机关一同停止。
+        if (risingAllowed && !BasicEntity.IsWorldPaused)
         {
             float nextSurface = surfaceY + riseSpeed * Time.fixedDeltaTime;
             // 实际逻辑：一次物理步越过上限时只到最高水面，仍保留水域与游泳／环境效果。

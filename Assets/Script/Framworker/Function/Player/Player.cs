@@ -181,7 +181,12 @@ public class Player : MonoBehaviour
     {
         // 依赖缺席：保留请求，不能把无消费者或打印日志算作处理完成。
         if (!pendingDeath.HasValue || deathReceiver == null) return;
-        DeathStatus = deathReceiver.ReceiveDeath(pendingDeath.Value);
+        PlayerDeathRequest request = pendingDeath.Value;
+        IPlayerDeathReceiver receiver = deathReceiver;
+        PlayerDeathStatus result = receiver.ReceiveDeath(request);
+        // 生命周期：受理期间可能重刷新并换了规则／周期，旧返回值不能覆盖新角色状态。
+        if (deathReceiver != receiver || pendingDeath?.cycle != request.cycle) return;
+        DeathStatus = result;
         if (DeathStatus == PlayerDeathStatus.Handled) pendingDeath = null;
     }
 
@@ -224,6 +229,8 @@ public class Player : MonoBehaviour
 
     public void ResetDeathCycle()
     {
+        (deathReceiver as PlayerLifecycleRules)?.CancelDeathWait(this);
+        animatorFSM?.CancelDeathPlayback();
         pendingDeath = null;
         deathCycleClosed = false;
         DeathStatus = PlayerDeathStatus.Handled;
@@ -239,6 +246,15 @@ public class Player : MonoBehaviour
         ReleaseBoxSelection();
         ClearActionOutput();
         playPDate.ClearPendingActions();
+    }
+
+    /// <summary>实体死亡只退出角色操作和资源，保留惯性、重力及共用碰撞运动。</summary>
+    internal void BeginDeathMotion()
+    {
+        PrepareRuntimeRefresh();
+        if (inputOwner?.Player == this) inputOwner.InputOpenOrClose(false);
+        playPDate.BeginPassiveMotion();
+        ApplyCapabilities(new PlayerCapabilityPermissions(false, false, false, true, false, false));
     }
 
     /// <summary>地图安置只清角色旧位置的运动／操作并重采样，不恢复资源或死亡周期。</summary>
@@ -269,8 +285,8 @@ public class Player : MonoBehaviour
     {
         capabilities.ApplyPermissions(permissions);
         actionData.motionUpdates = permissions.motionUpdates;
-        // 实际逻辑：只有「物理开着、操作关着」的待命实体锁待机画面。
-        actionData.holdIdle = permissions.motionUpdates && !permissions.movement;
+        // 实际逻辑：待命实体锁待机；随后暂停运动时保留这幅画面，开放操作才解除。
+        actionData.holdIdle = !permissions.movement && (permissions.motionUpdates || actionData.holdIdle);
         // 实际逻辑：暂停运动立即撤销操作输出，但不伪造玩家松键或撤销环境数值。
         if (!permissions.movement || !permissions.motionUpdates) ClearActionOutput();
         if (!permissions.movement || !permissions.motionUpdates)
@@ -280,8 +296,8 @@ public class Player : MonoBehaviour
             playPDate.ClearPendingActions();
         }
         playPDate.SetMotionParticipation(permissions.motionUpdates);
-        // 实际逻辑：探索待命实体锁定成推不动的实心体；恢复操作时改回动态刚体。
-        playPDate.SetImmovableCollision(permissions.motionUpdates && !permissions.movement);
+        // 实际逻辑：探索待命实体固定碰撞；死亡的被动运动保持动态刚体。
+        playPDate.SetImmovableCollision(permissions.motionUpdates && !permissions.movement && !playPDate.IsPassiveMotion);
         UsePlayerLayer(gameObject);
         // 实际逻辑：权限与当前水事实一同提交，当次从飞行恢复游泳，不等下一帧也不更新资源。
         if (runtimeReady) fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
@@ -352,6 +368,7 @@ public class Player : MonoBehaviour
     /// 表现层状态机
     /// </summary>
     PresentationLayer animatorFSM;
+    internal PresentationLayer Presentation => animatorFSM;
 
     void Awake()
     {
@@ -410,6 +427,8 @@ public class Player : MonoBehaviour
 
     private void OnDisable()
     {
+        (deathReceiver as PlayerLifecycleRules)?.CancelDeathWait(this);
+        animatorFSM?.CancelDeathPlayback();
         // 生命周期：只有仍控制自己的管理器才解除绑定，旧角色不能解绑新目标。
         inputOwner?.UnbindPlayer(this);
         if (actionData != null) RemoveInput();
@@ -422,6 +441,7 @@ public class Player : MonoBehaviour
 
     private void UpdateBoxRelations()
     {
+        if (pendingDeath.HasValue) return;
         ValidateBoxSelection();
         // 实际逻辑：碰到带电方块走统一死亡入口，飞行免死由 TryRequestDeath 判断；同一段持续接触只成功请求一次，
         // 离开后才重开，避免死亡处理完成后仍贴着方块时每个物理步重复死亡。
@@ -432,7 +452,7 @@ public class Player : MonoBehaviour
     private void CheckMechanismCrush()
     {
         // 安全：暂停和未初始化角色不查夹击，保留暂停前的接触周期。
-        if (playPDate == null || !playPDate.IsMotionParticipating) return;
+        if (pendingDeath.HasValue || playPDate == null || !playPDate.IsMotionParticipating) return;
         Collider2D body = GetComponent<Collider2D>();
         if (body == null || !body.isActiveAndEnabled) return;
         var filter = new ContactFilter2D { useTriggers = false };
@@ -492,6 +512,12 @@ public class Player : MonoBehaviour
 
     public void TickLogic(float deltaTime)
     {
+        // 实际逻辑：死亡期间只重试本次完成事实；资源、交互和行为不再推进。
+        if (pendingDeath.HasValue)
+        {
+            RetryPendingDeath();
+            return;
+        }
         // 交互边沿由 FSM 末尾清除，须在其之前消费。
         ConsumeInteraction();
         //逻辑状态机更新，接收输入信息发送动作数据

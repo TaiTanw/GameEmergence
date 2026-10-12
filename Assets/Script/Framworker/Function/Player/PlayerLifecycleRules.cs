@@ -16,6 +16,11 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     private float nextManualChange;
     private readonly float formCost;
     private readonly float simulationCognitionPerSecond;
+    private PlayerDeathRequest? animationDeath;
+    private PlayerGameplayStage deathStage;
+    private uint deathPlayback;
+    private bool released;
+    public bool DeathPending => animationDeath.HasValue;
     public LevelCognition Cognition { get; }
     public PlayerGameplayStage Stage { get; private set; }
     public bool IsSimulation { get; private set; }
@@ -282,7 +287,23 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     {
         if (request.subject != body || request.cycle == 0 || Stage != PlayerGameplayStage.Escape) return;
         handledCycles[body] = request.cycle;
+        CancelDeathWait(body);
         ConfigureStage(PlayerGameplayStage.Exploration);
+    }
+
+    /// <summary>显式重置／禁用作废该角色旧等待；恢复权限和世界仍由原刷新入口提交。</summary>
+    internal void CancelDeathWait(Player subject)
+    {
+        if (!animationDeath.HasValue || animationDeath.Value.subject != subject) return;
+        subject?.Presentation?.CancelDeathPlayback();
+        animationDeath = null;
+        deathPlayback = 0;
+    }
+
+    internal void Release()
+    {
+        if (animationDeath.HasValue) CancelDeathWait(animationDeath.Value.subject);
+        released = true;
     }
 
     public static void SetWorldPaused(bool paused)
@@ -300,29 +321,44 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
         // 去重：已经完成的旧周期不因重放或阶段切换再次扣费/刷新。
         if (handledCycles.TryGetValue(subject, out uint handled) && handled >= request.cycle)
             return PlayerDeathStatus.Handled;
-        if (subject.PendingDeath?.cycle != request.cycle) return PlayerDeathStatus.Rejected;
-        // 实际逻辑：成功转换的结算可能推进下一阶段，不能再用结算后的阶段重新解释这次死亡。
+        if (released || subject.PendingDeath?.cycle != request.cycle) return PlayerDeathStatus.Rejected;
+        // 模拟遇险是退出试验：立即沿原转换返回漫游，不建立死亡动画等待。
+        if (Stage == PlayerGameplayStage.Exploration)
+        {
+            if (subject != spirit || EscapeSelectionPending) return PlayerDeathStatus.Rejected;
+            if (!subject.RequestSpiritForm(true, PlayerFormChangeReason.Death)) return PlayerDeathStatus.Pending;
+            handledCycles[subject] = request.cycle;
+            return PlayerDeathStatus.Handled;
+        }
+        if (subject != body) return PlayerDeathStatus.Rejected;
+        // 实体死亡关闭操作，继续被动运动和世界更新，结果等待实际单次动画结束。
+        if (!animationDeath.HasValue)
+        {
+            animationDeath = request;
+            deathStage = Stage;
+            subject.BeginDeathMotion();
+            if (subject.Presentation == null)
+            { Debug.LogError("死亡角色缺少共用动画表现组件。", subject); return PlayerDeathStatus.Rejected; }
+            if (!subject.Presentation.TryBeginDeathPlayback(out deathPlayback)) return PlayerDeathStatus.Rejected;
+        }
+        if (animationDeath.Value.subject != subject || animationDeath.Value.cycle != request.cycle
+            || Stage != deathStage || subject.Presentation == null) return PlayerDeathStatus.Rejected;
+        PresentationLayer.DeathPlaybackStatus playback = subject.Presentation.GetDeathPlaybackStatus(deathPlayback);
+        if (playback == PresentationLayer.DeathPlaybackStatus.Invalid) return PlayerDeathStatus.Rejected;
+        if (playback != PresentationLayer.DeathPlaybackStatus.Completed) return PlayerDeathStatus.Pending;
         PlayerGameplayStage requestedStage = Stage;
         bool completed;
-        if (requestedStage == PlayerGameplayStage.Exploration)
+        if (requestedStage == PlayerGameplayStage.Escape)
         {
-            // 探索规则：只处理本关精神体，同一入口提交飞行、漫游和现场暂停。
-            if (subject != spirit) return PlayerDeathStatus.Rejected;
-            completed = subject.RequestSpiritForm(true, PlayerFormChangeReason.Death);
-        }
-        else if (requestedStage == PlayerGameplayStage.Escape)
-        {
-            if (subject != body) return PlayerDeathStatus.Rejected;
             completed = refreshRules != null && refreshRules.TryRestartExploration(subject);
         }
         else
         {
-            if (subject != body) return PlayerDeathStatus.Rejected;
             completed = refreshRules is IPlayerTutorialRefreshRules tutorial && tutorial.TryRestartTeaching(subject);
         }
         if (!completed) return PlayerDeathStatus.Pending;
         handledCycles[subject] = request.cycle;
-        if (requestedStage == PlayerGameplayStage.Exploration) IsSimulation = false;
+        CancelDeathWait(subject);
         if (requestedStage == PlayerGameplayStage.Escape) ConfigureStage(PlayerGameplayStage.Exploration);
         return PlayerDeathStatus.Handled;
     }

@@ -21,6 +21,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     protected virtual bool ParticipatesInWorldPause => true;
     private static readonly HashSet<BasicEntity> activeEntities = new HashSet<BasicEntity>();
     private static bool worldPaused;
+    public static bool IsWorldPaused => worldPaused;
     private bool motionParticipation = true;
     public bool IsMotionReady => rb != null && boxCollider != null && MotionExecutionReady;
     public bool IsMotionPermitted => motionParticipation && MotionUpdatesEnabled

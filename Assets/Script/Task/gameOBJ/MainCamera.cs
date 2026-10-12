@@ -11,6 +11,8 @@ public class MainCamera : MonoBehaviour
     bool showingPortrait;
     Vector3 toPoint;
     float followSpeed = 5f;
+    /// <summary>实际镜头进入目标附近才允许交还操作；不以固定延时冒充交接完成。</summary>
+    public bool HasReachedPoint => (transform.position - toPoint).sqrMagnitude <= .0004f;
 
     void Awake()
     {
@@ -121,6 +123,9 @@ public class MainCamera : MonoBehaviour
     {
         // 实际逻辑：换关暂停物理时镜头仍可缓动；普通暂停菜单保持原位置。
         float delta = showingPortrait ? Time.unscaledDeltaTime : Time.deltaTime;
-        transform.position = Vector3.Lerp(transform.position, toPoint, followSpeed * delta);
+        Vector3 next = Vector3.Lerp(transform.position, toPoint, followSpeed * delta);
+        // 大坐标／高帧率下缓动增量可能被舍入；有时间推进但位置不再变化时，收敛至既定目标。
+        if (delta > 0f && next.Equals(transform.position)) next = toPoint;
+        transform.position = next;
     }
 }

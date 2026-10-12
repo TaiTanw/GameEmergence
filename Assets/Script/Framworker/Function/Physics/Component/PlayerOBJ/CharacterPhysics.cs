@@ -56,9 +56,13 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     public float MovingDirection => playActionData.onMove;
 
     public float Mobility => EffectiveMovementSpeed;
+    // 死亡演出沿箱子的共用底层运动，只退出角色主动驱动和动作执行。
+    internal bool IsPassiveMotion { get; private set; }
+    internal void BeginPassiveMotion() => IsPassiveMotion = true;
+    protected override bool HasHorizontalDrive => !IsPassiveMotion;
     protected override bool MotionExecutionReady => playActionData != null;
     protected override bool MotionUpdatesEnabled => playActionData == null || playActionData.motionUpdates;
-    protected override bool UsesWorldAxisMovement => playActionData != null && playActionData.FourWay != FourWayMode.None;
+    protected override bool UsesWorldAxisMovement => !IsPassiveMotion && playActionData != null && playActionData.FourWay != FourWayMode.None;
     private bool flying;
     protected override bool UsesCollisionFreeMovement => flying;
     protected override bool ParticipatesInWorldPause => false;
@@ -175,6 +179,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
 
     protected override void OnMotionRefresh(bool relocated)
     {
+        IsPassiveMotion = false;
         base.OnMotionRefresh(relocated);
         ClearPendingActions();
         ReleasePushPull();
@@ -237,6 +242,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
 
     protected override void PhyEventUpdate()
     {
+        if (IsPassiveMotion) return;
         SynchronizePushPull();
         // 四向行为不叠普通跳跃或墙跳；仅清待消费操作，不清环境累计速度。
         if (playActionData != null && playActionData.FourWay != FourWayMode.None)
@@ -289,6 +295,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
 
     protected override void VerticalTransmission()
     {
+        if (IsPassiveMotion) return;
         // 水面悬浮：零输入和向上输入只稳定碰撞框中心；下潜仍用游泳速度，不靠按键改事实。
         if (playActionData != null && (playActionData.isSurfaceSwimming || playActionData.FourWay == FourWayMode.Swimming)
             && playActionData.verticalInput >= 0f && !EnvironmentContext.WaterFrame.submerged
