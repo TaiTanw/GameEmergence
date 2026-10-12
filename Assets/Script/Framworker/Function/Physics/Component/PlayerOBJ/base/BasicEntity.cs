@@ -679,12 +679,16 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
             // 实际逻辑：箱顶法线朝上，站在上面不算侧面推动。
             if (entity == null || entity == this || hit.normal.y >= minUp || hit.normal.x * vx >= -0.0001f) continue;
             if (hit.distance >= best) continue;
+            ColliderDistance2D separation = boxCollider.Distance(hit.collider);
+            // 安全：真实形状无法查询时，不用外接框猜接触间隙。
+            if (!separation.isValid) continue;
+            float horizontalNormal = Mathf.Abs(separation.normal.x);
+            // 实际逻辑：仍有竖直间隙的上下表面不借水平速度推动。
+            if (separation.distance > 0f && horizontalNormal <= 0.0001f) continue;
             best = hit.distance;
             other = entity;
-            float faceGap = vx > 0f
-                ? entity.BodyBounds.min.x - bounds.max.x
-                : bounds.min.x - entity.BodyBounds.max.x;
-            gap = Mathf.Max(0f, faceGap);
+            // 实际逻辑：按真实形状间距换算水平闭合量，贴合后不重复扣外接框余量。
+            gap = separation.distance > 0f ? separation.distance / horizontalNormal : 0f;
         }
         return other != null;
     }

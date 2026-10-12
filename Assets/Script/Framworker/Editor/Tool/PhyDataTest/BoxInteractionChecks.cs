@@ -50,6 +50,7 @@ public static class BoxInteractionChecks
             CheckUnselectedContact();
             CheckSelectionRelations();
             CheckElectrifiedTouch();
+            CheckMovingBoxContact();
             CheckStorageAndRestore();
             CheckStorageConflicts();
             CheckPushPullAction();
@@ -515,6 +516,64 @@ public static class BoxInteractionChecks
         Physics2D.SyncTransforms();
         Invoke(player, "UpdateBoxRelations");
         Check(receiver.count == 3, "带电方块顶面接触也请求死亡");
+    }
+
+    /// <summary>从真实间隙步行／疾跑接近：带电箱须触碰致死，普通箱须闭合间隙后持续共同推动。</summary>
+    private static void CheckMovingBoxContact()
+    {
+        foreach (bool electrified in new[] { true, false })
+        foreach (bool sprint in new[] { true, false })
+        foreach (float direction in new[] { 1f, -1f })
+        foreach (float initialGap in new[] { .08f, .19f, .35f })
+        {
+            var w = World(80f, true);
+            typeof(PhysicalBox).GetField("electrified", Hidden).SetValue(w.box, electrified);
+            LevelBoxContext.Register(w.box);
+            var input = new PlayerInputData { moveInput = direction, sprintHeld = sprint };
+            w.owner.ChangeInputAsset(input);
+            var receiver = new CountingDeathReceiver();
+            w.owner.BindDeathReceiver(receiver);
+            MoveCenter(w.box, new Vector2(w.player.BodyBounds.center.x + direction *
+                (w.player.BodyBounds.extents.x + w.box.BodyBounds.extents.x + initialGap), w.box.BodyBounds.center.y));
+            Collider2D playerCollider = w.player.GetComponent<Collider2D>();
+            Collider2D boxCollider = w.box.GetComponent<Collider2D>();
+            float startX = w.box.BodyBounds.center.x;
+            bool prematureDeath = false;
+            float deathGap = float.MaxValue;
+            for (int tick = 0; tick < 30; tick++)
+            {
+                Sample(w);
+                w.owner.TickLogic(Time.fixedDeltaTime);
+                float beforeGap = boxCollider.Distance(playerCollider).distance;
+                Invoke(w.owner, "UpdateBoxRelations");
+                if (receiver.count > 0)
+                {
+                    deathGap = beforeGap;
+                    prematureDeath |= beforeGap > .03f;
+                    break;
+                }
+                Step(w);
+            }
+            string label = $"{(electrified ? "带电" : "普通")}箱 {(sprint ? "疾跑" : "步行")} {(direction > 0f ? "向右" : "向左")} 初始间隙 {initialGap}";
+            if (electrified)
+            {
+                Check(receiver.count == 1 && receiver.last == PlayerDeathCause.Electrocuted,
+                    label + " 从自由接近进入真实触碰并请求一次电击死亡");
+                Check(!prematureDeath && deathGap <= .03f, label + " 预测命中不提前结算电击");
+            }
+            else
+            {
+                float gap = boxCollider.Distance(playerCollider).distance;
+                Check(receiver.count == 0 && direction * (w.box.BodyBounds.center.x - startX) > 1f,
+                    label + " 可持续推动且不会请求死亡");
+                Check(gap < .015f, label + $" 推动闭合真实间隙 [gap={gap}]");
+                float playerVx = w.player.GetComponent<Rigidbody2D>().velocity.x;
+                float boxVx = w.box.GetComponent<Rigidbody2D>().velocity.x;
+                float expected = w.player.EffectiveMovementSpeed * (sprint ? 1.5f : 1f);
+                Check(Mathf.Abs(playerVx - boxVx) < .05f && Mathf.Abs(playerVx) > expected - .15f,
+                    label + $" 贴合后保持共同速度 [player={playerVx}, box={boxVx}, expected={expected}]");
+            }
+        }
     }
 
     /// <summary>长按收纳、固定、变暗、可穿过；拉出受玩家／墙阻挡拒绝，Trigger 不阻挡；显式恢复默认。</summary>

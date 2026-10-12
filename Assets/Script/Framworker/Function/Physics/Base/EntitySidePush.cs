@@ -80,7 +80,13 @@ static class EntitySidePush
             float otherVx = receiver.PlannedVelocity.x;
             bool closing = intent > 0f ? intent > otherVx + ClosingEpsilon : intent < otherVx - ClosingEpsilon;
             if (!closing) continue;
-            float allowedOther = receiver.Entity.WallLimitedHorizontal(intent);
+            // 实际逻辑：先留出本步闭合间隙的位移，余量才用于推动；不能隔空把箱子提前加到同速。
+            float slack = Mathf.Max(0f, gap - Skin);
+            float pushVx = intent - Mathf.Sign(intent) * slack / dt;
+            // 实际逻辑：本步追不上已有运动的箱子时，让双方沿原计划接近，不提前减速箱子。
+            bool reaches = intent > 0f ? pushVx > otherVx + ClosingEpsilon : pushVx < otherVx - ClosingEpsilon;
+            if (!reaches) continue;
+            float allowedOther = receiver.Entity.WallLimitedHorizontal(pushVx);
             // 实际逻辑：只把箱子加速到推动方向，不把它反向拉回。
             allowedOther = intent > 0f
                 ? Mathf.Clamp(allowedOther, 0f, intent)
@@ -89,7 +95,6 @@ static class EntitySidePush
             pushed.Velocity.x = allowedOther;
             receiver.Entity.CommitHorizontal(pushed.Velocity.x);
             // 实际逻辑：箱子让出的距离只沿推动方向加。向左推时速度为负，不能再取反把人弹回右边。
-            float slack = Mathf.Max(0f, gap - Skin);
             float boxDelta = allowedOther * dt;
             float allowedDriver = intent > 0f
                 ? Mathf.Min(intent, (slack + Mathf.Max(0f, boxDelta)) / dt)
