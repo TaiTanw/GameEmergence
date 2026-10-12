@@ -326,6 +326,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>还在关卡里就结束本局并载回开始场景。人已经在菜单时返回 false，让界面自己退一层。</summary>
     public bool ReturnToMenu()
     {
+        CancelLevelClear();
         CloseGameMenu();
         UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;
@@ -363,7 +364,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         return true;
     }
 
-    void EnterLevel(int index, LevelOrderFile order, bool confirmPrevious = false)
+    void EnterLevel(int index, LevelOrderFile order, bool confirmPrevious = false, bool keepLevelClearPlayback = false)
     {
         // 安全：没有顺序时不编造关卡。
         if (order.scenes == null || order.scenes.Length == 0)
@@ -389,6 +390,9 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             Debug.LogError($"关卡不能加载：{order.scenes[index]}，请重新生成关卡顺序并核对构建设置。");
             return;
         }
+        // 通关完成才能把同次循环带入加载；其它换关主动作废旧等待。
+        if (keepLevelClearPlayback) clearingLevel = false;
+        else CancelLevelClear();
         refreshing = false;
         CancelEscapeHandoff();
         UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
@@ -507,6 +511,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         yield return FadeTransition(panel, 1f, 0f, serial);
         if (serial != loadSerial) yield break;
         InputControlMgr.Instance.EndTransitionView();
+        CancelLevelClear();
         body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionPlayback(false);
         spirit?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(false);
         loading = false;
@@ -539,7 +544,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             // 实际逻辑：先绑输入再刷新，状态机才能在 Start 之前拿到操作数据。
             InputControlMgr.Instance.BindPlayer(body);
             body.BindEffectLedger(effects);
-            body.RefreshRuntime(setup.BodyPoint);
+            body.RefreshRuntime(setup.BodyPoint, preserveLevelClear: body.IsLevelClearing);
             PlaceDepth(body, setup.BodyPose);
             if (setup.Teaching)
             {

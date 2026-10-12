@@ -137,6 +137,7 @@ public class Player : MonoBehaviour
     private bool crushedDeathLatched;
     private readonly List<Collider2D> crushOverlaps = new List<Collider2D>();
     public PlayerDeathRequest? PendingDeath => pendingDeath;
+    public bool IsLevelClearing { get; private set; }
     public PlayerDeathStatus DeathStatus { get; private set; } = PlayerDeathStatus.Handled;
     public PlayerIdentity Identity => identity;
     public float FormCooldownRemaining => (formRules as PlayerLifecycleRules)?.ManualFormCooldownRemaining ?? 0f;
@@ -167,7 +168,7 @@ public class Player : MonoBehaviour
     {
         // 玩法约束：飞行免死；同周期的氧气和深渊请求只保留第一次。
         // 玩法约束：飞行免死。探索待命的实体即使参与物理也不发死亡，无敌不靠关掉刚体。
-        if (ResolveFourWayAbility() == FourWayMode.Flying || deathCycleClosed
+        if (IsLevelClearing || ResolveFourWayAbility() == FourWayMode.Flying || deathCycleClosed
             || (Identity == PlayerIdentity.Body && !Permissions.movement)
             || (!Permissions.motionUpdates && !Permissions.resourceUpdates)) return false;
         deathCycleClosed = true;
@@ -257,6 +258,21 @@ public class Player : MonoBehaviour
         ApplyCapabilities(new PlayerCapabilityPermissions(false, false, false, true, false, false));
     }
 
+    /// <summary>通关从受理起锁定角色，动画完成和加载由场景编排推进。</summary>
+    internal void BeginLevelClear()
+    {
+        PrepareRuntimeRefresh();
+        IsLevelClearing = true;
+        if (inputOwner?.Player == this) inputOwner.InputOpenOrClose(false);
+        ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+    }
+
+    internal void EndLevelClear()
+    {
+        IsLevelClearing = false;
+        animatorFSM?.CancelLevelClearPlayback();
+    }
+
     /// <summary>地图安置只清角色旧位置的运动／操作并重采样，不恢复资源或死亡周期。</summary>
     internal void TeleportRuntime(Vector2 center)
     {
@@ -266,8 +282,11 @@ public class Player : MonoBehaviour
         animatorFSM?.ResetMotionHistory();
     }
 
-    public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false, bool alignBodyCenter = false)
+    public void RefreshRuntime(Vector2? position = null, bool releaseEnvironmentEffects = false, bool alignBodyCenter = false,
+        bool preserveLevelClear = false)
     {
+        // 普通刷新作废通关等待；跨关安置明确保留加载循环，到淡入结束再释放。
+        if (!preserveLevelClear) EndLevelClear();
         // 实际逻辑：进关可能在 Start 之前刷新，先完成状态机接线。
         PrepareRuntimeRefresh();
         fsm.RefreshResources();
@@ -441,7 +460,7 @@ public class Player : MonoBehaviour
 
     private void UpdateBoxRelations()
     {
-        if (pendingDeath.HasValue) return;
+        if (pendingDeath.HasValue || IsLevelClearing) return;
         ValidateBoxSelection();
         // 实际逻辑：碰到带电方块走统一死亡入口，飞行免死由 TryRequestDeath 判断；同一段持续接触只成功请求一次，
         // 离开后才重开，避免死亡处理完成后仍贴着方块时每个物理步重复死亡。
@@ -512,6 +531,8 @@ public class Player : MonoBehaviour
 
     public void TickLogic(float deltaTime)
     {
+        // 通关期间不消耗资源、不处理点按或重新选择行为。
+        if (IsLevelClearing) return;
         // 实际逻辑：死亡期间只重试本次完成事实；资源、交互和行为不再推进。
         if (pendingDeath.HasValue)
         {
@@ -520,6 +541,8 @@ public class Player : MonoBehaviour
         }
         // 交互边沿由 FSM 末尾清除，须在其之前消费。
         ConsumeInteraction();
+        // 本次点按可能刚进入通关，不能在同帧继续推进资源与行为。
+        if (IsLevelClearing) return;
         //逻辑状态机更新，接收输入信息发送动作数据
         fsm.Update(inputData, ResolveFourWayAbility(), Permissions.movement && Permissions.motionUpdates,
             Permissions.resourceUpdates, deltaTime, playPDate.HasPendingJump, playPDate.GetPlanarVelocity().y);

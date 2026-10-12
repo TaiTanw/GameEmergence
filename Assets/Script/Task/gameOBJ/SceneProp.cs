@@ -16,6 +16,8 @@ public class SceneProp : MonoBehaviour
     bool hasEffect;
     [SerializeField, Tooltip("勾选后，教学或逃生阶段领取会进入下一关")]
     bool clearsLevel = true;
+    [SerializeField, Min(0), Tooltip("通关动作编号：对应实体控制器的 LevelClear_编号 与 LevelClearLoop_编号；精神体不能触发通关")]
+    int levelClearAnimation;
 
     static readonly List<SceneProp> interactProps = new List<SceneProp>();
     bool used;
@@ -79,23 +81,36 @@ public class SceneProp : MonoBehaviour
     {
         // 安全：领取只接受当前活动的受控角色与尚未领取的道具。
         if (used || !isActiveAndEnabled || !IsControlled(player)) return false;
+        // 终结动作不再接收其它道具；死亡和通关都保持各自本次结果。
+        if (player.PendingDeath.HasValue || player.IsLevelClearing) return false;
         // 实际逻辑：控制交接或刷新搬移后，按当前几何核对，不能沿用旧角色的进入记录。
         if (!ContainsPlayer(player)) return false;
         // 实际逻辑：探索模拟统一禁止领取；回漫游后仍使用同一未领取记录。
         if (LevelStageMgr.Instance.HasExploration && LevelStageMgr.Instance.IsSimulation) return false;
         if (clearsLevel)
         {
+            // 身份约束独立于阶段，精神体不能借教学或逃生配置触发通关。
+            if (player.Identity != PlayerIdentity.Body) return false;
             SceneLevelSetup setup = SceneLevelSetup.Current;
             // 通关资格归阶段：探索不允许借通关物跳过逃生结算。
             if (setup == null || (!setup.Teaching && LevelStageMgr.Instance.Stage != PlayerGameplayStage.Escape)) return false;
+            // 制作配置与下一关都通过校验后才领取，失败时道具仍可交互。
+            if (!SceneChangeMgr.Instance.TryClearLevel(player, levelClearAnimation, this)) return false;
         }
         used = true;
         // 实际逻辑：效果记录还没有。勾选有效果只表示这件道具带效果，不写能力、不改进度。
         if (hasEffect) { }
-        // 实际逻辑：允许通关时进入顺序中的下一关。同一实体留下，非教学关另建精神体。
-        if (clearsLevel) SceneChangeMgr.Instance.EnterNextLevel();
         gameObject.SetActive(false);
         return true;
+    }
+
+    /// <summary>前段或加载循环未能交接时，只撤销本次领取，保留道具当前的位置。</summary>
+    internal void CancelLevelClearTake()
+    {
+        // 安全：只归还本次已领取的通关物，不重置普通道具或关卡默认。
+        if (!clearsLevel || !used) return;
+        used = false;
+        gameObject.SetActive(true);
     }
 
     bool ContainsPlayer(Player player)
