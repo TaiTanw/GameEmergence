@@ -50,6 +50,7 @@ public class MovementData
     public PlayerInteractHint interactHint;
     public PhysicalBox interactTarget;
     public MechanismCart interactCart;
+    public SceneProp interactProp;
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -78,6 +79,7 @@ public class ReadOnly_ActionData
     public PlayerInteractHint InteractHint => _data.interactHint;
     public PhysicalBox InteractTarget => _data.interactTarget;
     public MechanismCart InteractCart => _data.interactCart;
+    public SceneProp InteractProp => _data.interactProp;
     public bool PushPullEnabled => _data.pushPullBox != null;
     public bool isFlying => NowState == PlayerStateMachine.E_playerState.flying;
     public FourWayMode FourWay => isFlying ? FourWayMode.Flying : isSurfaceSwimming ? FourWayMode.SurfaceSwimming
@@ -267,6 +269,8 @@ public class Player : MonoBehaviour
     internal void BeginLevelClear()
     {
         PrepareRuntimeRefresh();
+        // 通关受理立即撤销提示目标，保留可见道具也不再显示旧交互框。
+        ClearInteractHint();
         IsLevelClearing = true;
         if (inputOwner?.Player == this) inputOwner.InputOpenOrClose(false);
         ApplyCapabilities(PlayerCapabilityPermissions.Standby);
@@ -632,14 +636,22 @@ public class Player : MonoBehaviour
     private void UpdateInteractHint()
     {
         PlayerCapabilityPermissions permissions = Permissions;
-        // 实际逻辑：无控制权或无操作／推拉许可时按键不会被消费，不显示目标。
-        if (inputData == null || !(permissions.movement && permissions.motionUpdates && permissions.pushPull))
+        // 无控制权或操作许可时不显示目标；道具不依赖推拉能力。
+        if (inputData == null || !(permissions.movement && permissions.motionUpdates))
         {
             ClearInteractHint();
             return;
         }
         actionData.interactHint = boxSelection.Preview(out actionData.interactTarget);
         actionData.interactCart = actionData.interactTarget == null ? MechanismCart.FindInteractTarget(this) : null;
+        actionData.interactProp = actionData.interactTarget == null && actionData.interactCart == null
+            ? SceneProp.FindInteractTarget(this) : null;
+        // 箱子仍按推拉许可显示；它若占用点按，不透传一个无法操作的道具提示。
+        if (!permissions.pushPull)
+        {
+            actionData.interactHint = PlayerInteractHint.None;
+            actionData.interactTarget = null;
+        }
     }
 
     private void ClearInteractHint()
@@ -649,6 +661,7 @@ public class Player : MonoBehaviour
         actionData.interactHint = PlayerInteractHint.None;
         actionData.interactTarget = null;
         actionData.interactCart = null;
+        actionData.interactProp = null;
     }
 
     // 关系变化只撤销原生水平约束，不清箱子或玩家的真实受力速度。

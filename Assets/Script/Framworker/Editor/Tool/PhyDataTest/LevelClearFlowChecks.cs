@@ -78,9 +78,25 @@ public static class LevelClearFlowChecks
         Check(!body.RequestSpiritForm(true, PlayerFormChangeReason.ForcedRegion), "实体仍不能开启飞行");
         int bodyId = body.GetInstanceID(), setupId = SceneLevelSetup.Current.GetInstanceID();
         SceneProp prop = Prop(body);
+        SceneProp otherProp = Prop(body);
+        otherProp.transform.position += Vector3.right * .5f;
+        Check(SceneProp.FindInteractTarget(body) == prop, "多个通关范围重叠时选中最近道具");
+        body.TickLogic(0f);
+        Check(body._ActionData.InteractProp == prop, "教学实体接入玩家只读道具提示目标");
+        typeof(PresentationLayer).GetMethod("UpdateInteractHint", Hidden).Invoke(presentation, null);
+        var hintView = (InteractionHintView)typeof(PresentationLayer).GetField("interactHintView", Hidden).GetValue(presentation);
+        var hintRoot = (GameObject)typeof(InteractionHintView).GetField("root", Hidden).GetValue(hintView);
+        Check(hintRoot.activeSelf && hintRoot.GetComponentInChildren<TextMesh>().text == "点按交互",
+            "实际共用提示框显示通关道具交互文字");
         SceneProp.OfferInteract(body);
-        Check(!prop.gameObject.activeSelf && body.IsLevelClearing && SceneChangeMgr.Instance.IsLevelClearPending && !Loading(),
-            "真实通关点按领取道具并锁定前段，尚未开始加载");
+        Check(prop.gameObject.activeSelf && (bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop)
+            && body.IsLevelClearing && SceneChangeMgr.Instance.IsLevelClearPending && !Loading(),
+            "真实通关点按保留道具并锁定前段，尚未开始加载");
+        Check(body._ActionData.InteractProp == null && !InputControlMgr.Instance.InputEnabled,
+            "通关受理立即清掉交互提示并关闭玩家输入");
+        SceneProp.OfferInteract(body);
+        Check(!(bool)typeof(SceneProp).GetField("used", Hidden).GetValue(otherProp)
+            && SceneProp.FindInteractTarget(body) == null, "玩家通关锁阻止其它入口和重复点按");
         Check(!SceneChangeMgr.Instance.TryClearLevel(body), "重复通关不重新开始或重复结算");
         Check(!body.TryRequestDeath(PlayerDeathCause.Abyss) && !body.TryRequestDeath(PlayerDeathCause.OxygenDepleted)
             && !body.TryRequestDeath(PlayerDeathCause.Electrocuted), "通关期间所有危险反馈都被屏蔽");
@@ -125,6 +141,32 @@ public static class LevelClearFlowChecks
         Check(animator.GetCurrentAnimatorStateInfo(0).fullPathHash == Animator.StringToHash("Base Layer.On"),
             "下一关待命实体恢复原待机，不残留通关末帧");
 
+        GameObject lightPropObject = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(ScenePropLightPrefabBuilder.PrefabPath));
+        fixtures.Add(lightPropObject);
+        lightPropObject.transform.position = spirit.GetComponent<Collider2D>().bounds.center;
+        SceneProp escapeProp = lightPropObject.GetComponent<SceneProp>();
+        ScenePropLightEffect lightEffect = lightPropObject.GetComponent<ScenePropLightEffect>();
+        ParticleSystem lightPoints = lightPropObject.GetComponentInChildren<ParticleSystem>();
+        yield return null;
+        Check(lightEffect.enabled && lightPoints.isPlaying, "探索实际启用预设光效组件及悬浮粒子");
+        var lightProperties = new MaterialPropertyBlock();
+        lightPropObject.GetComponent<SpriteRenderer>().GetPropertyBlock(lightProperties);
+        Check(lightProperties.GetFloat("_Brightness") > 1f, "探索阶段实际提高道具本体亮度");
+        Check(SceneProp.FindInteractTarget(spirit) == null, "普通关探索精神体靠近通关道具也没有交互目标");
+        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.NextEscapeStep(),
+            "逃生提示联验沿真实准备及最终确认入口交接");
+        while (SceneChangeMgr.Instance.IsEscapeHandoff) yield return null;
+        Check(LevelStageMgr.Instance.Stage == PlayerGameplayStage.Escape && InputControlMgr.Instance.Player == body,
+            "最终确认后由逃生实体取得控制");
+        yield return null;
+        Check(!lightEffect.enabled && !lightPoints.isPlaying && lightPoints.particleCount == 0,
+            "逃生交接自动关闭光效并清除探索光点");
+        lightPropObject.GetComponent<SpriteRenderer>().GetPropertyBlock(lightProperties);
+        Check(lightProperties.GetFloat("_Brightness") == 0f, "逃生阶段恢复原道具亮度属性");
+        escapeProp.transform.position = body.GetComponent<Collider2D>().bounds.center;
+        body.TickLogic(0f);
+        Check(body._ActionData.InteractProp == escapeProp, "逃生阶段靠近道具输出共用交互框目标");
+
         foreach (bool failLoop in new[] { false, true })
         {
             Enter(0);
@@ -144,7 +186,8 @@ public static class LevelClearFlowChecks
             body.ApplyCapabilities(before);
             InputControlMgr.Instance.InputOpenOrClose(!failLoop);
             prop = Prop(body); SceneProp.OfferInteract(body);
-            Check(body.IsLevelClearing && !prop.gameObject.activeSelf && !Loading(),
+            Check(body.IsLevelClearing && prop.gameObject.activeSelf
+                && (bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop) && !Loading(),
                 (failLoop ? "循环失效" : "前段打断") + "回归从真实道具受理，播放开始前配置有效");
             playback = (uint)typeof(PresentationLayer).GetField("levelClearPlaybackSequence", Hidden).GetValue(presentation);
             Vector3 takenPosition = prop.transform.position + Vector3.right * .1f;
@@ -200,7 +243,8 @@ public static class LevelClearFlowChecks
             Check(!Loading() && !SceneChangeMgr.Instance.IsLevelClearPending && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
                 "超过原动画时长也无迟到加载");
             SceneProp.OfferInteract(body);
-            Check(body.IsLevelClearing && !prop.gameObject.activeSelf
+            Check(body.IsLevelClearing && prop.gameObject.activeSelf
+                && (bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop)
                 && presentation.GetLevelClearPlaybackStatus(playback) == PresentationLayer.LevelClearPlaybackStatus.Invalid,
                 "同一道具可重新交互，旧播放身份不能完成新等待");
             while (!Ready(1)) yield return null;

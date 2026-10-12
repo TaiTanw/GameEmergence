@@ -45,6 +45,7 @@ public static class ScenePropInteractionChecks
             CheckCompoundRanges();
             CheckRefreshAndMovement();
             CheckTouchAndEligibility();
+            CheckTargetsAndLightInterface();
             Debug.Log("Scene prop interaction: " + passed.Count + " checks passed.");
         }
         finally
@@ -186,6 +187,47 @@ public static class ScenePropInteractionChecks
         rules.ConfigureStage(PlayerGameplayStage.Escape);
         player.transform.position += Vector3.right * 1000f;
         Check(!Acquire(clear, player) && !Used(clear), "逃生通关物在远处不能推进关序");
+    }
+
+    static void CheckTargetsAndLightInterface()
+    {
+        Vector2 at = new Vector2(120f, 120f);
+        Player player = Actor("P4.3 target player", at);
+        Control(player);
+        rules.ConfigureStage(PlayerGameplayStage.Escape);
+        SceneProp farther = Prop(at + Vector2.right * .5f);
+        SceneProp nearer = Prop(at);
+        Check(SceneProp.FindInteractTarget(player) == nearer, "多个范围重叠时，最近道具是唯一提示及点按候选");
+        Check(!Used(nearer) && !Used(farther), "提示查询不领取或锁定任何道具");
+        SceneProp.OfferInteract(player);
+        Check(Used(nearer) && !Used(farther), "点按只领取提示候选，不按注册顺序领取另一件");
+        Check(SceneProp.FindInteractTarget(player) == farther, "已使用道具不再成为候选，其它入口仍可查询");
+        nearer.RestoreDefault();
+        Check(SceneProp.FindInteractTarget(player) == nearer, "重刷新恢复未领取道具的候选资格");
+        Check(nearer.DisplayBounds == nearer.GetComponent<Collider2D>().bounds, "无精灵占位道具按触发范围显示提示框");
+
+        var light = nearer.gameObject.AddComponent<Light>();
+        typeof(SceneProp).GetField("explorationLightEffect", Hidden).SetValue(nearer, light);
+        typeof(SceneProp).GetField("clearsLevel", Hidden).SetValue(nearer, true);
+        rules.ConfigureStage(PlayerGameplayStage.Exploration);
+        Invoke(nearer, "LateUpdate");
+        Check(light.enabled && SceneProp.FindInteractTarget(player) != nearer, "探索开启组件光效接口，但通关道具不提供交互候选");
+        rules.ConfigureStage(PlayerGameplayStage.Exploration, true);
+        Invoke(nearer, "LateUpdate");
+        Check(light.enabled, "模拟仍属于探索，光效组件保持开启");
+        rules.ConfigureStage(PlayerGameplayStage.Escape);
+        Invoke(nearer, "LateUpdate");
+        Check(!light.enabled, "逃生阶段关闭探索光效组件");
+        rules.ConfigureStage(PlayerGameplayStage.Exploration);
+        typeof(SceneProp).GetField("used", Hidden).SetValue(nearer, true);
+        Invoke(nearer, "LateUpdate");
+        Check(!light.enabled, "已使用通关道具不重新开启光效");
+        nearer.RestoreDefault();
+        Check(light.enabled, "失败恢复默认时重新同步探索光效");
+        nearer.enabled = false;
+        Invoke(nearer, "OnDisable");
+        Check(!light.enabled, "道具组件停用同步关闭光效");
+        rules.ConfigureStage(PlayerGameplayStage.Escape);
     }
 
     static Player Actor(string name, Vector2 position, bool child = false)

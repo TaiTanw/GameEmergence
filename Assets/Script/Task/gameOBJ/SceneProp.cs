@@ -18,6 +18,8 @@ public class SceneProp : MonoBehaviour
     bool clearsLevel = true;
     [SerializeField, Min(0), Tooltip("通关动作编号：对应实体控制器的 LevelClear_编号 与 LevelClearLoop_编号；精神体不能触发通关")]
     int levelClearAnimation;
+    [SerializeField, Tooltip("可选的专用光效组件：探索阶段 enabled=true，其它阶段或已使用时为 false；组件自行在启停时播放／停止光效。未配置不影响通关")]
+    Behaviour explorationLightEffect;
 
     static readonly List<SceneProp> interactProps = new List<SceneProp>();
     bool used;
@@ -43,28 +45,75 @@ public class SceneProp : MonoBehaviour
         used = false;
         transform.position = defaultPosition;
         gameObject.SetActive(defaultActive);
+        SyncExplorationLight();
     }
 
     void OnEnable()
     {
         // 实际逻辑：只有交互获取才接收点按。
         if (acquireMode == AcquireMode.交互获取) interactProps.Add(this);
+        // 光效是可选表现；不能把本玩法组件配置为自己的启停目标。
+        if (explorationLightEffect == this) Debug.LogError("通关道具的探索光效应关联专用光效组件，不能关联 SceneProp 自身。", this);
+        SyncExplorationLight();
     }
 
     void OnDisable()
     {
         interactProps.Remove(this);
+        if (explorationLightEffect != null && explorationLightEffect != this) explorationLightEffect.enabled = false;
     }
 
-    /// <summary>箱子没有收下这次点按时，由范围内的交互道具接收。没有道具则不做任何事。</summary>
+    void LateUpdate() => SyncExplorationLight();
+
+    void SyncExplorationLight()
+    {
+        // 安全：接口未配置时不创建光效，也不影响道具流程。
+        if (explorationLightEffect == null || explorationLightEffect == this) return;
+        // 阶段事实归现有规则；组件只控制表现，漫游和模拟都属于探索。
+        explorationLightEffect.enabled = isActiveAndEnabled && clearsLevel && !used && LevelStageMgr.Instance.HasExploration;
+    }
+
+    /// <summary>与提示共用同一近距目标；无效通关配置不把点按转给另一件道具。</summary>
     public static void OfferInteract(Player player)
     {
-        // 安全：没有控制角色时不获取。
-        if (player == null) return;
+        FindInteractTarget(player)?.TryAcquire(player);
+    }
+
+    public static SceneProp FindInteractTarget(Player player)
+    {
+        // 安全：没有道具或当前控制角色时不查询范围，也不初始化输入管理器。
+        if (interactProps.Count == 0 || !IsControlled(player)) return null;
+        SceneProp nearest = null;
+        float nearestDistance = float.PositiveInfinity;
         for (int i = 0; i < interactProps.Count; i++)
         {
             SceneProp prop = interactProps[i];
-            if (prop.TryAcquire(player)) return;
+            if (prop == null || !prop.CanAcquire(player)) continue;
+            float distance = ((Vector2)prop.transform.position - (Vector2)player.transform.position).sqrMagnitude;
+            // 范围重叠时选最近一件；同距保持注册顺序，提示和点按不会各选一件。
+            if (distance >= nearestDistance) continue;
+            nearestDistance = distance;
+            nearest = prop;
+        }
+        return nearest;
+    }
+
+    /// <summary>提示优先包住道具精灵；无精灵的制作占位物使用自身触发范围。</summary>
+    public Bounds DisplayBounds
+    {
+        get
+        {
+            SpriteRenderer sprite = GetComponentInChildren<SpriteRenderer>();
+            if (sprite != null) return sprite.bounds;
+            Bounds bounds = new Bounds(transform.position, Vector3.zero);
+            bool found = false;
+            foreach (Collider2D range in GetComponentsInChildren<Collider2D>())
+            {
+                if (!range.isActiveAndEnabled || !range.isTrigger || range.GetComponentInParent<SceneProp>() != this) continue;
+                if (found) bounds.Encapsulate(range.bounds);
+                else { bounds = range.bounds; found = true; }
+            }
+            return bounds;
         }
     }
 
@@ -77,7 +126,7 @@ public class SceneProp : MonoBehaviour
         if (acquireMode == AcquireMode.触碰获取) TryAcquire(PlayerOf(other));
     }
 
-    bool TryAcquire(Player player)
+    bool CanAcquire(Player player)
     {
         // 安全：领取只接受当前活动的受控角色与尚未领取的道具。
         if (used || !isActiveAndEnabled || !IsControlled(player)) return false;
@@ -94,13 +143,21 @@ public class SceneProp : MonoBehaviour
             SceneLevelSetup setup = SceneLevelSetup.Current;
             // 通关资格归阶段：探索不允许借通关物跳过逃生结算。
             if (setup == null || (!setup.Teaching && LevelStageMgr.Instance.Stage != PlayerGameplayStage.Escape)) return false;
-            // 制作配置与下一关都通过校验后才领取，失败时道具仍可交互。
-            if (!SceneChangeMgr.Instance.TryClearLevel(player, levelClearAnimation, this)) return false;
         }
+        return true;
+    }
+
+    bool TryAcquire(Player player)
+    {
+        if (!CanAcquire(player)) return false;
+        // 制作配置与下一关都通过校验后才锁定，失败时道具仍可交互。
+        if (clearsLevel && !SceneChangeMgr.Instance.TryClearLevel(player, levelClearAnimation, this)) return false;
         used = true;
         // 实际逻辑：效果记录还没有。勾选有效果只表示这件道具带效果，不写能力、不改进度。
         if (hasEffect) { }
-        gameObject.SetActive(false);
+        // 通关物留在现场，领取锁与玩家通关锁共同阻止重复交互；普通道具仍沿原占位流程。
+        if (!clearsLevel) gameObject.SetActive(false);
+        SyncExplorationLight();
         return true;
     }
 
@@ -111,6 +168,7 @@ public class SceneProp : MonoBehaviour
         if (!clearsLevel || !used) return;
         used = false;
         gameObject.SetActive(true);
+        SyncExplorationLight();
     }
 
     bool ContainsPlayer(Player player)
