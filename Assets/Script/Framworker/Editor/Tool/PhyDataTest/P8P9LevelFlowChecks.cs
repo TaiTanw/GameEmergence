@@ -116,14 +116,19 @@ public static class P8P9LevelFlowChecks
                     stage = 3;
                     break;
                 case 3:
-                    if (spirit != null) return; // 退出精神体使用正常 Destroy，等本帧生命周期完成。
+                    if (SceneChangeMgr.Instance.IsEscapeHandoff || spirit != null) return;
                     Check(Players().Length == 1, "逃生精神体实际销毁，仅留下长期实体");
-                    InRunningTime(CheckRisingWaterMenuAndFailure);
+                    InRunningTime(() => { CheckPurchaseHandoff(); CheckRisingWaterMenuAndFailure(); });
                     stage = 4;
                     break;
                 case 4:
                     if (!FinishFailureTransition()) return;
                     InRunningTime(CheckZeroBudget);
+                    stage = 10;
+                    break;
+                case 10:
+                    if (SceneChangeMgr.Instance.IsEscapeHandoff || Actor("spirit") != null) return;
+                    InRunningTime(CheckZeroBudgetHandoff);
                     InRunningTime(CheckEscapeCrush);
                     stage = 8;
                     break;
@@ -132,11 +137,19 @@ public static class P8P9LevelFlowChecks
                     Check(Rules().Stage == PlayerGameplayStage.Exploration && Actor("spirit") != null,
                         "负面逃生死亡后正常返回探索");
                     Time.timeScale = 1f;
-                        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchaseEscapeAbility(0),
-                            "退出回归建立第三次正式逃生");
-                        Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && SceneChangeMgr.Instance.IsFailureRecovering,
-                            "第三次死亡启动独立失败演出");
-                        Check(SceneChangeMgr.Instance.ReturnToMenu(), "渐暗尚未完成时可以显式退出本关");
+                    Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchaseEscapeAbility(0),
+                        "退出回归受理第三次精神体消散与实体交接");
+                    stage = 11;
+                    break;
+                case 11:
+                    if (SceneChangeMgr.Instance.IsEscapeHandoff || Actor("spirit") != null) return;
+                    Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && body.PendingDeath.HasValue
+                        && !SceneChangeMgr.Instance.IsFailureRecovering, "第三次死亡先播放实体动画");
+                    stage = 12;
+                    break;
+                case 12:
+                    if (!SceneChangeMgr.Instance.IsFailureRecovering) return;
+                    Check(SceneChangeMgr.Instance.ReturnToMenu(), "死亡动画结束、渐暗尚未完成时可以显式退出本关");
                     stage = 9;
                     break;
                 case 9:
@@ -158,8 +171,9 @@ public static class P8P9LevelFlowChecks
                     teachingRules = Rules(); teachingSetupId = SceneLevelSetup.Current.GetInstanceID();
                     Check(teachingRules.Stage == PlayerGameplayStage.Tutorial && !LevelStageMgr.Instance.HasExploration,
                         "教学组装独立死亡规则，未建立探索阶段");
-                    Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && body.PendingDeath.HasValue,
-                        "教学死亡请求开始异步重开，完成前保持待处理");
+                    Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && body.PendingDeath.HasValue
+                        && SceneLevelSetup.Current.GetInstanceID() == teachingSetupId,
+                        "教学死亡先播放实体动画，完成前不提前重载");
                     teachingDeath = body.PendingDeath.Value;
                     Check(!body.TryRequestDeath(PlayerDeathCause.OxygenDepleted), "教学同死亡周期不开始第二次重载");
                     stage = 6;
@@ -336,7 +350,7 @@ public static class P8P9LevelFlowChecks
             && InputControlMgr.Instance.Player == null && !spirit.Permissions.motionUpdates
             && !body.Permissions.motionUpdates && WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
             "实际开始按钮进入唯一选择入口，暂停角色与世界并撤销探索控制");
-        Near(box.DebugActualPosition, boxHome, "开始逃生同样轻刷新全关箱子");
+        Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "进入购买准备保持箱子现场，不提前复位");
         Check(!water.RisingAllowed, "等待购买时水不取得上涨许可");
         Check(!host.StartEscape() && !host.PurchaseEscapeAbility(-1) && !host.PurchaseEscapeAbility(1),
             "连续开始、非法索引与买不起选项均拒绝");
@@ -361,15 +375,24 @@ public static class P8P9LevelFlowChecks
         if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
             GameMenuInputChecks.Capture("p89-escape-choice.png");
         purchaseButton.onClick.Invoke();
-        Check(!host.EscapeSelectionPending, "实际能力按钮提交购买并完成逃生交接");
+        Check(!host.EscapeSelectionPending && host.IsEscapeHandoff && Actor("spirit") == spirit
+            && InputControlMgr.Instance.Player == null, "实际能力按钮提交一次购买并开始精神体消散");
         Near(explorationRules.Cognition.Remaining, balance - setup.EscapeAbilities[0].Cost,
             "购买按配置价格仅扣一次共享认知");
         Check(!host.PurchaseEscapeAbility(0) && !host.StartEscape(), "已完成购买与交接不重复执行");
+        Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "消散完成前仍保持购买现场");
+        Check(!water.RisingAllowed && WorldPaused(typeof(BasicEntity)), "消散及镜头交接前不开放水与世界");
+    }
+
+    static void CheckPurchaseHandoff()
+    {
+        SceneChangeMgr host = SceneChangeMgr.Instance;
         Check(Rules().Stage == PlayerGameplayStage.Escape && !host.EscapeSelectionPending
             && Actor("spirit") == null && Actor("body") == body && InputControlMgr.Instance.Player == body,
             "购买完成只交给同一实体，退出精神体与选择暂停");
         Check(water.RisingAllowed && !WorldPaused(typeof(BasicEntity)) && !WorldPaused(typeof(Taijie)),
             "逃生交接恢复世界并开放本关水上涨");
+        Near(box.DebugActualPosition, boxHome, "未保留现场的消散完成后才复位全关箱子");
         Near(ground.SlowingEffect, .5f, "开始逃生保留本关环境改值");
         Check(ledger.CurrentLevelEffects.Count == 3 && ledger.ConfirmedPermanentEffects.Count == 1,
             "购买效果加入同一本关记录，未重复确认此前永久");
@@ -449,14 +472,14 @@ public static class P8P9LevelFlowChecks
         Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Electrocuted,
             "P15 真实固定带电触发器经统一电击请求触发完整失败重开");
         escapeDeath = observer.Last;
-        Check(SceneChangeMgr.Instance.IsFailureRecovering && body.PendingDeath.HasValue
+        Check(!SceneChangeMgr.Instance.IsFailureRecovering && escapeRules.DeathPending && body.PendingDeath.HasValue
             && body.DeathStatus == PlayerDeathStatus.Pending && Rules() == escapeRules && Actor("spirit") == null,
-            "失败只受理异步死亡，全黑前不提前重建探索");
-        Near(box.DebugActualPosition, boxHome + Vector2.right * 15f, "渐暗开始保持箱子现场");
-        Check(!InputControlMgr.Instance.InputEnabled && InputControlMgr.Instance.Player == null
-            && !SceneChangeMgr.Instance.ToggleGameMenu(), "失败渐暗禁用控制和暂停菜单");
+            "电击先等待实体死亡动画，不提前渐暗或重建探索");
+        Near(box.DebugActualPosition, boxHome + Vector2.right * 15f, "死亡动画开始保持箱子现场");
+        Check(!InputControlMgr.Instance.InputEnabled && body.Permissions.motionUpdates
+            && !body.Permissions.movement && !body.Permissions.resourceUpdates, "死亡动画停操作与资源，保留被动运动");
         Check(escapeRules.ReceiveDeath(escapeDeath) == PlayerDeathStatus.Pending
-            && SceneChangeMgr.Instance.IsFailureRecovering, "同死亡周期演出期间重放不再启动一次恢复");
+            && !SceneChangeMgr.Instance.IsFailureRecovering, "同死亡周期动画期间重放不提前启动恢复");
         sawDarkening = sawBlack = sawBrightening = false;
         failureChecks = () =>
         {
@@ -523,8 +546,8 @@ public static class P8P9LevelFlowChecks
         typeof(MonoPublicMgr).GetMethod("FixedUpdate", Hidden).Invoke(MonoPublicMgr.Instance, null);
         Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Crushed,
             $"P15 正式逃生门推向固定墙夹住实体，经模拟后死亡入口完整重开 [count={observer.Count}, cause={observer.Last.cause}, door={body.GetComponent<Collider2D>().Distance(door.GetComponent<Collider2D>()).distance}, wall={body.GetComponent<Collider2D>().Distance(wall.GetComponent<Collider2D>()).distance}]");
-        Check(SceneChangeMgr.Instance.IsFailureRecovering && Rules().Stage == PlayerGameplayStage.Escape,
-            "真实夹击也先进入独立失败演出，不立即复位门");
+        Check(!SceneChangeMgr.Instance.IsFailureRecovering && Rules().DeathPending
+            && Rules().Stage == PlayerGameplayStage.Escape, "真实夹击也先等待实体动画，不立即复位门");
         sawDarkening = sawBlack = sawBrightening = false;
         failureChecks = () =>
         {
@@ -538,6 +561,12 @@ public static class P8P9LevelFlowChecks
     static bool FinishFailureTransition()
     {
         SceneChangeMgr host = SceneChangeMgr.Instance;
+        if (!host.IsFailureRecovering && Rules().Stage == PlayerGameplayStage.Escape)
+        {
+            if (!body.PendingDeath.HasValue || !Rules().DeathPending || InputControlMgr.Instance.InputEnabled)
+                throw new InvalidOperationException("实体动画等待丢失死亡请求或提前开放输入。");
+            return false;
+        }
         if (host.IsFailureRecovering)
         {
             if (InputControlMgr.Instance.InputEnabled || host.CanTeleportMap || host.CanResetTrial)
@@ -583,9 +612,9 @@ public static class P8P9LevelFlowChecks
         Check(rules.Cognition.IsExhausted && rules.CognitionExhaustionRequested
             && rules.Stage == PlayerGameplayStage.Exploration, "耗尽先留下唯一请求，不伪造已完成逃生");
         typeof(SceneChangeMgr).GetMethod("AdvanceLevelCognition", Hidden).Invoke(SceneChangeMgr.Instance, null);
-        Check(Rules().Stage == PlayerGameplayStage.Escape && !SceneChangeMgr.Instance.EscapeSelectionPending
-            && Actor("spirit") == null && InputControlMgr.Instance.Player == body,
-            "宿主更新通过同一开始入口处理零预算，不停在买不起的选择状态");
+        Check(SceneChangeMgr.Instance.IsEscapeHandoff && !SceneChangeMgr.Instance.EscapeSelectionPending
+            && Actor("spirit") == replacement && InputControlMgr.Instance.Player == null,
+            "宿主更新通过同一消散交接处理零预算，不停在买不起的选择状态");
         Near(rules.Cognition.Remaining, 0f, "零预算进入逃生仍保持零余额");
         Check(ledger.CurrentLevelEffects.Count == 1 && ledger.CurrentLevelEffects[0].Kind == PlayerEffectKind.MovementMultiplier,
             "零预算只获得一次当前局的固定负面");
@@ -595,6 +624,14 @@ public static class P8P9LevelFlowChecks
         Near(ledger.JumpMultiplier, 1.1f, "零预算负面不清此前确认永久起跳效果");
         Check(!SceneChangeMgr.Instance.StartEscape() && !SceneChangeMgr.Instance.PurchaseEscapeAbility(0)
             && ledger.CurrentLevelEffects.Count == 1, "耗尽入口与后续重复操作不重复施加负面");
+    }
+
+    static void CheckZeroBudgetHandoff()
+    {
+        Check(Rules().Stage == PlayerGameplayStage.Escape && InputControlMgr.Instance.Player == body
+            && water.RisingAllowed && !WorldPaused(typeof(BasicEntity)), "零预算消散及镜头交接完成才开放实体、水与世界");
+        Near(body.GetComponent<CharacterPhysics>().EffectiveMovementSpeed,
+            body.GetComponent<CharacterPhysics>().speed * .8f, "零预算实体交接后消费一次负面倍率");
     }
 
     static void CheckMapUI()

@@ -172,6 +172,13 @@ public static class EnvironmentIntegrationChecks
         Check(body.DeathStatus == PlayerDeathStatus.Pending && body.PendingDeath.HasValue, "刷新服务未完成不能报告死亡处理完成");
         refresh.complete = true;
         body.RetryPendingDeath();
+        Check(body.DeathStatus == PlayerDeathStatus.Pending && refresh.completions == 0,
+            "结果服务就绪仍等待实体死亡动画，不能提前刷新");
+        Animator animator = body.GetComponentInChildren<Animator>();
+        AnimatorClipInfo[] deathClips = animator.GetCurrentAnimatorClipInfo(0);
+        Check(deathClips.Length == 1 && deathClips[0].clip.name == "Death", "接口夹具实际进入实体 Death 片段");
+        animator.Update(deathClips[0].clip.length + .1f);
+        body.RetryPendingDeath();
         Check(body.DeathStatus == PlayerDeathStatus.Handled && !body.PendingDeath.HasValue, "结果服务提交成功后确认请求完成");
         Check(refresh.subject == body && refresh.completions == 1, "逃生消费者传递正确死者且只完成一次");
         rules.ReceiveDeath(request);
