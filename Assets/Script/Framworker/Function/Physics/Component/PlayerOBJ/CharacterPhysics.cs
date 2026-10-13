@@ -92,6 +92,8 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     private SliderJoint2D pushPullJoint;
     [SerializeField, Min(0f), Tooltip("飞转行允许的浅层重叠深度；通过后由原生物理处理接触，默认 0.02 个世界单位。")]
     private float walkingRestoreTolerance = 0.02f;
+    /// <summary>本次恢复实心被物体占用的只读事实；提示由场景宿主呈现。</summary>
+    public event System.Action<Collider2D> WalkingRestoreRejected;
 
     /// <summary>
     /// 人工阅读：Player 的统一形态提交调用这里。飞行保留原生模拟并把碰撞框改为 Trigger；
@@ -107,6 +109,8 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         {
             string reason = blocker != null ? $"被「{blocker.name}」占用" : "碰撞框尚未就绪";
             Debug.Log($"{name} 飞转行被拒绝：当前位置{reason}", this);
+            // 实际物体阻挡才报告，不把未就绪的碰撞框解释为处于物体内部。
+            if (blocker != null) WalkingRestoreRejected?.Invoke(blocker);
             return false;
         }
         flying = enabled;
