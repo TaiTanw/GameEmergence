@@ -73,14 +73,12 @@ public class MusicMgr : BaseMgr<MusicMgr>
         BkVolume = DataAndInitMgr.Instance.musicData.bkMusicValue;
         SoundVolume = DataAndInitMgr.Instance.musicData.soundValue;
 
-        //根据数据设置相关数据
+        //配置名要在第一次加载前生效，否则会按字段初值去找旧地址
+        BkDefaultMusicName=DataConfigurationMgr.Instance.StartRes.BkDefaultMusicName;
         PlayBkMusic(BkDefaultMusicName);
         SetBkMusicVolume(BkVolume);
         PauseOrPlaySoundMusic(SoundnoMute);
         SetSoundVolume(SoundVolume);
-
-        //配置数据加载
-        BkDefaultMusicName=DataConfigurationMgr.Instance.StartRes.BkDefaultMusicName;
 
         //数据读取校对
         //Debug.Log(BkMute+""+ SoundMute+ BkVolume+ SoundVolume);
