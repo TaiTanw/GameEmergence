@@ -16,9 +16,8 @@ public static class LevelClearFlowChecks
     const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
     static readonly List<string> passed = new List<string>();
     static readonly List<Object> fixtures = new List<Object>();
-    static string progressPath, runtimeError;
-    static byte[] previousProgress;
-    static bool hadProgress, previousOptionsEnabled, finished;
+    static string progressDirectory, previousProgressDirectory, runtimeError;
+    static bool previousOptionsEnabled, finished;
     static EnterPlayModeOptions previousOptions;
     static Exception failure;
     static double deadline;
@@ -29,14 +28,15 @@ public static class LevelClearFlowChecks
     public static void RunForBatch()
     {
         if (!Application.isBatchMode || Application.isPlaying) throw new InvalidOperationException("要求独立 batch editor。");
-        CatgirlLevelClearAssets.ImportAndValidate();
+        CatgirlLevelClearAssets.Validate();
         CatgirlPresentationAnimationChecks.Run();
         ScenePropInteractionChecks.Run();
         passed.Clear(); fixtures.Clear(); runtimeError = null; failure = null; finished = false;
         expectedPlaybackErrors = failureStateHash = 0; expectedFailureAnimator = null;
-        progressPath = Path.Combine(Application.persistentDataPath, "LevelProgress.txt");
-        hadProgress = File.Exists(progressPath);
-        previousProgress = hadProgress ? File.ReadAllBytes(progressPath) : null;
+        previousProgressDirectory = DataAndInitMgr.debugPlayerProgressDirectory;
+        progressDirectory = Path.GetFullPath(Path.Combine(".utmp/LevelClearValidation", "Save-" + Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(progressDirectory);
+        DataAndInitMgr.debugPlayerProgressDirectory = progressDirectory;
         previousOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
         previousOptions = EditorSettings.enterPlayModeOptions;
         EditorSettings.enterPlayModeOptionsEnabled = true;
@@ -70,7 +70,19 @@ public static class LevelClearFlowChecks
         while (Main.Instance == null || string.IsNullOrEmpty(InputControlMgr.Instance.PlayerModleName)) yield return null;
         Check(DataAndInitMgr.Instance.LoadLevelOrder().scenes.Length >= 2, "实际顺序包含两关");
         Enter(0);
-        while (!Ready(0)) yield return null;
+        bool sawMenuBuffer = false;
+        while (!Ready(0))
+        {
+            LoadingPanel cover = Object.FindObjectOfType<LoadingPanel>();
+            if (Loading() && Time.timeScale > 0f && Actor("body") != null && cover != null && cover.TransitionWeight == 1f)
+            {
+                Require(Actor("body").GetComponentInChildren<SpriteRenderer>().forceRenderingOff,
+                    "菜单首次进关的全黑缓冲继续隐藏角色");
+                sawMenuBuffer = true;
+            }
+            yield return null;
+        }
+        Check(sawMenuBuffer, "菜单首次进关保留全黑角色遮挡");
         Player body = Actor("body");
         var presentation = body.GetComponentInChildren<PresentationLayer>();
         Check(presentation.ValidateLevelClearPlayback(0, out _), "实体编号 0 的前段和循环可播放");
@@ -92,12 +104,16 @@ public static class LevelClearFlowChecks
         Check(prop.gameObject.activeSelf && (bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop)
             && body.IsLevelClearing && SceneChangeMgr.Instance.IsLevelClearPending && !Loading(),
             "真实通关点按保留道具并锁定前段，尚未开始加载");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == new Vector3(2, -3, 0)
+            && DataAndInitMgr.Instance.ConfirmedEndingVector == Vector3.zero,
+            "通关受理只登记本关二维贡献，尚未确认");
         Check(body._ActionData.InteractProp == null && !InputControlMgr.Instance.InputEnabled,
             "通关受理立即清掉交互提示并关闭玩家输入");
         SceneProp.OfferInteract(body);
         Check(!(bool)typeof(SceneProp).GetField("used", Hidden).GetValue(otherProp)
             && SceneProp.FindInteractTarget(body) == null, "玩家通关锁阻止其它入口和重复点按");
         Check(!SceneChangeMgr.Instance.TryClearLevel(body), "重复通关不重新开始或重复结算");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == new Vector3(2, -3, 0), "重复通关不重复登记贡献");
         Check(!body.TryRequestDeath(PlayerDeathCause.Abyss) && !body.TryRequestDeath(PlayerDeathCause.OxygenDepleted)
             && !body.TryRequestDeath(PlayerDeathCause.Electrocuted), "通关期间所有危险反馈都被屏蔽");
         PlayerResourceFacts resources = body.ResourceFacts;
@@ -112,6 +128,7 @@ public static class LevelClearFlowChecks
         // 同死亡等待一样，用真实时间推进；暂停不能让前段和加载循环停住。
         Time.timeScale = 0f;
         bool sawLoop = false;
+        bool sawVisibleBuffer = false;
         while (!Ready(1))
         {
             var status = presentation.GetLevelClearPlaybackStatus(playback);
@@ -123,16 +140,38 @@ public static class LevelClearFlowChecks
                 Require(body.IsLevelClearing, "整个加载保持终结动作锁定");
                 Require(animator.GetCurrentAnimatorStateInfo(0).fullPathHash == Animator.StringToHash("Base Layer.LevelClearLoop_0"),
                     "加载实际采样循环状态");
+                Require(!body.GetComponentInChildren<SpriteRenderer>().forceRenderingOff,
+                    "普通跨关的加载角色逐帧保持可见，不能隐藏后重现");
+                if (Time.timeScale > 0f)
+                {
+                    if (!sawVisibleBuffer && Object.FindObjectOfType<LoadingPanel>().TransitionWeight == 1f)
+                    {
+                        typeof(P66TransitionChecks).GetMethod("Capture", BindingFlags.Static | BindingFlags.NonPublic)
+                            .Invoke(null, new object[] { "V20-ordinary-black.png" });
+                        typeof(P66TransitionChecks).GetMethod("CheckCoverPixels", BindingFlags.Static | BindingFlags.NonPublic)
+                            .Invoke(null, new object[] { Object.FindObjectOfType<LoadingPanel>(), passed });
+                        sawVisibleBuffer = true;
+                    }
+                    Camera portrait = Array.Find(Object.FindObjectsOfType<Camera>(), c => c.enabled && c.name == "PlayerPortraitCamera");
+                    Require(portrait != null, "新关安置及缓冲仍使用角色前景镜头");
+                    Vector3 viewport = portrait.WorldToViewportPoint(body.transform.position);
+                    Require(Mathf.Abs(viewport.x - .5f) < .002f && Mathf.Abs(viewport.y - .5f) < .002f,
+                        "普通跨关安置及揭幕期间角色根位置保持画面中心");
+                }
             }
             yield return null;
         }
         yield return null;
         Check(sawLoop, "真实前段完成后进入加载循环");
+        Check(sawVisibleBuffer, "真实普通跨关在全黑物理缓冲中持续显示居中的加载角色");
         Check(Actor("body").GetInstanceID() == bodyId && !body.IsLevelClearing && !SceneChangeMgr.Instance.IsLevelClearPending,
             "下一关保留同一实体并释放通关锁");
         Check(presentation.GetLevelClearPlaybackStatus(playback) == PresentationLayer.LevelClearPlaybackStatus.Invalid,
             "淡入结束后旧播放身份作废");
         Check(DataAndInitMgr.Instance.LoadLevelIndex() == 1 && Time.timeScale == 1f, "安置成功后才保存下一关并恢复时间");
+        Check(DataAndInitMgr.Instance.ConfirmedEndingVector == new Vector3(2, -3, 0)
+            && DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero,
+            "实际下一关安置成功才整体确认向量");
         Player spirit = Actor("spirit");
         Check(spirit != null && InputControlMgr.Instance.Player == spirit, "普通关沿现有规则创建并控制精神体");
         Check(!SceneChangeMgr.Instance.TryClearLevel(spirit) && !spirit.IsLevelClearing, "共享脚本中的精神体不能触发通关");
@@ -186,6 +225,7 @@ public static class LevelClearFlowChecks
             body.ApplyCapabilities(before);
             InputControlMgr.Instance.InputOpenOrClose(!failLoop);
             prop = Prop(body); SceneProp.OfferInteract(body);
+            Vector3 confirmedBeforeFailure = DataAndInitMgr.Instance.ConfirmedEndingVector;
             Check(body.IsLevelClearing && prop.gameObject.activeSelf
                 && (bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop) && !Loading(),
                 (failLoop ? "循环失效" : "前段打断") + "回归从真实道具受理，播放开始前配置有效");
@@ -223,6 +263,9 @@ public static class LevelClearFlowChecks
             }
             Check(prop.gameObject.activeSelf && !(bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop)
                 && prop.transform.position == takenPosition, "失败只归还触发道具，保留其当前位置");
+            Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero
+                && DataAndInitMgr.Instance.ConfirmedEndingVector == confirmedBeforeFailure,
+                "通关前段或循环失败精确撤销本次贡献");
             var fsm = (PlayerStateMachine)typeof(Player).GetField("fsm", Hidden).GetValue(body);
             PlayerResourceFacts previousResources = body.ResourceFacts;
             fsm.stamina = fsm.oxygen = 50f;
@@ -250,6 +293,8 @@ public static class LevelClearFlowChecks
             while (!Ready(1)) yield return null;
             Check(!body.IsLevelClearing && DataAndInitMgr.Instance.LoadLevelIndex() == 1,
                 "打断后重试仍沿真实前段、循环与原换关成功安置下一关");
+            Check(DataAndInitMgr.Instance.ConfirmedEndingVector == confirmedBeforeFailure + new Vector3(2, -3, 0)
+                && DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero, "归还后的重试只确认一次贡献");
         }
 
         Enter(0);
@@ -264,6 +309,7 @@ public static class LevelClearFlowChecks
         Check(!body.IsLevelClearing && !SceneChangeMgr.Instance.IsLevelClearPending && !Loading(),
             "普通刷新作废等待并允许本关重新交互，不留下受理锁");
         Check(prop.gameObject.activeSelf, "普通刷新取消未完成通关时归还原道具");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero, "普通刷新打断通关同步撤销贡献");
         SceneProp.OfferInteract(body);
         Check(body.IsLevelClearing && !Loading(), "退出回归重新进入前段");
         Check(SceneChangeMgr.Instance.ReturnToMenu(), "前段期间允许结束本局");
@@ -273,6 +319,49 @@ public static class LevelClearFlowChecks
         Check(!SceneChangeMgr.Instance.IsLevelClearPending && Actor("body") == null && InputControlMgr.Instance.Player == null,
             "退出作废旧等待，没有迟到加载或重新开放角色");
         Check(DataAndInitMgr.Instance.LoadLevelIndex() == 0, "取消前段不推进进度");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero, "返回菜单清本关贡献且旧等待不能恢复");
+
+        while (Loading()) yield return null;
+        Enter(0);
+        while (!Ready(0)) yield return null;
+        // 真实跨关返回教学：让新出生点在全黑下小幅下落，检查移动期间也保持居中。
+        Enter(0);
+        while (Time.timeScale == 0f || Actor("body") == null) yield return null;
+        body = Actor("body");
+        Check(Loading() && Object.FindObjectOfType<LoadingPanel>().TransitionWeight == 1f,
+            "教学跨关在全黑内恢复物理，尚未开放操作");
+        body.RefreshRuntime(new Vector2(9000f, 9000f));
+        Bounds bounds = body.GetComponent<CharacterPhysics>().BodyBounds;
+        var floor = new GameObject("V20 temporary spawn floor"); fixtures.Add(floor);
+        floor.layer = LayerMask.NameToLayer("Ground");
+        floor.transform.position = new Vector3(bounds.center.x, bounds.min.y - .2f, 0f);
+        floor.AddComponent<BoxCollider2D>().size = new Vector2(6f, .1f);
+        Physics2D.SyncTransforms();
+        body.RefreshRuntime(new Vector2(9000f, 9000f));
+        float startY = body.GetComponent<Rigidbody2D>().position.y;
+        bool fell = false;
+        yield return null;
+        while (Loading())
+        {
+            Require(!body.GetComponentInChildren<SpriteRenderer>().forceRenderingOff,
+                "跨关出生下落期间实体持续可见");
+            Camera portrait = Array.Find(Object.FindObjectsOfType<Camera>(), c => c.enabled && c.name == "PlayerPortraitCamera");
+            Require(portrait != null, "跨关出生下落保持角色前景镜头");
+            Vector3 viewport = portrait.WorldToViewportPoint(body.transform.position);
+            Require(Mathf.Abs(viewport.x - .5f) < .002f && Mathf.Abs(viewport.y - .5f) < .002f,
+                "本帧实际下落位置在前景镜头中心");
+            fell |= body.GetComponent<Rigidbody2D>().position.y < startY - .05f;
+            yield return null;
+        }
+        Check(fell && body.NowPhyData.isGrounded, "新出生点实际下落并落稳，全程角色可见且居中");
+        Object.Destroy(floor);
+        Enter(0);
+        while (Time.timeScale == 0f) yield return null;
+        Check(Loading() && SceneChangeMgr.Instance.ReturnToMenu(), "全黑物理缓冲期间可返回菜单");
+        while (Loading()) yield return null;
+        Check(Actor("body") == null && !Object.FindObjectOfType<LoadingPanel>()
+            && !Array.Exists(Object.FindObjectsOfType<Camera>(), c => c.enabled && c.name == "PlayerPortraitCamera"),
+            "缓冲期间退出作废迟到揭幕，角色与前景镜头完整清理");
     }
 
     static SceneProp Prop(Player body)
@@ -281,6 +370,7 @@ public static class LevelClearFlowChecks
         obj.transform.position = body.GetComponent<Collider2D>().bounds.center;
         var collider = obj.AddComponent<BoxCollider2D>(); collider.isTrigger = true; collider.size = Vector2.one * 4;
         var prop = obj.AddComponent<SceneProp>();
+        typeof(SceneProp).GetField("endingContribution", Hidden).SetValue(prop, new Vector2(2, -3));
         Physics2D.SyncTransforms();
         return prop;
     }
@@ -312,8 +402,7 @@ public static class LevelClearFlowChecks
         EditorApplication.update -= Advance; Application.logMessageReceived -= RecordError;
         foreach (Object item in fixtures) if (item != null) Object.DestroyImmediate(item);
         fixtures.Clear();
-        if (hadProgress) File.WriteAllBytes(progressPath, previousProgress);
-        else if (File.Exists(progressPath)) File.Delete(progressPath);
+        DataAndInitMgr.debugPlayerProgressDirectory = previousProgressDirectory;
         EditorSettings.enterPlayModeOptionsEnabled = previousOptionsEnabled;
         EditorSettings.enterPlayModeOptions = previousOptions;
         passed.Add("RESULT: " + (failure == null ? "PASS" : "FAIL " + failure.Message));

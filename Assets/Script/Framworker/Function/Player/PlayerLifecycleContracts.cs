@@ -1,5 +1,5 @@
 public enum PlayerDeathCause { OxygenDepleted, Abyss, Electrocuted, Crushed }
-public enum PlayerGameplayStage { Tutorial, Exploration, Escape }
+public enum PlayerGameplayStage { Tutorial, Exploration, Escape, Inactive }
 public enum PlayerFormChangeReason { Manual, Death, ForcedRegion }
 public enum PlayerDeathStatus { Pending, Handled, Rejected }
 

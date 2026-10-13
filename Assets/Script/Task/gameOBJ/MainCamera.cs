@@ -9,6 +9,10 @@ public class MainCamera : MonoBehaviour
     static MainCamera resident;
     Camera portrait;
     bool showingPortrait;
+    Transform portraitTarget;
+    bool portraitCentered;
+    bool endingView;
+    Transform endingTarget;
     Vector3 toPoint;
     float followSpeed = 5f;
     /// <summary>实际镜头进入目标附近才允许交还操作；不以固定延时冒充交接完成。</summary>
@@ -35,7 +39,9 @@ public class MainCamera : MonoBehaviour
 
     void OnDestroy()
     {
-        if (resident == this) resident = null;
+        if (resident != this) return;
+        resident = null;
+        if (!MonoPublicMgr.IsQuitting) InputControlMgr.Instance.ReleaseMainCamera(this);
     }
 
     static void AdoptLens(Camera kept, Camera scene)
@@ -69,13 +75,16 @@ public class MainCamera : MonoBehaviour
     }
 
     /// <summary>变暗时世界镜头不画玩家，由更靠前的镜头把实体画在遮罩之上。</summary>
-    public void SetTransitionPortrait(bool on)
+    public void SetTransitionPortrait(bool on, Transform target = null)
     {
         Camera world = GetComponent<Camera>();
         if (world == null) return;
         EnsurePortrait();
         if (on)
         {
+            // 第一次从旧镜头缓动到实体；同次换关的重新安置沿用已居中的状态。
+            if (!showingPortrait) portraitCentered = false;
+            portraitTarget = target;
             world.cullingMask &= ~(1 << Player.PlayerLayer);
             portrait.orthographicSize = world.orthographicSize;
             portrait.enabled = true;
@@ -87,6 +96,8 @@ public class MainCamera : MonoBehaviour
             world.cullingMask |= 1 << Player.PlayerLayer;
             portrait.enabled = false;
             showingPortrait = false;
+            portraitTarget = null;
+            portraitCentered = false;
         }
     }
 
@@ -117,12 +128,44 @@ public class MainCamera : MonoBehaviour
     {
         SetPoint(world);
         transform.position = toPoint;
+        if (showingPortrait) portraitCentered = true;
     }
+
+    internal void SetEndingTarget(Transform target)
+    {
+        SetTransitionPortrait(false);
+        SetGameViewEnabled(true);
+        endingView = true; endingTarget = target;
+        if (target != null) SnapTo(target.position);
+    }
+    internal void SetEndingPosition(Vector3 point)
+    { SetEndingTarget(null); SnapTo(point); }
+    internal void EndEndingView() { endingView = false; endingTarget = null; }
 
     void Update()
     {
-        // 实际逻辑：换关暂停物理时镜头仍可缓动；普通暂停菜单保持原位置。
-        float delta = showingPortrait ? Time.unscaledDeltaTime : Time.deltaTime;
+        // 正常玩法保持原缓动；过场等本帧角色显示位置确定后再跟随。
+        if (!showingPortrait && !endingView) MoveTowardPoint(Time.deltaTime);
+    }
+
+    void LateUpdate()
+    {
+        // 结局脚本只指定目标或固定点；镜头与普通输入跟随在这里明确交接。
+        if (endingView)
+        { if (endingTarget != null) SnapTo(endingTarget.position); return; }
+        if (!showingPortrait || portraitTarget == null) return;
+        SetPoint(portraitTarget.position);
+        // 居中后直接跟随本帧位置，出生点迁移及物理下落不让前景角色偏离中心。
+        if (portraitCentered) SnapTo(portraitTarget.position);
+        else
+        {
+            MoveTowardPoint(Time.unscaledDeltaTime);
+            if (HasReachedPoint) SnapTo(portraitTarget.position);
+        }
+    }
+
+    void MoveTowardPoint(float delta)
+    {
         Vector3 next = Vector3.Lerp(transform.position, toPoint, followSpeed * delta);
         // 大坐标／高帧率下缓动增量可能被舍入；有时间推进但位置不再变化时，收敛至既定目标。
         if (delta > 0f && next.Equals(transform.position)) next = toPoint;

@@ -253,8 +253,46 @@ public class DataAndInitMgr
             return Application.persistentDataPath;
         }
     }
-    private const int PlayerProgressVersion = 1;
+    private const int PlayerProgressVersion = 3;
+    public string SavedEndingScene { get; private set; }
     private const int UpgradeKindCount = 6;
+
+    // 向量归进度数据管理：本关新增只在内存，跨关安置成功后与永久数据一起确认。
+    public Vector3 ConfirmedEndingVector { get; private set; }
+    public Vector3 CurrentLevelEndingVector { get; private set; }
+
+    public bool TryGetCandidateEndingVector(Vector2 contribution, out Vector3 total, out string error)
+    {
+        Vector3 pending = CurrentLevelEndingVector + new Vector3(contribution.x, contribution.y, 0);
+        total = ConfirmedEndingVector + pending;
+        error = null;
+        // 安全：输入与加法结果都须有限，避免溢出后污染进度。
+        if (!FiniteVector(pending) || !FiniteVector(total))
+        { error = "结局向量贡献无效或累计溢出，未领取道具。"; return false; }
+        return true;
+    }
+
+    public bool TryAddEndingContribution(Vector2 contribution, out string error)
+    {
+        if (!TryGetCandidateEndingVector(contribution, out _, out error)) return false;
+        // 目前只制作 X、Y 贡献，Z 在存档里预留。
+        CurrentLevelEndingVector += new Vector3(contribution.x, contribution.y, 0);
+        return true;
+    }
+
+    public void DiscardCurrentLevelEndingVector() => CurrentLevelEndingVector = Vector3.zero;
+    internal void RestoreCurrentLevelEndingVector(Vector3 snapshot) => CurrentLevelEndingVector = snapshot;
+
+    /// <summary>含尚未领取的最后贡献的查询；拒绝时不改变道具、向量或磁盘。</summary>
+    public bool TryPreviewEnding(Vector2 contribution, out string scene, out string error)
+    {
+        scene = null;
+        return TryGetCandidateEndingVector(contribution, out Vector3 total, out error)
+            && LoadLevelOrder().TrySelectEnding(total, out scene, out error);
+    }
+
+    static bool FiniteVector(Vector3 value) => EndingAxisRange.Finite(value.x)
+        && EndingAxisRange.Finite(value.y) && EndingAxisRange.Finite(value.z);
 
     // 只记录已确认永久数据；关序和能力使用同一份文件，避免分别写入留下半份进度。
     [Serializable]
@@ -264,6 +302,9 @@ public class DataAndInitMgr
         public int levelIndex;
         public int[] confirmedUpgradeLevels;
         public PermanentEffectFile[] confirmedEffects;
+        public Vector3 confirmedEndingVector;
+        public int destinationKind;
+        public string endingScene;
     }
 
     // PlayerEffectRecord 是只读运行记录，JSON 使用有限字段而不改变其运行时接口。
@@ -276,13 +317,20 @@ public class DataAndInitMgr
 
     public LevelOrderFile LoadLevelOrder()
     {
+#if UNITY_EDITOR
+        if (debugLevelOrder != null) return debugLevelOrder;
+#endif
         TextAsset asset = Resources.Load<TextAsset>(LevelOrderResource);
         // 安全：还没生成顺序文件时不编造关卡。
         if (asset == null || string.IsNullOrEmpty(asset.text)) return new LevelOrderFile();
         LevelOrderFile file = JsonUtility.FromJson<LevelOrderFile>(asset.text);
         if (file == null || file.scenes == null) return new LevelOrderFile();
+        if (file.endings == null) file.endings = new EndingSceneEntry[0];
         return file;
     }
+#if UNITY_EDITOR
+    public static LevelOrderFile debugLevelOrder;
+#endif
 
     public int LoadLevelIndex()
     {
@@ -300,36 +348,83 @@ public class DataAndInitMgr
         }
         if (!TryReadPlayerProgress(PlayerProgressDirectory, out PlayerProgressFile progress)) return;
         progress.levelIndex = index;
+        progress.destinationKind = 0;
+        progress.endingScene = null;
         WritePlayerProgress(PlayerProgressDirectory, progress);
     }
 
     /// <summary>读取关序及已确认永久数据；损坏／未知版本时拒绝读取且不改变已有记录。</summary>
     public bool LoadPlayerProgress(PlayerEffectLedger ledger, out int levelIndex)
     {
-        return LoadPlayerProgressFromDirectory(PlayerProgressDirectory, ledger, out levelIndex);
+        levelIndex = 0;
+        if (!LoadProgressSnapshot(PlayerProgressDirectory, ledger, out PlayerProgressFile progress)) return false;
+        levelIndex = progress.levelIndex;
+        ConfirmedEndingVector = progress.confirmedEndingVector;
+        SavedEndingScene = progress.destinationKind == 1 ? progress.endingScene : null;
+        CurrentLevelEndingVector = Vector3.zero;
+        return true;
     }
 
     /// <summary>仅下一关安置成功后调用；本关临时和待确认项不进入磁盘。</summary>
     public bool SavePlayerProgress(int levelIndex, PlayerEffectLedger ledger)
     {
-        return SavePlayerProgressToDirectory(PlayerProgressDirectory, levelIndex, ledger);
+        if (!TryGetCandidateEndingVector(Vector2.zero, out Vector3 total, out string error))
+        { Debug.LogError(error); return false; }
+        if (!SavePlayerProgressToDirectory(PlayerProgressDirectory, levelIndex, ledger, total)) return false;
+        // 磁盘成功替换后才确认内存；失败不会留下只确认向量的半份进度。
+        ConfirmedEndingVector = total;
+        CurrentLevelEndingVector = Vector3.zero;
+        SavedEndingScene = null;
+        return true;
     }
 
     public void ClearLevelProgress()
     {
-        ClearPlayerProgressFiles(PlayerProgressDirectory);
+        TryClearPlayerProgress();
     }
 
-    private static bool LoadPlayerProgressFromDirectory(string directory, PlayerEffectLedger ledger, out int levelIndex)
+    /// <summary>结局已准备成功后整体确认；重播不调用本入口，不再次累计最后贡献。</summary>
+    public bool SaveEndingProgress(int lastLevelIndex, string scene, PlayerEffectLedger ledger)
+    {
+        if (string.IsNullOrWhiteSpace(scene))
+        { Debug.LogError("保存结局进度失败：结局场景不能为空。"); return false; }
+        if (!TryGetCandidateEndingVector(Vector2.zero, out Vector3 total, out string error))
+        { Debug.LogError(error); return false; }
+        if (!SaveProgressDestination(PlayerProgressDirectory, lastLevelIndex, ledger, total, scene)) return false;
+        ConfirmedEndingVector = total;
+        CurrentLevelEndingVector = Vector3.zero;
+        SavedEndingScene = scene;
+        return true;
+    }
+
+    public bool TryClearPlayerProgress()
+    {
+        if (!ClearPlayerProgressFiles(PlayerProgressDirectory)) return false;
+        ConfirmedEndingVector = CurrentLevelEndingVector = Vector3.zero;
+        SavedEndingScene = null;
+        return true;
+    }
+
+    private static bool LoadPlayerProgressFromDirectory(string directory, PlayerEffectLedger ledger, out int levelIndex, out Vector3 vector)
     {
         levelIndex = 0;
+        vector = Vector3.zero;
+        if (!LoadProgressSnapshot(directory, ledger, out PlayerProgressFile progress)) return false;
+        levelIndex = progress.levelIndex;
+        vector = progress.confirmedEndingVector;
+        return true;
+    }
+
+    static bool LoadProgressSnapshot(string directory, PlayerEffectLedger ledger, out PlayerProgressFile progress)
+    {
+        progress = null;
         // 安全：没有目标记录时不能只恢复关序。
         if (ledger == null)
         {
             Debug.LogError("读取玩家进度失败：效果记录为空。");
             return false;
         }
-        if (!TryReadPlayerProgress(directory, out PlayerProgressFile progress)) return false;
+        if (!TryReadPlayerProgress(directory, out progress)) return false;
         PlayerEffectRecord[] effects = RestoreEffectRecords(progress.confirmedEffects);
         // 整份记录经校验后再替换；RestoreConfirmed 本身也保证失败不产生部分恢复。
         if (!ledger.RestoreConfirmed(progress.confirmedUpgradeLevels, effects))
@@ -337,11 +432,13 @@ public class DataAndInitMgr
             Debug.LogError($"读取玩家进度失败：{Path.Combine(directory, "PlayerProgress.json")} 的永久数据与能力配置不兼容。");
             return false;
         }
-        levelIndex = progress.levelIndex;
         return true;
     }
 
-    private static bool SavePlayerProgressToDirectory(string directory, int levelIndex, PlayerEffectLedger ledger)
+    private static bool SavePlayerProgressToDirectory(string directory, int levelIndex, PlayerEffectLedger ledger, Vector3 vector)
+        => SaveProgressDestination(directory, levelIndex, ledger, vector, null);
+
+    static bool SaveProgressDestination(string directory, int levelIndex, PlayerEffectLedger ledger, Vector3 vector, string endingScene)
     {
         // 安全：缺少记录或非法关序时不创建／覆盖进度。
         if (ledger == null || levelIndex < 0)
@@ -355,7 +452,10 @@ public class DataAndInitMgr
             version = PlayerProgressVersion,
             levelIndex = levelIndex,
             confirmedUpgradeLevels = ledger.CaptureConfirmedUpgradeLevels(),
-            confirmedEffects = new PermanentEffectFile[effects.Length]
+            confirmedEffects = new PermanentEffectFile[effects.Length],
+            confirmedEndingVector = vector,
+            destinationKind = endingScene == null ? 0 : 1,
+            endingScene = endingScene
         };
         for (int i = 0; i < effects.Length; i++)
             progress.confirmedEffects[i] = new PermanentEffectFile { kind = (int)effects[i].Kind, multiplier = effects[i].Multiplier };
@@ -378,8 +478,16 @@ public class DataAndInitMgr
             if (File.Exists(path))
             {
                 // 必填标量先放非法哨值，缺关序不能被 JsonUtility 默认成合法的第一关。
-                progress = new PlayerProgressFile { version = -1, levelIndex = -1 };
+                progress = new PlayerProgressFile { version = -1, levelIndex = -1,
+                    destinationKind = -1,
+                    confirmedEndingVector = new Vector3(float.NaN, float.NaN, float.NaN) };
                 JsonUtility.FromJsonOverwrite(File.ReadAllText(path), progress);
+                // 旧版没有向量；只在内存升级，新版缺向量仍是坏档而非自动归零。
+                if (progress.version == 1)
+                { progress.version = 2; progress.confirmedEndingVector = Vector3.zero; }
+                // 版本二仍校验必填向量；只补普通关目标，读取不回写旧文件。
+                if (progress.version == 2)
+                { progress.version = PlayerProgressVersion; progress.destinationKind = 0; progress.endingScene = null; }
                 if (!ValidatePlayerProgress(progress))
                 {
                     Debug.LogError($"读取玩家进度失败：{path} 版本或永久数据无效；文件未修改。");
@@ -419,7 +527,10 @@ public class DataAndInitMgr
         // 安全：缺字段、未知版本和非法关序都不能被解释成一个全新的进度。
         if (progress == null || progress.version != PlayerProgressVersion || progress.levelIndex < 0
             || progress.confirmedUpgradeLevels == null || progress.confirmedUpgradeLevels.Length != UpgradeKindCount
-            || progress.confirmedEffects == null) return false;
+            || progress.confirmedEffects == null || !FiniteVector(progress.confirmedEndingVector)) return false;
+        if (progress.destinationKind != 0 && progress.destinationKind != 1) return false;
+        if (progress.destinationKind == 1 && string.IsNullOrWhiteSpace(progress.endingScene)) return false;
+        if (progress.destinationKind == 0 && !string.IsNullOrEmpty(progress.endingScene)) return false;
         for (int i = 0; i < progress.confirmedEffects.Length; i++)
             if (progress.confirmedEffects[i] == null) return false;
         // 用独立记录验证整组倍率与等级，避免读关序的兼容入口绕过永久效果校验。
@@ -474,7 +585,8 @@ public class DataAndInitMgr
         try
         {
             // 清进度同时清关序、永久能力与未提交临时文件；不存在的文件无需处理。
-            foreach (string name in new[] { "PlayerProgress.json", "LevelProgress.txt", "PlayerProgress.json.tmp" })
+            // 主记录最后删除；旧关序清理失败时不能先丢掉优先读取的完整进度。
+            foreach (string name in new[] { "LevelProgress.txt", "PlayerProgress.json.tmp", "PlayerProgress.json" })
             {
                 string path = Path.Combine(directory, name);
                 if (File.Exists(path)) File.Delete(path);

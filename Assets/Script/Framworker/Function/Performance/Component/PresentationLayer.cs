@@ -241,7 +241,7 @@ public partial class PresentationLayer : MonoBehaviour
         if (isInitialized) ResetMotionHistory();
     }
 
-    /// <summary>过场控制角色显示；全黑缓冲隐藏实体，精神体等恢复跟随再出现，不改变规则或物理许可。</summary>
+    /// <summary>菜单进关缓冲隐藏实体，跨关只隐藏精神体；不改变规则或物理许可。</summary>
     public void SetTransitionHidden(bool hidden)
     {
         // 安全：没有显示组件或重复设置时保持现状。

@@ -88,7 +88,8 @@ public static class P8P9LevelFlowChecks
                     sceneOrder = DataAndInitMgr.Instance.LoadLevelOrder().scenes;
                     Check(sceneOrder != null && sceneOrder.Length >= 2, "实际顺序提供教学和非教学关");
                     Time.timeScale = 0f;
-                    DataAndInitMgr.Instance.SaveLevelIndex(1);
+                    Check(DataAndInitMgr.Instance.TryAddEndingContribution(new Vector2(10, 20), out _)
+                        && DataAndInitMgr.Instance.SavePlayerProgress(1, new PlayerEffectLedger()), "P16 隔离进度准备非零已确认向量");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 1;
                     break;
@@ -174,6 +175,7 @@ public static class P8P9LevelFlowChecks
                     teachingRules = Rules(); teachingSetupId = SceneLevelSetup.Current.GetInstanceID();
                     Check(teachingRules.Stage == PlayerGameplayStage.Tutorial && !LevelStageMgr.Instance.HasExploration,
                         "教学组装独立死亡规则，未建立探索阶段");
+                    Check(DataAndInitMgr.Instance.TryAddEndingContribution(new Vector2(7, 8), out _), "P16 教学死亡前准备本关贡献");
                     Check(body.TryRequestDeath(PlayerDeathCause.Abyss) && body.PendingDeath.HasValue
                         && SceneLevelSetup.Current.GetInstanceID() == teachingSetupId,
                         "教学死亡先播放实体动画，完成前不提前重载");
@@ -189,6 +191,9 @@ public static class P8P9LevelFlowChecks
                     Check(Rules() != teachingRules && Rules().Stage == PlayerGameplayStage.Tutorial
                         && !body.PendingDeath.HasValue && body.DeathStatus == PlayerDeathStatus.Handled,
                         "教学就绪后显式恢复死亡周期并组装新规则");
+                    Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero
+                        && DataAndInitMgr.Instance.ConfirmedEndingVector == new Vector3(10, 20, 0),
+                        "P16 实际教学死亡重开不确认本关贡献");
                     Check(Rules().ReceiveDeath(teachingDeath) == PlayerDeathStatus.Rejected,
                         "已重开教学拒绝旧死亡请求，不再次加载");
                     Check(InputControlMgr.Instance.Player == body && body.Permissions.motionUpdates,
@@ -256,6 +261,7 @@ public static class P8P9LevelFlowChecks
         Check(ledger.Configure(fixtureCatalog), "联测使用独立升级配置并按能力标识核对随机顺序");
         SetField(setup, "escapePenalties", new[] { new EscapePenaltyOffer(EscapePenaltyKind.Movement, .8f) });
         prop = Prop(new Vector2(7990f, floor + 1f));
+        SetField(prop, "endingContribution", new Vector2(2, -3));
         propHome = prop.transform.position;
 
         firstCell = NewObject("P89 first map cell", new Vector2(8010f, floor + 3f)).AddComponent<MapCell>();
@@ -296,6 +302,7 @@ public static class P8P9LevelFlowChecks
         MoveCenter(spirit.GetComponent<CharacterPhysics>(), prop.transform.position);
         TapInteract(spirit);
         Check(Used(prop) && !prop.gameObject.activeSelf, "漫游实际近处交互领取普通道具并登记已用");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == new Vector3(2, -3, 0), "P16 实际漫游道具领取登记本关二维向量");
         prop.transform.position += Vector3.right * 5f;
         CharacterPhysics physics = spirit.GetComponent<CharacterPhysics>();
         // 格外移动保留上一格；先进入另一格，再返回起始格，才能经正常移动点亮两格。
@@ -327,6 +334,7 @@ public static class P8P9LevelFlowChecks
             == PlayerInteractOutcome.Stored, "试验现场包含移动箱子和收纳箱子");
         float balance = explorationRules.Cognition.Remaining;
         Check(host.ResetTrial(), "现有试验入口完成当前格中心轻刷新");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == new Vector3(2, -3, 0), "P16 试验轻刷新保留本关向量");
         Near(physics.BodyBounds.center, secondCell.Center, "地图重置把碰撞框中心安置于当前格中心");
         Check(explorationRules.MapRecord.CurrentCell == secondCell, "地图重置后当前格保持同一目标");
         Near(box.DebugActualPosition, boxHome, "当前格试验重置恢复远处箱子默认");
@@ -568,6 +576,9 @@ public static class P8P9LevelFlowChecks
         Check(prop.gameObject.activeSelf && prop.transform.position == propHome
             && !(bool)typeof(SceneProp).GetField("used", Hidden).GetValue(prop),
             "重刷新由道具原拥有者恢复默认位置与未领取状态");
+        Check(DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero
+            && DataAndInitMgr.Instance.ConfirmedEndingVector == new Vector3(10, 20, 0),
+            "P16 实际逃生失败清本关向量并保留已确认向量");
         Near(ledger.MovementMultiplier, 1f, "失败撤销所有本局水平速度效果");
         Near(ledger.JumpMultiplier, 1.1f, "失败只保留此前确认的永久起跳倍率");
         Near(replacement.GetComponent<CharacterPhysics>().EffectiveJumpSpeed,

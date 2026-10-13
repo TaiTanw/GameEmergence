@@ -138,6 +138,12 @@ public class BeginPanel : BasePanel
     void OnDisable() { shown = false; fading = null; StopCover(); }
     void OnDestroy() => StopCover();
 
+    void Update()
+    {
+        Text status = FindUIObj<Text>("BeginStatus");
+        if (status != null) status.text = SceneChangeMgr.Instance.MenuMessage ?? "";
+    }
+
     void StopCover()
     {
         if (cover != null) { cover.Stop(); cover.targetTexture = null; }

@@ -14,5 +14,11 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/MyObjAssets/Scenes/TeskScenes2.unity
     guid: 382997bae48a3b74fa6b50aae42939e8
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/TeskScenes3.unity
+    guid: a54bdba6714fc39419dca6f5004b4b78
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/EndScenes/EndingExample.unity
+    guid: 7b5703ee3ed91ff47b391de4208f40a2
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 6f260eee2256a634592d3ee81ff1af98, type: 2}

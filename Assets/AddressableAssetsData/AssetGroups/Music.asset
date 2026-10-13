@@ -17,28 +17,13 @@ MonoBehaviour:
     m_SerializedData: []
   m_GUID: 18afe160ca6d81040ad8dd1a2d21d913
   m_SerializeEntries:
-  - m_GUID: 10a23ca9c2605de40a5f06c4762b5181
-    m_Address: Tower
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 1fa5c8bc331bb8240884d7924dc6cc7d
     m_Address: BkMusic
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 3143c8f1c4f12f9499e9b506c6f36b5f
-    m_Address: DrumLoop_1
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 4af050c8e0ab9494d8c2952e6978761d
     m_Address: dreamcore-loop
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 9ae10abb0793b8d4daf45d2045e340d8
-    m_Address: dead
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

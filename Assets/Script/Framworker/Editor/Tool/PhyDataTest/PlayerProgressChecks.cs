@@ -31,8 +31,12 @@ public static class PlayerProgressChecks
         {
             CheckMissingAndLegacy(directory);
             CheckConfirmedRoundTrip(directory);
+            CheckEndingVector(directory);
+            CheckEndingDestination(directory);
             CheckInvalidInput(directory);
             CheckWriteFailureAndClear(directory);
+            EndingConfigurationChecks.Run();
+            ScenePropInteractionChecks.Run();
             Debug.Log($"Player progress: {passed.Count} checks passed. Expected invalid-input diagnostics were exercised.");
         }
         finally
@@ -77,7 +81,7 @@ public static class PlayerProgressChecks
         Check(Save(directory, 3, ledger), "关序及已确认永久数据整体写入");
         string path = Path.Combine(directory, "PlayerProgress.json");
         string json = File.ReadAllText(path);
-        Check(json.Contains("\"version\": 1") && json.Contains("\"levelIndex\": 3"), "存档包含版本与同份关序");
+        Check(json.Contains("\"version\": 3") && json.Contains("\"levelIndex\": 3"), "存档包含版本与同份关序");
         Check(!File.Exists(path + ".tmp"), "成功写入不留下暂存文件");
 
         var restored = new PlayerEffectLedger();
@@ -110,9 +114,11 @@ public static class PlayerProgressChecks
             "{ definitely invalid json",
             "{}",
             "{\"version\":1,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[]}",
-            goodJson.Replace("\"version\": 1", "\"version\": 99"),
+            goodJson.Replace("\"version\": 3", "\"version\": 99"),
             goodJson.Replace("\"levelIndex\": 4", "\"levelIndex\": -1"),
             "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[1,2],\"confirmedEffects\":[]}",
+            "{\"version\":2,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[]}",
+            "{\"version\":2,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[],\"confirmedEndingVector\":{\"x\":1,\"y\":2}}",
             "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[-1,0,0,0,0,0],\"confirmedEffects\":[]}",
             "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[{\"kind\":99,\"multiplier\":1.2}]}",
             "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[{\"kind\":0,\"multiplier\":3.4e38},{\"kind\":0,\"multiplier\":2}]}"
@@ -148,14 +154,129 @@ public static class PlayerProgressChecks
 
     private static bool Load(string directory, PlayerEffectLedger ledger, out int index)
     {
-        object[] arguments = { directory, ledger, 0 };
+        object[] arguments = { directory, ledger, 0, Vector3.zero };
         bool result = (bool)Invoke("LoadPlayerProgressFromDirectory", arguments);
         index = (int)arguments[2];
         return result;
     }
 
     private static bool Save(string directory, int index, PlayerEffectLedger ledger)
-    { return (bool)Invoke("SavePlayerProgressToDirectory", new object[] { directory, index, ledger }); }
+    { return (bool)Invoke("SavePlayerProgressToDirectory", new object[] { directory, index, ledger, Vector3.zero }); }
+
+    private static void CheckEndingVector(string directory)
+    {
+        DataAndInitMgr data = DataAndInitMgr.Instance;
+        Vector3 previousConfirmed = data.ConfirmedEndingVector, previousPending = data.CurrentLevelEndingVector;
+        var ledger = new PlayerEffectLedger();
+        string path = Path.Combine(directory, "PlayerProgress.json");
+        string originalJson = File.ReadAllText(path);
+        try
+        {
+            Check(data.LoadPlayerProgress(ledger, out int index) && index == 4
+                && data.ConfirmedEndingVector == Vector3.zero, "二维向量随进度整体恢复");
+            const string versionOne = "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[]}";
+            File.WriteAllText(path, versionOne);
+            Check(data.LoadPlayerProgress(ledger, out _) && data.ConfirmedEndingVector == Vector3.zero
+                && File.ReadAllText(path) == versionOne, "版本一旧档向量按零迁移，读取不改文件");
+            var reserved = new Vector3(2, -3, 17);
+            Check((bool)Invoke("SavePlayerProgressToDirectory", new object[] { directory, 4, ledger, reserved })
+                && data.LoadPlayerProgress(ledger, out _) && data.ConfirmedEndingVector == reserved,
+                "二维累计与预留 Z 在同一存档往返");
+            string beforePickup = File.ReadAllText(path);
+            Check(data.TryAddEndingContribution(new Vector2(3, 5), out _)
+                && data.CurrentLevelEndingVector == new Vector3(3, 5, 0) && File.ReadAllText(path) == beforePickup,
+                "领取只登记本关二维贡献，不写磁盘");
+            Check(data.TryGetCandidateEndingVector(new Vector2(-1, 2), out Vector3 candidate, out _)
+                && candidate == new Vector3(4, 4, 17) && data.CurrentLevelEndingVector == new Vector3(3, 5, 0),
+                "最后贡献查询包含已确认和本关累计且无副作用");
+            Check(!data.TryAddEndingContribution(new Vector2(float.NaN, 0), out _)
+                && data.CurrentLevelEndingVector == new Vector3(3, 5, 0), "非法贡献拒绝且保持原累计");
+            Directory.CreateDirectory(path + ".tmp");
+            try
+            {
+                Check(!data.SavePlayerProgress(5, ledger) && data.ConfirmedEndingVector == reserved
+                    && data.CurrentLevelEndingVector == new Vector3(3, 5, 0) && File.ReadAllText(path) == beforePickup,
+                    "写盘失败不确认向量或改动此前文件");
+            }
+            finally { Directory.Delete(path + ".tmp"); }
+            Check(data.SavePlayerProgress(5, ledger) && data.ConfirmedEndingVector == new Vector3(5, 2, 17)
+                && data.CurrentLevelEndingVector == Vector3.zero, "安置后一次保存整体确认向量并清本关累计");
+            Check(data.LoadPlayerProgress(ledger, out index) && index == 5
+                && data.ConfirmedEndingVector == new Vector3(5, 2, 17), "重新读取不重复累计贡献");
+            data.TryAddEndingContribution(new Vector2(9, 9), out _);
+            data.DiscardCurrentLevelEndingVector();
+            Check(data.CurrentLevelEndingVector == Vector3.zero && data.ConfirmedEndingVector == new Vector3(5, 2, 17),
+                "丢弃本关贡献保留已确认向量");
+            RestoreVector(data, new Vector3(float.MaxValue, 0, 0));
+            Check(!data.TryAddEndingContribution(new Vector2(float.MaxValue, 0), out _), "累计溢出明确拒绝");
+            data.ClearLevelProgress();
+            Check(data.ConfirmedEndingVector == Vector3.zero && data.CurrentLevelEndingVector == Vector3.zero
+                && !File.Exists(path), "清进度同步清向量磁盘和内存");
+        }
+        finally
+        {
+            typeof(DataAndInitMgr).GetProperty("ConfirmedEndingVector").SetValue(data, previousConfirmed);
+            RestoreVector(data, previousPending);
+            File.WriteAllText(path, originalJson);
+        }
+    }
+
+    private static void RestoreVector(DataAndInitMgr data, Vector3 vector)
+        => typeof(DataAndInitMgr).GetMethod("RestoreCurrentLevelEndingVector", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(data, new object[] { vector });
+
+    private static void CheckEndingDestination(string directory)
+    {
+        var data = DataAndInitMgr.Instance;
+        var ledger = new PlayerEffectLedger();
+        string path = Path.Combine(directory, "PlayerProgress.json"), original = File.ReadAllText(path);
+        Vector3 confirmed = data.ConfirmedEndingVector, pending = data.CurrentLevelEndingVector;
+        string oldEnding = data.SavedEndingScene;
+        try
+        {
+            Check(data.LoadPlayerProgress(ledger, out _) && data.SavedEndingScene == null, "旧普通目的地读取没有结局标记");
+            string v2 = original.Replace("\"version\": 3", "\"version\": 2");
+            File.WriteAllText(path, v2);
+            Check(data.LoadPlayerProgress(ledger, out _) && data.SavedEndingScene == null
+                && File.ReadAllText(path) == v2, "版本二只在内存迁移为普通目的地，保留向量与原文件");
+            File.WriteAllText(path, original); data.LoadPlayerProgress(ledger, out _);
+            data.TryAddEndingContribution(new Vector2(2, -3), out _);
+            Directory.CreateDirectory(path + ".tmp");
+            try { Check(!data.SaveEndingProgress(4, "EndingExample", ledger) && data.SavedEndingScene == null
+                && data.CurrentLevelEndingVector == new Vector3(2, -3, 0) && File.ReadAllText(path) == original,
+                "结局写盘失败不修改原目的地或确认贡献"); }
+            finally { Directory.Delete(path + ".tmp"); }
+            Check(data.SaveEndingProgress(4, "EndingExample", ledger) && data.SavedEndingScene == "EndingExample"
+                && data.ConfirmedEndingVector == new Vector3(2, -3, 0) && data.CurrentLevelEndingVector == Vector3.zero,
+                "同一份存档确认最后贡献并保存结局场景");
+            string endingJson = File.ReadAllText(path);
+            Check(data.LoadPlayerProgress(ledger, out int index) && index == 4 && data.SavedEndingScene == "EndingExample"
+                && File.ReadAllText(path) == endingJson && data.ConfirmedEndingVector == new Vector3(2, -3, 0),
+                "重读保存结局不写盘、不重复累计");
+            string[] invalid = {
+                endingJson.Replace("\"destinationKind\": 1", "\"destinationKind\": 9"),
+                endingJson.Replace("\"destinationKind\": 1,", ""),
+                endingJson.Replace("EndingExample", " "),
+                endingJson.Replace("\"destinationKind\": 1", "\"destinationKind\": 0")
+            };
+            foreach (string bad in invalid)
+            {
+                File.WriteAllText(path, bad);
+                Check(!data.LoadPlayerProgress(ledger, out _) && data.SavedEndingScene == "EndingExample"
+                    && data.ConfirmedEndingVector == new Vector3(2, -3, 0) && File.ReadAllText(path) == bad,
+                    "无效结局目的地保留已有状态和原文件");
+            }
+            File.WriteAllText(path, endingJson);
+            Check(data.TryClearPlayerProgress() && data.SavedEndingScene == null && !File.Exists(path),
+                "清进度同时清除保存的结局目的地");
+        }
+        finally
+        {
+            typeof(DataAndInitMgr).GetProperty("ConfirmedEndingVector").SetValue(data, confirmed);
+            typeof(DataAndInitMgr).GetProperty("SavedEndingScene").SetValue(data, oldEnding);
+            RestoreVector(data, pending); File.WriteAllText(path, original);
+        }
+    }
 
     private static object Invoke(string method, object[] arguments)
     { return typeof(DataAndInitMgr).GetMethod(method, HiddenStatic).Invoke(null, arguments); }

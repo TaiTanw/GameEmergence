@@ -4,7 +4,8 @@ public class LevelStageMgr : BaseMgr<LevelStageMgr>
     public int LevelIndex { get; private set; }
     public bool Teaching { get; private set; }
     PlayerLifecycleRules rules;
-    public PlayerGameplayStage Stage => rules?.Stage ?? PlayerGameplayStage.Tutorial;
+    public PlayerGameplayStage Stage => rules?.Stage ?? PlayerGameplayStage.Inactive;
+    public bool IsRunning => rules != null;
     public bool IsSimulation => rules != null && rules.IsSimulation;
     public bool HasExploration => rules != null && rules.Stage == PlayerGameplayStage.Exploration;
     public float CognitionRemaining => rules?.Cognition.Remaining ?? 0f;

@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.LowLevel;
 
-public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
+public partial class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
 {
     #region 玩家相关
     /// <summary>
@@ -418,12 +418,14 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         {
             input.currentActionMap.Enable();
             SyncHeldInputs();
+            if (endingActor != null) ResetEndingJumpGate();
             return;
         }
         // 实际逻辑：Disable 会对仍按住的动作发 canceled。先中止交互，避免被当成点按。
         rebindMapWasEnabled = false;
         AbortInteractHold();
         input.currentActionMap.Disable();
+        if (endingActor != null) { endingActor.ClearInput(); ClearEndingInputEdges(); }
     }
 
     /// <summary>菜单停用操作时仍观察疾跑键的真实释放，继续时只恢复持续输入，不补发点按。</summary>
@@ -441,7 +443,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         else
         {
             InputSystem.onEvent -= OnRebindInputEvent;
-            if (inputBeforeMenu && player != null) InputOpenOrClose(true);
+            if (inputBeforeMenu && (player != null || SceneChangeMgr.Instance.IsEnding)) InputOpenOrClose(true);
         }
     }
 
@@ -459,6 +461,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     {
         // 安全：失效目标不替换现有控制，同目标重复绑定不清真实释放历史。
         if (player != null && !player.isActiveAndEnabled) return;
+        if (endingActor != null) { endingActor.ClearInput(); endingActor = null; ClearEndingInputEdges(); }
         if (this.player == player) return;
         escapeHoldProgress = 0f;
         escapeHoldNeedsRelease = Keyboard.current != null && (Keyboard.current.enterKey.isPressed || Keyboard.current.numpadEnterKey.isPressed);
@@ -514,7 +517,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     public void BeginTransitionView(Transform target, bool snap)
     {
         transitionFollow = target;
-        mainCamera?.SetTransitionPortrait(true);
+        mainCamera?.SetTransitionPortrait(true, target);
         if (mainCamera != null && target != null) mainCamera.SetPoint(target.position);
         if (snap && mainCamera != null && target != null) mainCamera.SnapTo(target.position);
     }
@@ -529,7 +532,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     void Update()
     {
         // 实际逻辑：ESC 固定为游戏菜单键，独立于可改键动作图；暂停输入后仍能关闭菜单。
-        if ((player != null || SceneChangeMgr.Instance.EscapeSelectionPending || SceneChangeMgr.Instance.IsEscapeHandoff)
+        if ((player != null || SceneChangeMgr.Instance.IsEnding || SceneChangeMgr.Instance.EscapeSelectionPending || SceneChangeMgr.Instance.IsEscapeHandoff)
             && rebindOperation == null && rebindFinishedFrame != Time.frameCount
             && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             SceneChangeMgr.Instance.ToggleGameMenu();
@@ -541,6 +544,7 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         }
         UpdateInteractHold();
         UpdateEscapeHold(Time.unscaledDeltaTime);
+        DeliverEndingInput();
     }
 
     static bool IsEscapeKey(string path) => string.Equals(path, "<Keyboard>/enter", StringComparison.OrdinalIgnoreCase)

@@ -7,7 +7,7 @@ using UnityEngine;
 /// <summary>只装配现有 SceneProp 光效，保留道具图片、触发范围、动画编号与预设身份。</summary>
 public static class ScenePropLightPrefabBuilder
 {
-    public const string PrefabPath = "Assets/MyObjAssets/gameObject/Pf/prop/SceneProp.prefab";
+    public const string PrefabPath = "Assets/MyObjAssets/gameObject/Pf/prop/SceneProp 0.prefab";
     public const string EffectFolder = "Assets/MyObjAssets/gameObject/Art/PropEffects/";
 
     [MenuItem("自定义工具/开发工具/道具/装配 SceneProp 基础光效")]

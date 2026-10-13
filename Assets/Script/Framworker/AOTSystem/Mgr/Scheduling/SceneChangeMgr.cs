@@ -25,17 +25,27 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     string gameplayMessage;
     float messageUntil;
     public string GameplayMessage => Time.unscaledTime < messageUntil ? gameplayMessage : null;
+    public string MenuMessage { get; private set; }
 
     void ShowGameplayMessage(string message)
     {
         gameplayMessage = message;
         messageUntil = Time.unscaledTime + 4f;
+        if (SceneManager.GetActiveScene().name == MenuSceneName) MenuMessage = message;
     }
 
     /// <summary>人工阅读：固定 ESC → 本关菜单 → 原世界暂停入口；关闭后按当前模式恢复，不重置现场。</summary>
     public bool ToggleGameMenu()
     {
         if (GameMenuOpen) { CloseGameMenu(); return true; }
+        if (IsEnding && !loading)
+        {
+            GameMenuOpen = true; timeScaleBeforeMenu = Time.timeScale;
+            InputControlMgr.Instance.SetMenuInputPaused(true);
+            Time.timeScale = 0f; endingHost.SetPaused(true);
+            UIMgr.Instance.ShowOneUI<GameMenuPanel>(E_UILayer.Top);
+            return true;
+        }
         // 安全：菜单和关卡加载期间没有可暂停的游戏，不显示关内菜单。
         if (loading || refreshing || body == null || SceneLevelSetup.Current == null
             || (InputControlMgr.Instance.Player == null && !EscapeSelectionPending && !escapeHandoff))
@@ -61,6 +71,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             ((levelRules.Stage == PlayerGameplayStage.Exploration && !levelRules.IsSimulation)
                 || levelRules.EscapeSelectionPending)));
         InputControlMgr.Instance.SetMenuInputPaused(false);
+        if (IsEnding) endingHost.SetPaused(false);
     }
 
     /// <summary>场景模式请求与区域规则调用同一入口；当前控制对象不变，失败留在原模式。</summary>
@@ -210,6 +221,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             foreach (SceneProp prop in root.GetComponentsInChildren<SceneProp>(true)) prop.RestoreDefault();
         levelRules.MapRecord?.Reset();
         effects.ResetCurrentLevel();
+        DataAndInitMgr.Instance.DiscardCurrentLevelEndingVector();
         ResetEscapePreparation();
         body.RefreshRuntime(setup.BodyPoint, true);
         PlaceDepth(body, setup.BodyPose);
@@ -222,6 +234,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (loading || refreshing || deadPlayer != body || SceneLevelSetup.Current == null || !SceneLevelSetup.Current.Teaching)
             return false;
         effects.ResetCurrentLevel();
+        DataAndInitMgr.Instance.DiscardCurrentLevelEndingVector();
         EnterLevel(LevelStageMgr.Instance.LevelIndex, DataAndInitMgr.Instance.LoadLevelOrder());
         // 异步重开尚未安置完成时不报告死亡已处理；新关组装会显式恢复死亡周期。
         return false;
@@ -304,10 +317,14 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>按已保存的关序号进入。没有存档时是第一关。</summary>
     public void EnterSavedLevel()
     {
+        if (loading) return;
+        MenuMessage = null;
         if (!EnsureUpgradeCatalog()) return;
         LevelOrderFile order = DataAndInitMgr.Instance.LoadLevelOrder();
         if (!DataAndInitMgr.Instance.LoadPlayerProgress(effects, out int index))
         { ShowGameplayMessage("进度读取失败，请检查存档。已保留原存档。"); return; }
+        if (!string.IsNullOrEmpty(DataAndInitMgr.Instance.SavedEndingScene))
+        { EnterEnding(DataAndInitMgr.Instance.SavedEndingScene, index, true); return; }
         // 安全：进度超出当前顺序时回到第一关。
         if (order.scenes == null || index < 0 || index >= order.scenes.Length) index = 0;
         EnterLevel(index, order);
@@ -325,6 +342,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     {
         CancelLevelClear();
         CloseGameMenu();
+        ReleaseEnding();
         UIMgr.Instance.HideOneUI<GameplayPanel>();
         int serial = ++loadSerial;
         loading = false;
@@ -336,6 +354,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         Time.timeScale = 1f;
         ReleaseLevelRules();
         effects.ResetCurrentLevel();
+        DataAndInitMgr.Instance.DiscardCurrentLevelEndingVector();
         ResetEscapePreparation();
         InputControlMgr.Instance.BindPlayer(null);
         InputControlMgr.Instance.InputOpenOrClose(false);
@@ -408,6 +427,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         // 通关完成才能把同次循环带入加载；其它换关主动作废旧等待。
         if (keepLevelClearPlayback) clearingLevel = false;
         else CancelLevelClear();
+        ReleaseEnding();
         refreshing = false;
         CancelEscapeHandoff();
         UIMgr.Instance.HideOneUI<FailureRecoveryPanel>();
@@ -438,6 +458,14 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     IEnumerator DarkenThenLoad(LoadingPanel panel, int index, LevelOrderFile order, bool confirmPrevious, int serial)
     {
         yield return FadeTransition(panel, 0f, 1f, serial);
+        if (serial != loadSerial) yield break;
+        // 跨关先让加载角色真正居中，才卸载背景；帧率与原镜头距离不决定安置时机。
+        while (!enterFromMenu && body != null && InputControlMgr.Instance.HasTransitionCamera
+            && !InputControlMgr.Instance.TransitionViewComplete)
+        {
+            if (serial != loadSerial) yield break;
+            yield return null;
+        }
         if (serial != loadSerial) yield break;
         // 开始封面只在全黑后退出；首次遮罩加载等待期间始终保留原画面。
         if (enterFromMenu) UIMgr.Instance.HideOneUI<BeginPanel>();
@@ -489,8 +517,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             ReturnToMenu();
             return;
         }
-        // 实际逻辑：全黑缓冲也隐藏前景实体，避免新出生点的下落穿过遮罩；精神体等演出结束再显示。
-        body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(true);
+        // 菜单进关仍全黑缓冲；普通跨关保持实体加载动画可见，前景镜头持续锁住中心。
+        body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(enterFromMenu);
         if (!enterFromMenu && body != null)
         {
             spirit?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(true);
@@ -537,7 +565,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             elapsed += Time.unscaledDeltaTime;
         }
         if (serial != loadSerial) yield break;
-        // 实际逻辑：缓冲结束后按实际位置重新对齐镜头，再显露实体和背景。
+        // 菜单揭幕前对齐实际落点；跨关已持续居中，保持同一前景画面直到背景揭完。
         if (!enterFromMenu && body != null) InputControlMgr.Instance.BeginTransitionView(body.transform, true);
         else InputControlMgr.Instance.SnapCameraToPlayer();
         body?.GetComponentInChildren<PresentationLayer>()?.SetTransitionHidden(false);

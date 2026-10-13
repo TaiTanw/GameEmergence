@@ -26,6 +26,9 @@ public class LoadingPanel : BasePanel
         if (slider != null) slider.gameObject.SetActive(false);
         // 实际逻辑：预设根节点已经是全屏黑图，直接改变它，避免黑色底图挡住淡入淡出。
         cover = GetComponent<Image>();
+        // 黑幕使用纯色矩形；内置背景贴图的透明边缘在全黑时仍会透出关卡。
+        cover.sprite = null;
+        cover.type = Image.Type.Simple;
     }
     private void OnEnable()
     {

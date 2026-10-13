@@ -72,7 +72,8 @@ public static class P66TransitionChecks
             SpriteRenderer sprite = body.GetComponentInChildren<SpriteRenderer>();
             if (weight == 1f)
             {
-                Require(sprite.forceRenderingOff, "全黑缓冲隐藏前景实体，物理下落不穿过遮罩");
+                Require(sprite.forceRenderingOff == fromMenu,
+                    "菜单全黑缓冲隐藏实体，普通跨关持续显示前景实体");
                 if (!settledBeforeReveal && settlingBody == null && fromMenu && SceneLevelSetup.Current.Teaching)
                     CreateRaisedSpawn(body);
                 if (body == settlingBody && body.GetComponent<Rigidbody2D>().position.y < settleStartY - .05f)
@@ -144,6 +145,7 @@ public static class P66TransitionChecks
         Camera ui = (Camera)typeof(UIMgr).GetField("uiCamera", Hidden).GetValue(UIMgr.Instance);
         CameraClearFlags flags = ui.clearFlags;
         Color background = ui.backgroundColor;
+        Rect viewport = ui.rect;
         float weight = panel.TransitionWeight;
         BasePanel[] others = Object.FindObjectsOfType<BasePanel>().Where(p => p != panel && p.gameObject.activeSelf).ToArray();
         RenderTexture previous = ui.targetTexture, active = RenderTexture.active;
@@ -155,6 +157,7 @@ public static class P66TransitionChecks
             ui.clearFlags = CameraClearFlags.SolidColor;
             ui.backgroundColor = Color.white;
             ui.targetTexture = render;
+            ui.rect = new Rect(0f, 0f, 1f, 1f);
             float[][] brightness = new float[3][];
             for (int step = 0; step < 3; step++)
             {
@@ -164,19 +167,23 @@ public static class P66TransitionChecks
                 RenderTexture.active = render;
                 texture.ReadPixels(new Rect(0, 0, 320, 180), 0, 0); texture.Apply();
                 brightness[step] = new[] { texture.GetPixel(160, 90).grayscale, texture.GetPixel(5, 5).grayscale,
-                    texture.GetPixel(315, 5).grayscale, texture.GetPixel(5, 175).grayscale, texture.GetPixel(315, 175).grayscale };
+                    texture.GetPixel(315, 5).grayscale, texture.GetPixel(5, 175).grayscale, texture.GetPixel(315, 175).grayscale,
+                    texture.GetPixel(0, 0).grayscale, texture.GetPixel(319, 0).grayscale,
+                    texture.GetPixel(0, 179).grayscale, texture.GetPixel(319, 179).grayscale,
+                    texture.GetPixel(0, 90).grayscale, texture.GetPixel(319, 90).grayscale,
+                    texture.GetPixel(160, 0).grayscale, texture.GetPixel(160, 179).grayscale };
                 Directory.CreateDirectory(".utmp/P66Validation");
                 File.WriteAllBytes(".utmp/P66Validation/cover-" + step + ".png", texture.EncodeToPNG());
             }
-            for (int point = 0; point < 5; point++)
+            for (int point = 0; point < brightness[0].Length; point++)
                 Require(brightness[0][point] > .98f && brightness[1][point] > .05f && brightness[1][point] < .95f
-                    && brightness[2][point] < .02f, "真实加载预设的中心及四角像素随权重从白经过灰变黑");
-            passed.Add("PASS P6.6 真实加载预设像素验证：透明、中间值、全黑覆盖中心与四角");
+                    && brightness[2][point] < .02f, "真实加载预设的中心、四角及最外侧像素随权重从白经过灰变黑，点 " + point);
+            passed.Add("PASS P6.6 真实加载预设像素验证：透明、中间值、全黑覆盖中心、四角与最外侧");
         }
         finally
         {
             panel.SetTransitionWeight(weight);
-            ui.clearFlags = flags; ui.backgroundColor = background; ui.targetTexture = previous;
+            ui.clearFlags = flags; ui.backgroundColor = background; ui.targetTexture = previous; ui.rect = viewport;
             RenderTexture.active = active;
             foreach (BasePanel other in others) if (other != null) other.gameObject.SetActive(true);
             Object.DestroyImmediate(texture); Object.DestroyImmediate(render);

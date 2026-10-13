@@ -76,8 +76,8 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: e6835003e7cb7614eaf18eb5c34a94e6, type: 3}
-  m_Color: {r: 0.34721717, g: 0.74010664, b: 0.8301887, a: 1}
+  m_Sprite: {fileID: 7482667652216324306, guid: 93a51f602eed4f4cb94552e7b93c3d32, type: 3}
+  m_Color: {r: 0.5471698, g: 0.30814615, b: 0.13593203, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -99,11 +99,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b87897a2f5960df41adc699cad2c8b10, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speedChangeNum: 1
-  phySpeed: {x: 0, y: 0}
+  environmentSlotCapacity: 6
+  environmentCalculationPointLimit: 3
+  environmentParameters: []
+  colliderOpacity: 1
+  triggerOpacity: 0.5
   slowingEffect: 4
   jumpHeightNum: 0.5
+  mechanismOffset: {x: 0, y: 3}
+  mechanismTravelTime: 1.5
+  speedChangeNum: 1
   spriteRenderer: {fileID: 5949329199238736269}
+  references:
+    version: 2
+    RefIds: []
 --- !u!61 &-7415039183942202482
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -3,5 +3,22 @@
         "TeskScenes1",
         "TeskScenes2",
         "TeskScenes3"
+    ],
+    "endings": [
+        {
+            "scene": "EndingExample",
+            "x": {
+                "lowerKind": 0,
+                "lower": 0.0,
+                "upperKind": 0,
+                "upper": 0.0
+            },
+            "y": {
+                "lowerKind": 0,
+                "lower": 0.0,
+                "upperKind": 0,
+                "upper": 0.0
+            }
+        }
     ]
 }

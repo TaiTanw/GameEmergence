@@ -30,6 +30,7 @@ public static class ScenePropInteractionChecks
         bool previousQuitting = MonoPublicMgr.IsQuitting;
         var registered = (List<SceneProp>)typeof(SceneProp).GetField("interactProps", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
         SceneProp[] previousProps = registered.ToArray();
+        Vector3 previousVector = DataAndInitMgr.Instance.CurrentLevelEndingVector;
         try
         {
             MonoPublicMgr.IsQuitting = false;
@@ -46,6 +47,7 @@ public static class ScenePropInteractionChecks
             CheckRefreshAndMovement();
             CheckTouchAndEligibility();
             CheckTargetsAndLightInterface();
+            CheckEndingContribution();
             Debug.Log("Scene prop interaction: " + passed.Count + " checks passed.");
         }
         finally
@@ -58,6 +60,8 @@ public static class ScenePropInteractionChecks
             schedulerSlot.SetValue(null, previousScheduler);
             stageSlot.SetValue(null, previousStage);
             MonoPublicMgr.IsQuitting = previousQuitting;
+            typeof(DataAndInitMgr).GetMethod("RestoreCurrentLevelEndingVector", Hidden)
+                .Invoke(DataAndInitMgr.Instance, new object[] { previousVector });
             Directory.CreateDirectory(".utmp/ScenePropValidation");
             File.WriteAllLines(".utmp/ScenePropValidation/checks.txt", passed);
         }
@@ -238,6 +242,25 @@ public static class ScenePropInteractionChecks
         if (child) ChildCollider(item.transform, Vector2.zero);
         else item.AddComponent<BoxCollider2D>().size = Vector2.one * .4f;
         return player;
+    }
+
+    static void CheckEndingContribution()
+    {
+        DataAndInitMgr data = DataAndInitMgr.Instance;
+        data.DiscardCurrentLevelEndingVector();
+        Vector2 at = new Vector2(150, 150);
+        Player player = Actor("P16 contribution player", at);
+        SceneProp prop = Prop(at);
+        typeof(SceneProp).GetField("endingContribution", Hidden).SetValue(prop, new Vector2(2, -3));
+        Control(player);
+        rules.ConfigureStage(PlayerGameplayStage.Exploration, true);
+        Check(!Acquire(prop, player) && data.CurrentLevelEndingVector == Vector3.zero, "模拟拒绝领取不累计向量");
+        rules.ConfigureStage(PlayerGameplayStage.Exploration);
+        Check(Acquire(prop, player) && data.CurrentLevelEndingVector == new Vector3(2, -3, 0), "普通道具真实领取登记二维贡献");
+        Check(!Acquire(prop, player) && data.CurrentLevelEndingVector == new Vector3(2, -3, 0), "重复领取不重复累计");
+        typeof(SceneProp).GetField("endingContribution", Hidden).SetValue(prop, new Vector2(float.NaN, 0));
+        prop.RestoreDefault();
+        Check(!Acquire(prop, player) && !Used(prop) && data.CurrentLevelEndingVector == new Vector3(2, -3, 0), "非法贡献拒绝领取并保留向量与道具");
     }
 
     static SceneProp Prop(Vector2 position, bool touch = false)

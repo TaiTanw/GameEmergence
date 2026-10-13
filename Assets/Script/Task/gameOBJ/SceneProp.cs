@@ -16,6 +16,9 @@ public class SceneProp : MonoBehaviour
     bool hasEffect;
     [SerializeField, Tooltip("勾选后，教学或逃生阶段领取会进入下一关")]
     bool clearsLevel = true;
+    [SerializeField, Tooltip("领取成功后累计的结局贡献 X、Y。失败重刷新丢弃本关贡献；Z 留待以后")]
+    Vector2 endingContribution;
+    public Vector2 EndingContribution => endingContribution;
     [SerializeField, Min(0), Tooltip("通关动作编号：对应实体控制器的 LevelClear_编号 与 LevelClearLoop_编号；精神体不能触发通关")]
     int levelClearAnimation;
     [SerializeField, Tooltip("可选的专用光效组件：探索阶段 enabled=true，其它阶段或已使用时为 false；组件自行在启停时播放／停止光效。未配置不影响通关")]
@@ -152,6 +155,9 @@ public class SceneProp : MonoBehaviour
         if (!CanAcquire(player)) return false;
         // 制作配置与下一关都通过校验后才锁定，失败时道具仍可交互。
         if (clearsLevel && !SceneChangeMgr.Instance.TryClearLevel(player, levelClearAnimation, this)) return false;
+        // 普通道具领取即登记；通关物由通关入口登记，不能重复添加。
+        if (!clearsLevel && !DataAndInitMgr.Instance.TryAddEndingContribution(endingContribution, out string error))
+        { Debug.LogError(error, this); return false; }
         used = true;
         // 实际逻辑：效果记录还没有。勾选有效果只表示这件道具带效果，不写能力、不改进度。
         if (hasEffect) { }

@@ -10,12 +10,26 @@ public class SetPanel : BasePanel
     int request;
     bool displayOpen, selectedWindowed;
     int selectedResolution;
+    bool clearConfirmOpen;
 
     protected override void OtherInit()
-    { transform.Find("SettingsContent/DisplaySettingsArea")?.gameObject.SetActive(false); }
+    { transform.Find("SettingsContent/DisplaySettingsArea")?.gameObject.SetActive(false);
+        transform.Find("SettingsContent/ClearProgressConfirmation")?.gameObject.SetActive(false); }
 
     protected override void OnClickButton(string name)
     {
+        if (clearConfirmOpen)
+        {
+            if (name == "ClearProgressConfirm")
+            {
+                bool cleared = SceneChangeMgr.Instance.TryClearGameProgress(out string message);
+                FindUIObj<UnityEngine.UI.Text>("ClearProgressMessage").text = message;
+                if (cleared) CloseClearConfirmation();
+                FindUIObj<UnityEngine.UI.Text>("SettingsStatus").text = message;
+            }
+            else if (name == "ClearProgressCancel" || name == "hui") CloseClearConfirmation();
+            return;
+        }
         if (name == "hui")
         {
             // 显示子页使用同一个外层返回，未应用的选择直接放弃。
@@ -41,6 +55,13 @@ public class SetPanel : BasePanel
         }
         // 等待地址资源加载时不重复打开另一子页。
         if (page != null || opening != null) return;
+        if (name == "ClearGameProgress")
+        {
+            clearConfirmOpen = true; ShowEntrances(false);
+            FindUIObj<UnityEngine.UI.Text>("ClearProgressMessage").text = "清空全部游戏进度？\n已确认能力、结局与贡献都会清除。";
+            transform.Find("SettingsContent/ClearProgressConfirmation").gameObject.SetActive(true);
+            return;
+        }
         int serial = ++request;
         if (name == "di")
         {
@@ -70,7 +91,15 @@ public class SetPanel : BasePanel
     }
 
     void ShowEntrances(bool show)
-    { transform.Find("mu").gameObject.SetActive(show); transform.Find("ke").gameObject.SetActive(show); transform.Find("di")?.gameObject.SetActive(show); }
+    { transform.Find("mu").gameObject.SetActive(show); transform.Find("ke").gameObject.SetActive(show); transform.Find("di")?.gameObject.SetActive(show);
+        transform.Find("ClearGameProgress")?.gameObject.SetActive(show); }
+
+    void CloseClearConfirmation()
+    {
+        clearConfirmOpen = false;
+        transform.Find("SettingsContent/ClearProgressConfirmation").gameObject.SetActive(false);
+        ShowEntrances(true);
+    }
 
     void RefreshDisplayChoices()
     {
@@ -87,6 +116,8 @@ public class SetPanel : BasePanel
     {
         ++request;
         displayOpen = false;
+        clearConfirmOpen = false;
+        transform.Find("SettingsContent/ClearProgressConfirmation")?.gameObject.SetActive(false);
         transform.Find("SettingsContent/DisplaySettingsArea")?.gameObject.SetActive(false);
         UIMgr.Instance.HideOneUI<MusicSetPanel>(); UIMgr.Instance.HideOneUI<InputChangePanel>();
         page = null; opening = null;
