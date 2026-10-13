@@ -91,7 +91,12 @@ public static class EnvironmentBackpackChecks
     public static void RunForBatch()
     {
         if (!Application.isBatchMode) throw new InvalidOperationException("批处理入口只能在 batch editor 中执行。");
-        try { Run(); EditorApplication.Exit(0); }
+        try
+        {
+            // 新开批处理的未命名场景不能追加隔离场景；只打开已保存场景，不写回。
+            EditorSceneManager.OpenScene("Assets/MyObjAssets/Scenes/BeginScenes.unity", OpenSceneMode.Single);
+            Run(); EditorApplication.Exit(0);
+        }
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
@@ -666,8 +671,32 @@ public static class EnvironmentBackpackChecks
             && area.Find("EnvironmentEditorContent/CancelEnvironmentButton").GetComponent<Button>() != null
             && bag.Find("SplitBackpackCalculationButton") == null,
             "统一确认／取消保留，背包固定拆点入口移除");
+        // 在已制作面板上模拟手工排版，核对补建入口不覆盖已有静态节点。
+        RectTransform[] rectangles = {
+            area, bag, (RectTransform)abilityScroll.transform,
+            (RectTransform)bag.Find("BackpackModeText"), (RectTransform)bag.Find("BackpackCapacityText"),
+            (RectTransform)bag.Find("CognitionBackpackScroll"), (RectTransform)bag.Find("BackpackSelectionText")
+        };
+        var positions = new Vector2[rectangles.Length]; var sizes = new Vector2[rectangles.Length];
+        for (int i = 0; i < rectangles.Length; i++)
+        {
+            rectangles[i].anchoredPosition += new Vector2(11f, 23f);
+            rectangles[i].sizeDelta += new Vector2(13f, 17f);
+            positions[i] = rectangles[i].anchoredPosition; sizes[i] = rectangles[i].sizeDelta;
+        }
+        Text mode = bag.Find("BackpackModeText").GetComponent<Text>();
+        mode.fontSize = 23; mode.color = Color.cyan;
+        Image background = areaObject.AddComponent<Image>(); background.color = Color.cyan; background.raycastTarget = true;
+        var decoration = new GameObject("ManualLayoutDecoration", typeof(RectTransform));
+        decoration.transform.SetParent(area, false);
         int children = root.childCount, areaChildren = area.childCount;
         EnvironmentEditLayout.Ensure(area, root);
+        for (int i = 0; i < rectangles.Length; i++)
+            Check(rectangles[i].anchoredPosition == positions[i] && rectangles[i].sizeDelta == sizes[i],
+                "重复补建保留手工位置与尺寸：" + rectangles[i].name);
+        Check(mode.fontSize == 23 && mode.color == Color.cyan, "重复补建保留手工说明字号与颜色");
+        Check(background.color == Color.cyan && background.raycastTarget && decoration.activeSelf,
+            "重复补建保留手工背景与新增装饰");
         Check(root.childCount == children && area.childCount == areaChildren,
             "重复启用布局不复制环境面板、背包或按钮");
         Check(abilityScroll.GetComponentsInChildren<Scrollbar>(true).Length == 1,
@@ -718,6 +747,7 @@ public static class EnvironmentBackpackChecks
             objects.Add(panelObject); panelObject.AddComponent<GameplayPanel>();
             var areaObject = new GameObject("EnvironmentEditArea", typeof(RectTransform)) { hideFlags = HideFlags.HideAndDontSave };
             areaObject.transform.SetParent(panelObject.transform, false);
+            EnvironmentEditLayout.Ensure(areaObject.transform, panelObject.transform);
             var view = areaObject.AddComponent<EnvironmentEditView>(); Invoke(view, "Awake");
             PrepareUIAction(view, true); view.SelectEnvironment(source);
             Check(view.DisplayedDraft != null && rules.ActiveEnvironmentEdit == view.DisplayedDraft,
@@ -940,7 +970,7 @@ public static class EnvironmentBackpackChecks
             GameplayPanel panel = panelObject.GetComponent<GameplayPanel>(); Invoke(panel, "Awake");
             EnvironmentEditView view = panelObject.GetComponentInChildren<EnvironmentEditView>(true); Invoke(view, "Awake");
             panelObject.transform.Find("ActionArea").gameObject.SetActive(true); view.gameObject.SetActive(true);
-            GameObject wallObject = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/wall.prefab"));
+            GameObject wallObject = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/墙面.prefab"));
             wallObject.hideFlags = HideFlags.HideAndDontSave; objects.Add(wallObject);
             wallObject.transform.position = new Vector2(81000f, 81000f);
             Wall wall = wallObject.GetComponent<Wall>();

@@ -156,7 +156,7 @@ public static class P8P9LevelFlowChecks
                     stage = 9;
                     break;
                 case 9:
-                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
+                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0 || SceneChangeMgr.Instance.IsLoading) return;
                     Check(!SceneChangeMgr.Instance.IsFailureRecovering && Time.timeScale == 1f
                         && !WorldPaused(typeof(BasicEntity)), "失败演出退出清理恢复时间与世界许可");
                     UIMgr.Instance.GetOnePanel<FailureRecoveryPanel>(value =>
@@ -197,7 +197,7 @@ public static class P8P9LevelFlowChecks
                     stage = 7;
                     break;
                 case 7:
-                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
+                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0 || SceneChangeMgr.Instance.IsLoading) return;
                     Check(Actor("body") == null && Actor("spirit") == null && Rules() == null
                         && InputControlMgr.Instance.Player == null && SceneLevelSetup.Current == null,
                         "退出释放角色、规则、控制与旧场景配置");
@@ -311,6 +311,7 @@ public static class P8P9LevelFlowChecks
         MoveCenter(physics, new Vector2(8030f, 8003f)); explorationRules.AdvanceExplorationMap();
         Check(explorationRules.MapRecord.IsLit(firstCell) && explorationRules.MapRecord.IsLit(secondCell),
             "碰撞框位置经实际地图采样入口点亮两格");
+        CheckBlockedFormNotice(host, physics);
         Check(host.SetSimulation(true), "实际场景入口从漫游进入模拟");
         RefreshPanel();
         Check(!panel.GetComponentInChildren<EnvironmentSelectionFrames>(true).gameObject.activeSelf,
@@ -332,6 +333,8 @@ public static class P8P9LevelFlowChecks
         Near(storedBox.DebugActualPosition, storedHome, "当前格试验重置恢复另一处收纳箱默认");
         Check(!storedBox.IsStored && spirit.GetInstanceID() == spiritId && explorationRules.IsSimulation,
             "轻刷新退出收纳且保留同一模拟精神体");
+        Check(!spirit._ActionData.isFlying && !WorldPaused(typeof(BasicEntity)) && host.CanResetTrial,
+            "试验重置不切回漫游，继续模拟行走与世界运行");
         Near(ground.SlowingEffect, .5f, "试验轻刷新保留已编辑环境");
         Near(explorationRules.Cognition.Remaining, balance, "试验轻刷新保留转换与格子结算后的认知");
         Check(explorationRules.MapRecord.IsLit(firstCell) && explorationRules.MapRecord.IsLit(secondCell)
@@ -400,6 +403,33 @@ public static class P8P9LevelFlowChecks
         Check(!host.PurchaseEscapeAbility(0) && !host.StartEscape(), "已完成购买与交接不重复执行");
         Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "消散完成前仍保持购买现场");
         Check(!water.RisingAllowed && WorldPaused(typeof(BasicEntity)), "消散及镜头交接前不开放水与世界");
+    }
+
+    static void CheckBlockedFormNotice(SceneChangeMgr host, CharacterPhysics physics)
+    {
+        Check(!host.CanResetTrial && !host.ResetTrial(), "漫游仍不能借用试验重置");
+        float balance = explorationRules.Cognition.Remaining;
+        float cooldown = explorationRules.ManualFormCooldownRemaining;
+        GameObject blocker = NewObject("Form restore notice blocker", physics.BodyBounds.center);
+        blocker.layer = ground.gameObject.layer;
+        SceneManager.MoveGameObjectToScene(blocker, setup.gameObject.scene);
+        blocker.AddComponent<BoxCollider2D>().size = new Vector2(8f, 8f);
+        Physics2D.SyncTransforms();
+        try
+        {
+            Check(!host.SetSimulation(true) && !explorationRules.IsSimulation && spirit._ActionData.isFlying,
+                "物体内部拒绝恢复行走并保持原漫游形态");
+            Near(explorationRules.Cognition.Remaining, balance, "占用拒绝不扣认知");
+            Near(explorationRules.ManualFormCooldownRemaining, cooldown, "占用拒绝不新建转换冷却");
+            RefreshPanel();
+            RectTransform popup = (RectTransform)panel.transform.Find("MessageArea");
+            Check(popup.gameObject.activeSelf && panel.FindUIObj<Text>("RefreshMessageText").text == "无法在物体内部转换"
+                && popup.anchorMin.y == 0f && popup.anchorMax.y == 0f,
+                "真实底部提示框显示物体内部转换拒绝原因");
+            if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
+                GameMenuInputChecks.Capture("p11-form-blocked-notice.png");
+        }
+        finally { Object.DestroyImmediate(blocker); Physics2D.SyncTransforms(); }
     }
 
     static void CheckPurchaseHandoff()
@@ -709,7 +739,18 @@ public static class P8P9LevelFlowChecks
         Vector2 validPoint = spirit.GetComponent<CharacterPhysics>().DebugActualPosition;
         box.RefreshMotionState(boxHome + Vector2.right * 6f);
         MoveCenter(spirit.GetComponent<CharacterPhysics>(), new Vector2(7900f, 8003f));
-        Check(host.ResetTrial(), "地图外仍可独立重置到保留的当前格");
+        GameObject resetBlocker = NewObject("Trial reset center blocker", firstCell.Center);
+        resetBlocker.layer = ground.gameObject.layer;
+        SceneManager.MoveGameObjectToScene(resetBlocker, setup.gameObject.scene);
+        resetBlocker.AddComponent<BoxCollider2D>().size = new Vector2(8f, 8f);
+        Physics2D.SyncTransforms();
+        try
+        {
+            Check(host.ResetTrial(), "人工中心即使被物体占用，重置也不进行卡住校验");
+            Check(explorationRules.IsSimulation && !spirit._ActionData.isFlying,
+                "占用中心重置仍保持实验行走，不借用形态切换");
+        }
+        finally { Object.DestroyImmediate(resetBlocker); Physics2D.SyncTransforms(); }
         Near(spirit.GetComponent<CharacterPhysics>().BodyBounds.center, firstCell.Center, "格外重置使用保留格中心");
         Near(box.DebugActualPosition, boxHome, "格外重置同样完成整关箱子轻刷新");
         // 只有尚未建立当前格才拒绝；临时换入未采样记录，保留原记录及其认知占用。

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
@@ -22,6 +23,7 @@ public static class EnvironmentClickPlayModeChecks
         Check(spirit != null && spirit.Identity == PlayerIdentity.Spirit && InputControlMgr.Instance.Player == spirit
             && SceneChangeMgr.Instance.CanEditEnvironment, "当前唯一受控精神体处于可编辑漫游", passed);
         Check(panel != null && panel.gameObject.activeInHierarchy, "真实 GameplayPanel 已显示", passed);
+        CheckPrefabLayout(passed);
         typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
         EnvironmentEditView view = panel.GetComponentInChildren<EnvironmentEditView>();
         Camera camera = Camera.main;
@@ -142,6 +144,58 @@ public static class EnvironmentClickPlayModeChecks
         File.WriteAllLines(".utmp/EnvironmentClickValidation/checks.txt", passed);
         Debug.Log("Environment click Play Mode: " + passed.Count + " checks passed.");
         return passed.Count;
+    }
+
+    static void CheckPrefabLayout(List<string> passed)
+    {
+        // 只修改未激活的临时克隆，模拟人工先改预设再加载，不写回资产。
+        var staging = new GameObject("Prefab layout check staging");
+        staging.SetActive(false);
+        try
+        {
+            var source = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/UIPanel/GameplayPanel.prefab");
+            GameObject clone = Object.Instantiate(source, staging.transform);
+            clone.SetActive(true);
+            clone.transform.Find("ActionArea").gameObject.SetActive(true);
+            clone.transform.Find("ActionArea/EnvironmentEditArea").gameObject.SetActive(true);
+            string[] paths = {
+                "ActionArea", "MessageArea", "ActionArea/EnvironmentEditArea",
+                "ActionArea/EnvironmentEditArea/EnvironmentEditorContent/EnvironmentAbilityScroll",
+                "CognitionBackpackArea", "CognitionBackpackArea/BackpackModeText",
+                "CognitionBackpackArea/BackpackCapacityText", "CognitionBackpackArea/CognitionBackpackScroll",
+                "CognitionBackpackArea/BackpackSelectionText", "CognitionBackpackArea/BackpackTitleTextPaper"
+            };
+            var rectangles = new List<RectTransform>();
+            var positions = new List<Vector2>();
+            var sizes = new List<Vector2>();
+            foreach (string path in paths)
+            {
+                var rect = (RectTransform)clone.transform.Find(path);
+                rect.anchoredPosition += new Vector2(11f, 23f);
+                rect.sizeDelta += new Vector2(13f, 17f);
+                rectangles.Add(rect); positions.Add(rect.anchoredPosition); sizes.Add(rect.sizeDelta);
+            }
+            Text mode = clone.transform.Find("CognitionBackpackArea/BackpackModeText").GetComponent<Text>();
+            int size = mode.fontSize + 3;
+            Color color = new Color(.3f, .5f, .7f);
+            mode.fontSize = size; mode.color = color;
+            Image background = clone.transform.Find("ActionArea/EnvironmentEditArea").GetComponent<Image>();
+            background.color = color;
+            var decoration = new GameObject("ManualLayoutDecoration", typeof(RectTransform));
+            decoration.transform.SetParent(background.transform, false);
+            staging.SetActive(true);
+            GameplayPanel view = clone.GetComponent<GameplayPanel>();
+            // 播放中误调用制作入口，也不能重排已经加载的预设。
+            EnvironmentEditLayout.Ensure(background.transform, clone.transform);
+            view.ShowMe();
+            typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(view, null);
+            for (int i = 0; i < rectangles.Count; i++)
+                Check(rectangles[i].anchoredPosition == positions[i] && rectangles[i].sizeDelta == sizes[i],
+                    "人工布局加载并刷新后保留：" + paths[i], passed);
+            Check(mode.fontSize == size && mode.color == color, "背包说明文字的手工字号与颜色加载后保留", passed);
+            Check(background.color == color && decoration.activeSelf, "手工背景与新加装饰加载后保留", passed);
+        }
+        finally { Object.DestroyImmediate(staging); }
     }
 
     static void CheckReadOnlyBackpack(GameplayPanel panel, EnvironmentEditView view, List<string> passed)
