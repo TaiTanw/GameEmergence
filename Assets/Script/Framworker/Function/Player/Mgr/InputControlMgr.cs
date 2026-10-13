@@ -25,6 +25,12 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     Player player;
     public Player Player => player;
     public bool InputEnabled => input != null && input.currentActionMap != null && input.currentActionMap.enabled;
+    public bool IsRebinding => rebindOperation != null;
+    public Camera GameCamera => mainCamera != null ? mainCamera.GetComponent<Camera>() : null;
+    float escapeHoldProgress;
+    bool escapeHoldNeedsRelease;
+    public float EscapeHoldProgress => escapeHoldProgress;
+    public bool EscapeKeyConflict => EscapeKeyIsBound(out _);
     /// <summary>
     /// 玩家美术资源所指向路径（名称）此处已经配置===========================================================
     /// </summary>
@@ -179,6 +185,12 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
                 if (binding.isComposite || string.IsNullOrEmpty(binding.effectivePath)) continue;
                 string path = binding.effectivePath;
                 string label = string.IsNullOrEmpty(binding.name) ? action.name : action.name + "/" + binding.name;
+                // 回车固定结束探索；改成玩家动作会与长按抢键，必须改开才能退出设置。
+                if (IsEscapeKey(path))
+                {
+                    message = label + " 使用了结束探索专用的回车，请改用其它键。";
+                    return true;
+                }
                 if (used.TryGetValue(path, out string other))
                 {
                     message = other + " 与 " + label + " 使用了相同按键";
@@ -448,6 +460,8 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         // 安全：失效目标不替换现有控制，同目标重复绑定不清真实释放历史。
         if (player != null && !player.isActiveAndEnabled) return;
         if (this.player == player) return;
+        escapeHoldProgress = 0f;
+        escapeHoldNeedsRelease = Keyboard.current != null && (Keyboard.current.enterKey.isPressed || Keyboard.current.numpadEnterKey.isPressed);
         // 实际逻辑：先解除已经在控制的角色。传入的新角色还没接上，不能对它清输入。
         if (this.player != null && this.player != player)
             this.player.RemoveInput();
@@ -526,6 +540,53 @@ public class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
             if (followed != null) mainCamera.SetPoint(followed.position);
         }
         UpdateInteractHold();
+        UpdateEscapeHold(Time.unscaledDeltaTime);
+    }
+
+    static bool IsEscapeKey(string path) => string.Equals(path, "<Keyboard>/enter", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(path, "<Keyboard>/numpadEnter", StringComparison.OrdinalIgnoreCase);
+
+    bool EscapeKeyIsBound(out string actionName)
+    {
+        actionName = null;
+        // 安全：输入资产还未组装时没有绑定可比较。
+        if (player1 == null) return false;
+        foreach (InputAction action in player1.actions)
+            foreach (InputBinding binding in action.bindings)
+                if (!binding.isComposite && IsEscapeKey(binding.effectivePath))
+                { actionName = action.name; return true; }
+        return false;
+    }
+
+    void UpdateEscapeHold(float elapsed)
+    {
+        Keyboard keyboard = Keyboard.current;
+        bool held = keyboard != null && (keyboard.enterKey.isPressed || keyboard.numpadEnterKey.isPressed);
+        GameObject selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
+        bool typing = selected != null && (selected.GetComponent<UnityEngine.UI.InputField>() != null
+            || selected.GetComponent<TMPro.TMP_InputField>() != null);
+        // 暂停、改键、过场或文本编辑不积累；恢复后须松开再按，避免跨页面长按。
+        if (!SceneChangeMgr.Instance.CanStartEscape || !InputEnabled || IsRebinding || typing || EscapeKeyConflict)
+        {
+            escapeHoldProgress = 0f;
+            escapeHoldNeedsRelease = held;
+            return;
+        }
+        if (!held)
+        {
+            escapeHoldNeedsRelease = false;
+            escapeHoldProgress = Mathf.MoveTowards(escapeHoldProgress, 0f, elapsed / Mathf.Max(.01f, GameUIAssets.Shared.escapeRefillSeconds));
+            return;
+        }
+        if (escapeHoldNeedsRelease) return;
+        escapeHoldProgress = Mathf.MoveTowards(escapeHoldProgress, 1f, elapsed / Mathf.Max(.1f, GameUIAssets.Shared.escapeHoldSeconds));
+        // 到零只请求原准备入口；不结算认知，也不改变主流程。
+        if (escapeHoldProgress >= 1f)
+        {
+            SceneChangeMgr.Instance.StartEscape();
+            escapeHoldProgress = 0f;
+            escapeHoldNeedsRelease = true;
+        }
     }
 
     /// <summary>换关揭开遮罩前调用：镜头直接到当前控制角色，不从上一关缓动。</summary>
