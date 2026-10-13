@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7da71e1c7080d524cbb4e68fa8a6c475, type: 3}
+  m_Name: GameUIAssets
+  m_EditorClassIdentifier: 
+  font: {fileID: 12800000, guid: acb3e602d730632408f1d3b19fa12115, type: 3}
+  panel: {fileID: 21300000, guid: b8e3b190a8252e04dab02ea30990dd79, type: 3}
+  environmentPanel: {fileID: 21300000, guid: b65ea9c4b4bbae541831bf3e41d60f09, type: 3}
+  note: {fileID: -1612326208, guid: 86faf7089a73c6e40975e42fac7f656e, type: 3}
+  bar: {fileID: 21300000, guid: 291707e2bf5f5cf419eab39ee71fe214, type: 3}
+  escapeHoldSeconds: 2
+  escapeRefillSeconds: 0.2
