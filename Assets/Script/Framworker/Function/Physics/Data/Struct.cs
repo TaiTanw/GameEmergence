@@ -119,6 +119,8 @@ namespace PhyData
         /// 职能：相位 1 感知缓冲；监测点与嵌入深度不放在本列表。
         /// </summary>
         public readonly List<Collider2D> regionOverlaps = new List<Collider2D>();
+        public Bounds regionBodyBounds; // 与区域命中同次采样的位置，避免混用模拟后的刚体位置。
+        public Vector2 regionBodyVelocity; // 接触采样时的实际速度，不被随后水面悬浮归零覆盖。
     }
     /// <summary>
     /// 角色在相位 2 从左右墙 Collider 解析出的墙滑能力引用。
@@ -170,6 +172,10 @@ namespace PhyData
         public bool isGrounded => _data.isGrounded; // 几何接触
         public bool onLeftWall => _data.onLeftWall; // 几何接触
         public bool onRightWall => _data.onRightWall; // 几何接触
+        // 表现只读原相位 1 的区域命中，不重复执行水域碰撞查询。
+        public IReadOnlyList<Collider2D> RegionOverlaps => _data.regionOverlaps;
+        public Bounds RegionBodyBounds => _data.regionBodyBounds;
+        public Vector2 RegionBodyVelocity => _data.regionBodyVelocity;
 
         public bool canRightWall => EnvironmentCapabilities.IsActive(_data2.canRightWall); // 职能：右侧墙滑能力可用
         public bool canLeftWall => EnvironmentCapabilities.IsActive(_data2.canLeftWall); // 职能：左侧墙滑能力可用

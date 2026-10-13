@@ -23,6 +23,8 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
     private float maximumSurface;
     public float SurfaceY => GetComponent<BoxCollider2D>().bounds.max.y;
     public bool RisingAllowed => hasWaterLevel && risingAllowed;
+    // 显式水位配置／恢复的只读事实；逐步上涨不增加此序号。
+    public uint WaterLevelVersion { get; private set; }
 
     /// <summary>关卡就绪时从制作矩形保存上涨水的默认范围；普通池不主动调用此入口。</summary>
     public bool PrepareRun(float speed, float maximumSurfaceY)
@@ -104,6 +106,7 @@ public class WaterRegion : BasicPhysicalObject, IWaterRegion
         riseSpeed = speed;
         risingAllowed = allowed;
         hasWaterLevel = true;
+        WaterLevelVersion++;
         return true;
     }
 

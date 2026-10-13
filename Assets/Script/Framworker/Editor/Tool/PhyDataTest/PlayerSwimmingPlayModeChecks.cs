@@ -26,8 +26,14 @@ public static class PlayerSwimmingPlayModeChecks
     private static int stage;
     private static double deadline;
     private static Exception failure;
+    private static bool waterOnly;
+    private static bool disableWater;
 
-    public static void RunForBatch()
+    public static void RunForBatch() => StartBatch(false);
+    public static void RunWaterForBatch() => StartBatch(true);
+    public static void RunWithoutWaterForBatch() => StartBatch(false, true);
+
+    private static void StartBatch(bool onlyWater, bool withoutWater = false)
     {
         if (!Application.isBatchMode || Application.isPlaying) throw new InvalidOperationException("Require a fresh batch editor.");
         previousOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
@@ -35,7 +41,7 @@ public static class PlayerSwimmingPlayModeChecks
         EditorSettings.enterPlayModeOptionsEnabled = true;
         EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload;
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        passed.Clear(); stage = 0; failure = null;
+        passed.Clear(); stage = 0; failure = null; waterOnly = onlyWater; disableWater = withoutWater;
         deadline = EditorApplication.timeSinceStartup + 120;
         EditorApplication.update += Advance;
         EditorApplication.isPlaying = true;
@@ -71,8 +77,10 @@ public static class PlayerSwimmingPlayModeChecks
         EditorSettings.enterPlayModeOptions = previousOptions;
         EditorSettings.enterPlayModeOptionsEnabled = previousOptionsEnabled;
         Directory.CreateDirectory(".utmp/EnvironmentValidation");
-        File.WriteAllLines(".utmp/EnvironmentValidation/p53-play-checks.txt", passed);
-        Debug.Log("P5.3 swimming Play Mode: " + passed.Count + " checks passed; success=" + (failure == null));
+        Directory.CreateDirectory(WaterSurfaceChecks.Output);
+        File.WriteAllLines(waterOnly ? WaterSurfaceChecks.Output + "play-checks.txt"
+            : disableWater ? WaterSurfaceChecks.Output + "without-water-checks.txt" : ".utmp/EnvironmentValidation/p53-play-checks.txt", passed);
+        Debug.Log((waterOnly ? "P18 water" : "P5.3 swimming") + " Play Mode: " + passed.Count + " checks passed; success=" + (failure == null));
         EditorApplication.Exit(failure == null ? 0 : 1);
     }
 
@@ -87,6 +95,12 @@ public static class PlayerSwimmingPlayModeChecks
         spirit.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
         water = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/WaterPool.prefab"), origin, Quaternion.identity).GetComponent<WaterRegion>();
         water.transform.localScale = new Vector3(12f, 8f, 1f);
+        if (disableWater)
+        {
+            water.GetComponent<WaterSurfaceVisual>().enabled = false;
+            body.GetComponentInChildren<PresentationLayer>().enabled = false;
+            spirit.GetComponentInChildren<PresentationLayer>().enabled = false;
+        }
         var config = (SO_CPhysics)typeof(BasicEntity).GetField("cPhysics", Private).GetValue(body.GetComponent<CharacterPhysics>());
         floor = Solid("floor", origin + new Vector2(0f, -2.5f), new Vector2(12f, .5f), FirstLayer(config.groundLayer));
         wall = Solid("wall", origin + new Vector2(5.5f, 0f), new Vector2(.5f, 8f), FirstLayer(config.wallLayer));
@@ -122,6 +136,15 @@ public static class PlayerSwimmingPlayModeChecks
     private static PlayerStateMachine State(Player actor) => (PlayerStateMachine)typeof(Player).GetField("fsm", Private).GetValue(actor);
     private static void RunChecks()
     {
+        if (waterOnly)
+        {
+            ceiling.enabled = false;
+            passed.AddRange(WaterSurfaceChecks.RunPlayMode(body, water, input => Step(body, input)));
+            body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
+            spirit.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
+            passed.AddRange(WaterSurfaceChecks.RunPlayMode(spirit, water, input => Step(spirit, input)));
+            return;
+        }
         body.RefreshRuntime(origin);
         Step(body, null, 3);
         Check(body._ActionData.isSwimming && body.WaterFacts.submerged, "真实 Start 后无控制角色仍进入游泳");
@@ -150,7 +173,11 @@ public static class PlayerSwimmingPlayModeChecks
         CheckRisingWater();
         PhysicsStep(); // 消费水位恢复配置后再验证水面泳姿。
         ceiling.enabled = false;
-        try { passed.AddRange(PlayerSurfaceSwimmingChecks.Run(body, water, PhysicsStep, spirit)); }
+        try
+        {
+            passed.AddRange(PlayerSurfaceSwimmingChecks.Run(body, water, PhysicsStep, spirit));
+            if (!disableWater) passed.AddRange(WaterSurfaceChecks.RunPlayMode(body, water, input => Step(body, input)));
+        }
         finally { ceiling.enabled = true; }
         body.RefreshRuntime(origin);
         body.ChangeInputAsset(null);

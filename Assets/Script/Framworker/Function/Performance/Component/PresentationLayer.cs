@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// 角色表现层。
 /// 数据只从逻辑层和物理层流入：逻辑层决定行为状态与移动意图，物理层提供已经结算的几何和速度快照；
-/// 本组件只选择 Animator 状态和精灵朝向，不向逻辑层或物理层回写任何数据。
+/// 本组件选择 Animator 状态、精灵朝向与实际接触水域的视觉波纹，不回写逻辑或物理数据。
 /// </summary>
 [DefaultExecutionOrder(100)]
 [RequireComponent(typeof(Animator), typeof(SpriteRenderer))]
@@ -402,11 +402,13 @@ public partial class PresentationLayer : MonoBehaviour
     // 实际逻辑：提示在 LateUpdate 绘制，读取本帧已写入的刚体插值位置。
     private void LateUpdate()
     {
+        UpdateWaterRipples();
         if (isInitialized && !deathPlaybackActive && !levelClearPlaybackActive && !transitionPlayback && !transitionHidden) UpdateInteractHint();
     }
 
     private void OnDisable()
     {
+        hasWaterMotionSample = false;
         CancelDeathPlayback();
         CancelLevelClearPlayback();
         interactHintView.Hide();

@@ -28,6 +28,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
         && !(worldPaused && ParticipatesInWorldPause);
     public bool IsMotionParticipating => isActiveAndEnabled && IsMotionReady && IsMotionPermitted && boxCollider.enabled;
     public Bounds BodyBounds => boxCollider != null ? PhysicsWorld.ReadAabb(boxCollider) : default;
+    // 显式安置／刷新事实，供表现丢弃旧位置边沿，不改变运动计算。
+    public uint MotionRefreshVersion { get; private set; }
     protected Rigidbody2D rb; //刚体
     protected BoxCollider2D boxCollider;//碰撞器
 
@@ -202,6 +204,7 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
 
     public void RefreshMotionState(Vector2? position = null, bool releaseEnvironmentEffects = false)
     {
+        MotionRefreshVersion++;
         OnMotionRefresh(position.HasValue);
         hasMotionCommand = hasDisplacementObservation = false;
         submittedVelocity = prescribedVelocity = acceptedPrescribedVelocity = Vector2.zero;
@@ -346,6 +349,8 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     {
         nowGemetry.regionOverlaps.Clear();
         if (boxCollider == null || !boxCollider.enabled) return;
+        nowGemetry.regionBodyBounds = BodyBounds;
+        nowGemetry.regionBodyVelocity = GetPlanarVelocity();
         ContactFilter2D filter = new ContactFilter2D { useTriggers = true };
         filter.SetLayerMask(PhysicsWorld.GetLayerCollisionMask(gameObject.layer) & ~boxCollider.excludeLayers.value);
         regionOverlapHits.Clear();

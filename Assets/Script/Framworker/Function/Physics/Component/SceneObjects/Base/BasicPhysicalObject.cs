@@ -26,6 +26,8 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     private ConfiguredWallSlideSurface configuredWallSurface;
     private ConfiguredWaterRegion configuredWaterRegion;
     public int EnvironmentParameterVersion { get; private set; }
+    // 即使默认值未改变，显式重刷新也会使来源上的临时表现失效。
+    public uint EnvironmentRestoreVersion { get; private set; }
     public int EnvironmentSlotCapacity => EnsureEnvironmentParameters() ? colliderSlots.Length : 0;
     public int EnvironmentCalculationPointLimit => environmentCalculationPointLimit;
     public bool IsTriggerEnvironment => EnsureEnvironmentParameters() && triggerEnvironment;
@@ -129,6 +131,7 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     public void RestoreEnvironmentDefaults()
     {
         if (!EnsureEnvironmentParameters()) return;
+        EnvironmentRestoreVersion++;
         bool geometryChanged = triggerEnvironment != defaultTriggerEnvironment;
         bool changed = geometryChanged
             || !SameSlots(colliderSlots, defaultColliderSlots) || !SameSlots(triggerSlots, defaultTriggerSlots);
