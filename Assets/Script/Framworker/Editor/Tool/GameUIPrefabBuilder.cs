@@ -79,21 +79,6 @@ public static class GameUIPrefabBuilder
         RectTransform root = Root("GameplayPanel");
         try
         {
-            RectTransform resources = Region(root, "ResourceArea", new Vector2(0, 1), new Vector2(32, -32), new Vector2(304, 188));
-            Background(resources, Card, false);
-            Label(resources, "CognitionText", "认知  100", new Vector2(20, -16), new Vector2(264, 40), 30, Ink);
-            Label(resources, "StaminaText", "体力  100 / 100", new Vector2(20, -64), new Vector2(264, 30), 23, Muted);
-            Label(resources, "OxygenText", "氧气  100 / 100", new Vector2(20, -98), new Vector2(264, 30), 23, Muted);
-            Label(resources, "FormCooldownText", "转换 CD  0.0 秒", new Vector2(20, -138), new Vector2(264, 30), 23, Ink);
-
-            RectTransform stage = Region(root, "StageArea", new Vector2(.5f, 1), new Vector2(0, -32), new Vector2(260, 48));
-            Background(stage, Card, false);
-            Text stageText = Label(stage, "StageText", "探索 · 漫游", new Vector2(0, 0), new Vector2(260, 48), 24, Ink);
-            Stretch(stageText.rectTransform); stageText.alignment = TextAnchor.MiddleCenter;
-            RectTransform hint = Region(root, "MenuHintArea", Vector2.one, new Vector2(-32, -32), new Vector2(240, 48));
-            Text hintText = Label(hint, "MenuHintText", "ESC  游戏菜单", Vector2.zero, new Vector2(240, 48), 23, Muted);
-            Stretch(hintText.rectTransform); hintText.alignment = TextAnchor.MiddleRight;
-
             // 预留容器只安排位置，不把开发占位文字显示给玩家。
             BuildMapArea(root);
             RectTransform actions = Region(root, "ActionArea", new Vector2(.5f, 0), new Vector2(0, 32), new Vector2(720, 64));
@@ -104,18 +89,10 @@ public static class GameUIPrefabBuilder
             Text resetLabel = Label(resetRect, "Label", "重置试验", Vector2.zero, new Vector2(260, 64), 27, Ink);
             Stretch(resetLabel.rectTransform); resetLabel.alignment = TextAnchor.MiddleCenter;
             resetRect.anchoredPosition = new Vector2(0, 8);
-            RectTransform startRect = Region(actions, "StartEscapeButton", new Vector2(.5f, 0), new Vector2(150, 8), new Vector2(260, 64));
-            Image startImage = Background(startRect, new Color(.25f, .3f, .14f), true);
-            Button start = startRect.gameObject.AddComponent<Button>(); start.targetGraphic = startImage;
-            Text startLabel = Label(startRect, "Label", "开始逃生", Vector2.zero, new Vector2(260, 64), 27, Ink);
-            Stretch(startLabel.rectTransform); startLabel.alignment = TextAnchor.MiddleCenter;
             RectTransform environment = NewRect("EnvironmentEditArea", actions);
             EnvironmentEditLayout.Ensure(environment, root);
             environment.gameObject.AddComponent<EnvironmentEditView>();
             environment.gameObject.SetActive(false);
-            startRect.SetParent(root, false);
-            startRect.anchorMin = startRect.anchorMax = startRect.pivot = Vector2.one;
-            startRect.anchoredPosition = new Vector2(-32, -100);
             actions.gameObject.SetActive(false);
             RectTransform message = Region(root, "MessageArea", new Vector2(.5f, 0), new Vector2(0, 560), new Vector2(720, 80));
             Background(message, Card, false);
@@ -125,6 +102,7 @@ public static class GameUIPrefabBuilder
             message.gameObject.SetActive(false);
             BuildEscapeChoices(root);
             root.gameObject.AddComponent<GameplayPanel>();
+            P11UIPrefabUpgrade.UpgradeGameplay(root.gameObject);
             Save(root);
         }
         finally { UnityEngine.Object.DestroyImmediate(root.gameObject); }
@@ -230,7 +208,7 @@ public static class GameUIPrefabBuilder
     {
         RectTransform rect = Region(parent, name, new Vector2(0, 1), position, size);
         Text text = rect.gameObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = GameUIAssets.Shared.font;
         text.text = value; text.fontSize = fontSize; text.color = color;
         text.alignment = TextAnchor.MiddleLeft; text.raycastTarget = false;
         text.horizontalOverflow = HorizontalWrapMode.Overflow;

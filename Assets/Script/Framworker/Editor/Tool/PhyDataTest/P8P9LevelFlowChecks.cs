@@ -317,7 +317,8 @@ public static class P8P9LevelFlowChecks
             "真实进入模拟后隐藏漫游对象框线");
         explorationRules.AdvanceSimulationTime(.375f);
         RefreshPanel();
-        Check(panel.FindUIObj<Text>("CognitionText").text == $"认知  {Mathf.Floor(explorationRules.Cognition.Remaining):0}",
+        Check(panel.transform.Find("CognitionArea").gameObject.activeInHierarchy
+            && panel.FindUIObj<Text>("CognitionText").text == $"{Mathf.Floor(explorationRules.Cognition.Remaining):0} / {SceneLevelSetup.Current.InitialCognition:0.##}",
             "非整数认知面板向下取整显示，规则余额继续保留小数");
         box.RefreshMotionState(boxHome + Vector2.right * 8f);
         storedBox.RefreshMotionState(storedHome + Vector2.right * 12f);
@@ -348,14 +349,14 @@ public static class P8P9LevelFlowChecks
 
         box.RefreshMotionState(boxHome + Vector2.right * 9f);
         RefreshPanel();
-        Button startButton = panel.transform.Find("StartEscapeButton")?.GetComponent<Button>();
-        Check(startButton != null && startButton.gameObject.activeInHierarchy && startButton.interactable
-            && host.CanStartEscape, "真实操作显示提供当前探索可用的开始逃生按钮");
-        startButton.onClick.Invoke();
+        Check(panel.transform.Find("StartEscapeButton") == null
+            && panel.transform.Find("EndExplorationNote").gameObject.activeInHierarchy && host.CanStartEscape,
+            "真实探索界面提供不可点击便签并移除开始逃生按钮");
+        P11UIInputChecks.EndExploration(panel, passed);
         Check(host.EscapeSelectionPending && explorationRules.EscapeSelectionPending
             && InputControlMgr.Instance.Player == null && !spirit.Permissions.motionUpdates
             && !body.Permissions.motionUpdates && WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
-            "实际开始按钮进入唯一选择入口，暂停角色与世界并撤销探索控制");
+            "实际回车长按进入唯一准备入口，暂停角色与世界并撤销探索控制");
         Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "进入购买准备保持箱子现场，不提前复位");
         Check(!water.RisingAllowed, "等待购买时水不取得上涨许可");
         int movementIndex = OfferIndex(PlayerUpgradeKind.MovementSpeed);
@@ -370,7 +371,7 @@ public static class P8P9LevelFlowChecks
             && host.EscapeSelectionPending && WorldPaused(typeof(BasicEntity)) && InputControlMgr.Instance.Player == null,
             "选择期间关闭菜单保留结算冻结与空控制目标");
         RefreshPanel();
-        Check(panel.FindUIObj<Text>("CognitionText").text == $"认知  {Mathf.Floor(explorationRules.Cognition.Remaining):0}",
+        Check(panel.FindUIObj<Text>("CognitionText").text == $"{Mathf.Floor(explorationRules.Cognition.Remaining):0} / {SceneLevelSetup.Current.InitialCognition:0.##}",
             "购买等待时无受控角色也沿用认知向下取整显示");
         typeof(EscapeChoiceView).GetMethod("Refresh", Hidden).Invoke(panel.GetComponentInChildren<EscapeChoiceView>(), null);
         Check(panel.transform.Find("EscapeChoiceArea/Choices/EscapeBudgetText").GetComponent<Text>().text
@@ -393,6 +394,9 @@ public static class P8P9LevelFlowChecks
         Check(nextButton != null && nextButton.interactable, "能力购买后独立下一步仍可使用");
         nextButton.onClick.Invoke();
         Check(!host.EscapeSelectionPending && host.IsEscapeHandoff, "下一步最终确认后才开始精神体消散");
+        RefreshPanel();
+        Check(!panel.transform.Find("CognitionArea").gameObject.activeInHierarchy,
+            "确认交接即隐藏顶部认知条和白条");
         Check(!host.PurchaseEscapeAbility(0) && !host.StartEscape(), "已完成购买与交接不重复执行");
         Near(box.DebugActualPosition, boxHome + Vector2.right * 9f, "消散完成前仍保持购买现场");
         Check(!water.RisingAllowed && WorldPaused(typeof(BasicEntity)), "消散及镜头交接前不开放水与世界");
@@ -401,6 +405,11 @@ public static class P8P9LevelFlowChecks
     static void CheckPurchaseHandoff()
     {
         SceneChangeMgr host = SceneChangeMgr.Instance;
+        RefreshPanel();
+        Check(!panel.transform.Find("CognitionArea").gameObject.activeInHierarchy,
+            "正式逃生持续隐藏顶部认知条");
+        if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
+            GameMenuInputChecks.Capture("p11-escape-hidden-cognition.png");
         Check(Rules().Stage == PlayerGameplayStage.Escape && !host.EscapeSelectionPending
             && Actor("spirit") == null && Actor("body") == body && InputControlMgr.Instance.Player == body,
             "购买完成只交给同一实体，退出精神体与选择暂停");
@@ -611,6 +620,9 @@ public static class P8P9LevelFlowChecks
         Check(sawDarkening && sawBlack && sawBrightening, "真实帧序观察到渐暗、全黑后复位、渐亮三个阶段");
         Check(InputControlMgr.Instance.InputEnabled && WorldPaused(typeof(BasicEntity))
             && Rules().Stage == PlayerGameplayStage.Exploration, "渐亮结束才恢复漫游输入，世界仍暂停");
+        RefreshPanel();
+        Check(panel.transform.Find("CognitionArea").gameObject.activeInHierarchy,
+            "逃生失败恢复探索时顶部认知条重新显示");
         Time.timeScale = 0f; // 夹具继续手动推进物理，不让自动帧移动验证位置。
         failureChecks(); failureChecks = null;
         return true;

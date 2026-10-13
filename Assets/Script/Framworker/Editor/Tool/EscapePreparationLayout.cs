@@ -66,7 +66,7 @@ public static class EscapePreparationLayout
     {
         RectTransform rect = Rect(name, parent);
         Text label = rect.gameObject.AddComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.font = GameUIAssets.Shared.font;
         label.text = text; label.fontSize = fontSize; label.color = Ink;
         label.alignment = TextAnchor.MiddleLeft; label.raycastTarget = false;
         label.horizontalOverflow = HorizontalWrapMode.Wrap; label.verticalOverflow = VerticalWrapMode.Truncate;

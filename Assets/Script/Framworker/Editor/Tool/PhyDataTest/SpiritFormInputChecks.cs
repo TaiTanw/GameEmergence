@@ -80,7 +80,7 @@ public static class SpiritFormInputChecks
             typeof(InputChangePanel).GetMethod("Start", Hidden).Invoke(panel, null);
             Button button = panel.FindUIObj<Button>("formSwitch");
             Text label = panel.FindUIObj<Text>("formSwitchT");
-            Check(button != null && label != null && label.text == "<Keyboard>/q", "真实改键预设显示形态切换行和默认键", passed);
+            Check(button != null && label != null && label.text == "Q", "真实改键预设显示形态切换行和默认键", passed);
             Transform content = panel.transform.Find("rebindScroll/viewport/rebindContent");
             Check(button.transform.parent.parent == content && content.childCount == 8
                 && button.transform.parent.GetSiblingIndex() == 7, "形态行排在滚动列表末尾，原七行完整保留", passed);
@@ -92,14 +92,14 @@ public static class SpiritFormInputChecks
             button.onClick.Invoke();
             CompleteRebind(manager, keyboard, Key.E);
             Check(manager.HasPlayerBindingConflict(out string conflict) && conflict.Contains("FormSwitch")
-                && !native.currentActionMap.enabled && label.text == "<Keyboard>/e",
+                && !native.currentActionMap.enabled && label.text == "E",
                 "真实形态改键与交互键重复时提示冲突并暂停动作", passed);
             Send(keyboard);
             button.onClick.Invoke();
             beforeResume = presses;
             CompleteRebind(manager, keyboard, Key.R);
             Check(!manager.HasPlayerBindingConflict(out _) && native.currentActionMap.enabled
-                && label.text == "<Keyboard>/r", "改为 R 后真实面板更新显示、解除冲突并恢复输入", passed);
+                && label.text == "R", "改为 R 后真实面板更新显示、解除冲突并恢复输入", passed);
             Check(presses == beforeResume && rules.Cognition.Remaining == balance,
                 "改键完成时按住新键不会触发转换或扣费", passed);
             var reload = InputActionAsset.FromJson(Resources.Load<TextAsset>("player").text);

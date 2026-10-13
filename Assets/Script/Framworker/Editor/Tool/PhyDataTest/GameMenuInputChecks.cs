@@ -71,9 +71,12 @@ public static class GameMenuInputChecks
         RenderTexture active = RenderTexture.active;
         RenderTexture render = new RenderTexture(1920, 1080, 24);
         Texture2D texture = new Texture2D(1920, 1080, TextureFormat.RGB24, false);
+        Camera game = InputControlMgr.Instance.GameCamera;
+        RenderTexture gameTarget = game != null ? game.targetTexture : null;
         try
         {
             camera.targetTexture = render;
+            if (game != null && game.isActiveAndEnabled) { game.targetTexture = render; game.Render(); }
             Canvas.ForceUpdateCanvases(); camera.Render();
             RenderTexture.active = render;
             texture.ReadPixels(new Rect(0, 0, 1920, 1080), 0, 0); texture.Apply();
@@ -83,6 +86,7 @@ public static class GameMenuInputChecks
         finally
         {
             camera.targetTexture = previous; RenderTexture.active = active;
+            if (game != null) game.targetTexture = gameTarget;
             UnityEngine.Object.DestroyImmediate(texture); UnityEngine.Object.DestroyImmediate(render);
         }
     }

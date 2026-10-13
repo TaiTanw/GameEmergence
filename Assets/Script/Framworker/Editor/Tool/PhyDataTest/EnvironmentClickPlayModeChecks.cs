@@ -78,6 +78,9 @@ public static class EnvironmentClickPlayModeChecks
             typeof(EnvironmentEditView).GetMethod("Update", Hidden).Invoke(view, null);
             var selected = (BasicPhysicalObject)typeof(EnvironmentEditView).GetField("selected", Hidden).GetValue(view);
             Check(selected == ground && selected.name == "Square", "屏幕点击选中保存场景的 Square", passed);
+            Check(view.IsBackpackOpen && !view.IsBackpackReadOnly
+                && panel.transform.Find("CognitionBackpackArea").gameObject.activeInHierarchy,
+                "真实点击环境同时打开可联动的背包面板", passed);
             Mesh selectedMesh = FrameMesh(panel, view);
             try
             {
@@ -105,6 +108,7 @@ public static class EnvironmentClickPlayModeChecks
             Button apply = editor.Find("ConfirmEnvironmentButton").GetComponent<Button>();
             Check(apply.interactable, "计算预览使整个环境面板确认按钮可用", passed);
             CaptureScene(view, "environment-backpack-preview.png");
+            GameMenuInputChecks.Capture("p11-environment-backpack.png");
             apply.onClick.Invoke();
             Check(Mathf.Abs(ground.SlowingEffect - point.CalculationPoint.Multiplier) < .0001f,
                 "真实整面板确认按钮提交计算结果到原环境来源", passed);

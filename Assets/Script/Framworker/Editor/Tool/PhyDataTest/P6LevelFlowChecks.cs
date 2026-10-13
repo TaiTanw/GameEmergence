@@ -251,10 +251,9 @@ public static class P6LevelFlowChecks
                     if (EditorApplication.timeSinceStartup < cooldownEnds) return;
                     Near(oldSpirit.FormCooldownRemaining, 0f, "TimeScale 为零时转换 CD 仍归零");
                     typeof(GameplayPanel).GetMethod("LateUpdate", Hidden).Invoke(panel, null);
-                    Check(panel.FindUIObj<Text>("StageText").text == "探索 · 模拟"
-                        && panel.FindUIObj<Text>("CognitionText").text == $"认知  {Mathf.Floor(expectedCognition):0}"
-                        && panel.FindUIObj<Text>("FormCooldownText").text == "转换 CD  0.0 秒",
-                        "游戏显示消费当前阶段、认知和实际转换 CD");
+                    Check(panel.transform.Find("StageArea") == null && panel.transform.Find("ResourceArea") == null
+                        && panel.FindUIObj<Text>("CognitionText").text == $"{Mathf.Floor(expectedCognition):0} / {SceneLevelSetup.Current.InitialCognition:0.##}",
+                        "游戏显示只读认知当前值与上限，不再显示阶段与转换 CD");
                     Check(SceneChangeMgr.Instance.SetSimulation(false), "场景模式入口成功返回漫游");
                     Check(!LevelStageMgr.Instance.IsSimulation && oldSpirit._ActionData.isFlying,
                         "冷却结束后返回漫游飞行");
