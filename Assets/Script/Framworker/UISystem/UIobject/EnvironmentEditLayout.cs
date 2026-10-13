@@ -4,12 +4,12 @@ using UnityEngine.UI;
 /// <summary>环境编辑和侧栏背包共用的布局；旧预设在运行时补齐，编辑器生成也走同一份布局。</summary>
 public static class EnvironmentEditLayout
 {
-    public static readonly Color Ink = new Color(.88f, .94f, .96f);
-    public static readonly Color Muted = new Color(.58f, .69f, .75f);
-    public static readonly Color Card = new Color(.055f, .09f, .12f, .96f);
-    public static readonly Color Normal = new Color(.10f, .17f, .21f);
-    public static readonly Color Highlight = new Color(.17f, .38f, .40f);
-    public static readonly Color Inactive = new Color(.085f, .10f, .12f);
+    public static readonly Color Ink = new Color(.18f, .14f, .20f);
+    public static readonly Color Muted = new Color(.34f, .27f, .29f);
+    public static readonly Color Card = Color.white;
+    public static readonly Color Normal = new Color(.85f, .78f, .66f);
+    public static readonly Color Highlight = new Color(.94f, .85f, .68f);
+    public static readonly Color Inactive = new Color(.58f, .55f, .50f);
 
     public static void Ensure(Transform area, Transform panel)
     {
@@ -22,11 +22,15 @@ public static class EnvironmentEditLayout
             }
         Image oldBackground = area.GetComponent<Image>();
         if (oldBackground != null) { oldBackground.color = Color.clear; oldBackground.raycastTarget = false; }
-        RectTransform areaRect = (RectTransform)area;
-        areaRect.anchorMin = areaRect.anchorMax = areaRect.pivot = new Vector2(.5f, 0f);
-        areaRect.anchoredPosition = new Vector2(0f, 80f); areaRect.sizeDelta = new Vector2(720f, 430f);
         // 同名节点只构造一次，面板停用再启用不会复制背包或事件控件。
-        if (area.Find("EnvironmentEditorContent") == null) BuildEditor(area);
+        if (area.Find("EnvironmentEditorContent") == null)
+        {
+            RectTransform areaRect = (RectTransform)area;
+            areaRect.anchorMin = areaRect.anchorMax = areaRect.pivot = new Vector2(.5f, 0f);
+            areaRect.anchoredPosition = new Vector2(0f, -((RectTransform)area.parent).anchoredPosition.y);
+            areaRect.sizeDelta = new Vector2(720f, 430f);
+            BuildEditor(area);
+        }
         Transform editor = area.Find("EnvironmentEditorContent");
         // 固定特性只读行独立于能力槽，较早生成的面板也在同一入口补齐。
         if (editor.Find("EnvironmentFixedFeatureText") == null)
@@ -46,6 +50,7 @@ public static class EnvironmentEditLayout
         {
             RectTransform explanation = Region(bag, "BackpackExplanationBox", new Vector2(0, 1), new Vector2(18, -50), new Vector2(324, 60));
             Background(explanation, Normal, false); explanation.SetSiblingIndex(mode.transform.GetSiblingIndex());
+            ApplyPaper(explanation.GetComponent<Image>(), GameUIAssets.Shared.note);
         }
         ((RectTransform)bag.Find("BackpackCapacityText")).anchoredPosition = new Vector2(18, -114);
         RectTransform bagScroll = (RectTransform)bag.Find("CognitionBackpackScroll");
@@ -62,12 +67,53 @@ public static class EnvironmentEditLayout
         if (panel.Find("OpenCognitionBackpackButton") == null)
             Button(panel, "OpenCognitionBackpackButton", "认知背包", new Vector2(1f, 1f),
                 new Vector2(-32f, -182f), new Vector2(360f, 48f), 24);
+        // 已保存的纸样、纯色底与手工位置直接使用；只为缺少的标题补底图。
+        TitlePaper(editor.Find("EnvironmentSelectionTitleText"));
+        TitlePaper(bag.Find("BackpackTitleText"));
+    }
+
+    static void ApplyPaper(Image image, Sprite sprite)
+    {
+        // 安全：装饰没有图像组件时不影响按钮和槽的原交互。
+        if (image == null) return;
+        image.sprite = sprite;
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 4f;
+        image.color = Color.white;
+        if (sprite == GameUIAssets.Shared.note) ApplyLabelShadow(image);
+    }
+
+    public static void ApplyLabelShadow(Image image)
+    {
+        // 小纸标签只在右侧和下沿投淡影；复用组件，重新显示不会叠加阴影。
+        Shadow shadow = image.GetComponent<Shadow>();
+        if (shadow == null) shadow = image.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, .2f);
+        shadow.effectDistance = new Vector2(2f, -3f);
+        shadow.useGraphicAlpha = true;
+    }
+
+    static void TitlePaper(Transform title)
+    {
+        RectTransform label = (RectTransform)title;
+        Transform previous = title.parent.Find(title.name + "Paper");
+        // 已制作标题的贴图与大小由预设保存，运行时不再覆盖。
+        if (previous != null) return;
+        RectTransform paper = Region(title.parent, title.name + "Paper", label.anchorMin, label.anchoredPosition, label.sizeDelta);
+        Background(paper, Normal, false);
+        paper.anchorMin = label.anchorMin; paper.anchorMax = label.anchorMax; paper.pivot = label.pivot;
+        paper.anchoredPosition = label.anchoredPosition + new Vector2(-8, 4);
+        paper.sizeDelta = label.sizeDelta + new Vector2(16, 8);
+        paper.SetAsFirstSibling();
+        ApplyPaper(paper.GetComponent<Image>(), GameUIAssets.Shared.note);
+        paper.GetComponent<Image>().raycastTarget = false;
     }
 
     static void BuildEditor(Transform area)
     {
         RectTransform hint = Region(area, "EnvironmentSelectionHint", new Vector2(.5f, 0), Vector2.zero, new Vector2(720, 54));
         Background(hint, Card, false);
+        ApplyPaper(hint.GetComponent<Image>(), GameUIAssets.Shared.note);
         Text prompt = Label(hint, "Label", "点击蓝框环境查看性质", Vector2.zero, new Vector2(720, 54), 21, Muted);
         Stretch(prompt.rectTransform); prompt.alignment = TextAnchor.MiddleCenter;
         RectTransform card = Region(area, "EnvironmentEditorContent", new Vector2(0, 1), Vector2.zero, new Vector2(720, 430));
@@ -115,14 +161,16 @@ public static class EnvironmentEditLayout
     public static Image Background(RectTransform rect, Color color, bool blocksInput)
     {
         Image image = rect.gameObject.AddComponent<Image>();
-        image.color = color; image.raycastTarget = blocksInput; return image;
+        image.color = color; image.raycastTarget = blocksInput;
+        if (color == Card) { image.sprite = GameUIAssets.Shared.environmentPanel; image.type = Image.Type.Sliced; }
+        return image;
     }
 
     public static Text Label(Transform parent, string name, string value, Vector2 position, Vector2 size, int fontSize, Color color)
     {
         RectTransform rect = Region(parent, name, new Vector2(0, 1), position, size);
         Text text = rect.gameObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = GameUIAssets.Shared.font;
         text.text = value; text.fontSize = fontSize; text.color = color; text.alignment = TextAnchor.MiddleLeft;
         text.raycastTarget = false; text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Truncate; return text;
@@ -132,10 +180,14 @@ public static class EnvironmentEditLayout
     {
         RectTransform rect = Region(parent, name, anchor, position, size);
         Image image = Background(rect, Normal, true);
+        image.sprite = GameUIAssets.Shared.note; image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 4f;
+        ApplyLabelShadow(image);
         Button button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
+        button.navigation = new Navigation { mode = Navigation.Mode.None };
         ColorBlock colors = button.colors;
         colors.highlightedColor = new Color(.8f, 1f, 1f); colors.pressedColor = new Color(.55f, .85f, .88f);
-        colors.disabledColor = new Color(.45f, .5f, .55f); button.colors = colors;
+        colors.disabledColor = new Color(.82f, .82f, .82f); button.colors = colors;
         Text label = Label(rect, "Label", caption, Vector2.zero, size, fontSize, Ink);
         Stretch(label.rectTransform); label.rectTransform.offsetMin = new Vector2(10, 0);
         label.rectTransform.offsetMax = new Vector2(-10, 0); label.alignment = TextAnchor.MiddleCenter;

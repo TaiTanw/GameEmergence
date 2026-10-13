@@ -54,7 +54,7 @@ public sealed class InteractionHintView
         var text = new GameObject("label");
         text.transform.SetParent(root.transform, false);
         label = text.AddComponent<TextMesh>();
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font font = GameUIAssets.Shared.font;
         label.font = font;
         label.fontSize = 48;
         label.characterSize = .06f;

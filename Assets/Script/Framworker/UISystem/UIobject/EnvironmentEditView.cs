@@ -214,6 +214,8 @@ public sealed class EnvironmentEditView : MonoBehaviour
         selected = source; draft = next; pendingSelection = null;
         viewTrigger = draft.IsTriggerEnvironment; selectedSlot = selectedBagItemId = -1; geometryTarget = false;
         message = "选择空槽注入性质；选择已有性质使用计算点。";
+        // 点选环境即联动打开背包；选中槽之前只展示内容，不提交修改。
+        OpenLinkedBackpack();
         RefreshAll(); ResetAbilityScroll();
     }
 

@@ -22,7 +22,7 @@ public class InputChangePanel : BasePanel
     private Text conflictT;
 
     static readonly string[] KnownRowOrder = { "left", "right", "up", "down", "ff", "interact", "sprint", "formSwitch" };
-    const float FooterHeight = 168f;
+    const float FooterHeight = 80f;
 
 
 
@@ -82,7 +82,7 @@ public class InputChangePanel : BasePanel
         scrollRt.anchorMin = Vector2.zero;
         scrollRt.anchorMax = Vector2.one;
         scrollRt.offsetMin = new Vector2(0f, FooterHeight);
-        scrollRt.offsetMax = Vector2.zero;
+        scrollRt.offsetMax = new Vector2(0f, -16f);
 
         GameObject viewportGo = new GameObject("viewport", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D));
         viewportGo.transform.SetParent(scrollRt, false);
@@ -105,7 +105,7 @@ public class InputChangePanel : BasePanel
         contentRt.sizeDelta = new Vector2(0f, 0f);
 
         VerticalLayoutGroup layout = contentGo.GetComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(80, 80, 24, 24);
+        layout.padding = new RectOffset(24, 24, 16, 16);
         layout.spacing = 8f;
         layout.childAlignment = TextAnchor.UpperCenter;
         layout.childControlWidth = true;
@@ -168,15 +168,15 @@ public class InputChangePanel : BasePanel
             exitRt.anchorMin = new Vector2(0.5f, 0f);
             exitRt.anchorMax = new Vector2(0.5f, 0f);
             exitRt.pivot = new Vector2(0.5f, 0f);
-            exitRt.anchoredPosition = new Vector2(0f, 28f);
-            exit.SetAsLastSibling();
+            exit.gameObject.SetActive(false);
         }
         if (conflictT == null) return;
         RectTransform conflictRt = conflictT.rectTransform;
         conflictRt.anchorMin = new Vector2(0.5f, 0f);
         conflictRt.anchorMax = new Vector2(0.5f, 0f);
         conflictRt.pivot = new Vector2(0.5f, 0f);
-        conflictRt.anchoredPosition = new Vector2(0f, 112f);
+        conflictRt.anchoredPosition = new Vector2(0f, 12f);
+        conflictRt.sizeDelta = new Vector2(780f, 60f);
         conflictRt.SetAsLastSibling();
     }
     public override void HideMe()
@@ -244,19 +244,33 @@ public class InputChangePanel : BasePanel
     public void UpdateUIvalue()
     {
         InputActionAsset asset = DataAndInitMgr.Instance.asset;
-        leftT.text = asset.FindAction("Move").bindings[1].effectivePath;
-        rightT.text = asset.FindAction("Move").bindings[2].effectivePath;
+        leftT.text = KeyCaption(asset.FindAction("Move").bindings[1].effectivePath);
+        rightT.text = KeyCaption(asset.FindAction("Move").bindings[2].effectivePath);
         if (upT != null)
-            upT.text = CompositePartPath(asset, "Vertical", "positive");
+            upT.text = KeyCaption(CompositePartPath(asset, "Vertical", "positive"));
         if (downT != null)
-            downT.text = CompositePartPath(asset, "Vertical", "negative");
-        FT.text = asset.FindAction("Jump").bindings[0].effectivePath;
-        interactT.text = asset.FindAction("Interact").bindings[0].effectivePath;
+            downT.text = KeyCaption(CompositePartPath(asset, "Vertical", "negative"));
+        FT.text = KeyCaption(asset.FindAction("Jump").bindings[0].effectivePath);
+        interactT.text = KeyCaption(asset.FindAction("Interact").bindings[0].effectivePath);
         if (sprintT != null)
-            sprintT.text = asset.FindAction("Sprint").bindings[0].effectivePath;
+            sprintT.text = KeyCaption(asset.FindAction("Sprint").bindings[0].effectivePath);
         if (formSwitchT != null)
-            formSwitchT.text = asset.FindAction("FormSwitch").bindings[0].effectivePath;
+            formSwitchT.text = KeyCaption(asset.FindAction("FormSwitch").bindings[0].effectivePath);
+        CanLeave();
     }
+
+    public bool CanLeave()
+    {
+        bool conflict = InputControlMgr.Instance.HasPlayerBindingConflict(out string message);
+        // 等待改键期间也留在当前页，避免遗留监听。
+        if (InputControlMgr.Instance.IsRebinding) message = "请先完成改键，或按 ESC 取消。";
+        if (conflictT == null) conflictT = FindUIObj<Text>("conflictT");
+        if (conflictT != null) conflictT.text = message ?? "";
+        return !conflict && !InputControlMgr.Instance.IsRebinding;
+    }
+
+    static string KeyCaption(string path) => string.IsNullOrEmpty(path) ? "未绑定"
+        : InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice);
 
     void StartCompositeRebind(string actionName, string partName)
     {
