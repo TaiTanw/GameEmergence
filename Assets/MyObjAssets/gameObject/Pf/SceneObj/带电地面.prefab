@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 5301665955547143223}
   - component: {fileID: 8470694924401604218}
   m_Layer: 6
-  m_Name: ElectrifiedLowFrictionGround
+  m_Name: "\u5E26\u7535\u5730\u9762"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

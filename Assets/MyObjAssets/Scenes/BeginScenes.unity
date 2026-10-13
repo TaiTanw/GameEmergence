@@ -339,6 +339,10 @@ PrefabInstance:
       propertyPath: bgmRef.m_AssetGUID
       value: f6d9d030968c89b48b7d737099a7a021
       objectReference: {fileID: 0}
+    - target: {fileID: 2688247672638569223, guid: ea1f81cab8e76664cae9b02ffd8b147e, type: 3}
+      propertyPath: bgmRef.m_EditorAssetChanged
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8458252752049069069, guid: ea1f81cab8e76664cae9b02ffd8b147e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 558.55164
