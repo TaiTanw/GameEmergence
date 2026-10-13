@@ -21,6 +21,7 @@ public class Main : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        gameObject.AddComponent<DisplaySettings>();
 
         DataConfigurationMgr.Instance.Init();
         DataAndInitMgr.Instance.Init();
@@ -34,7 +35,8 @@ public class Main : MonoBehaviour
         //缓存加载界面
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, (UI) =>
         {
-            UI.gameObject.SetActive(false);
+            // 预热回调若晚于开始点击，遮罩已被过场接管，不能再将它关闭。
+            if (!SceneChangeMgr.Instance.IsLoading) UI.gameObject.SetActive(false);
         });
         //print(Application.persistentDataPath);
     }

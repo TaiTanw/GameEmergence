@@ -4,6 +4,8 @@ using UnityEngine.UI;
 public class GameplayPanel : BasePanel
 {
     [UnityEngine.SerializeField, UnityEngine.Min(0f)] float fullResourceHideDelay = 1f;
+    [UnityEngine.SerializeField, UnityEngine.Min(0f), UnityEngine.Tooltip("资源条与角色显示边缘的间距，按画布布局像素计算。")]
+    float resourceBarGap = 18f;
     Text cognitionText, refreshMessageText, endExplorationText;
     UnityEngine.GameObject actionArea, environmentEditArea, escapeChoiceArea, mapArea, cognitionArea, endExplorationNote;
     Button resetTrialButton;
@@ -35,7 +37,6 @@ public class GameplayPanel : BasePanel
         mapArea = transform.Find("MapArea").gameObject;
         refreshMessageText = FindUIObj<Text>("RefreshMessageText");
         messageArea = transform.Find("MessageArea") as UnityEngine.RectTransform;
-        actionArea.GetComponent<UnityEngine.RectTransform>().sizeDelta = new UnityEngine.Vector2(720f, 64f);
     }
 
     protected override void OnClickButton(string name)
@@ -61,7 +62,6 @@ public class GameplayPanel : BasePanel
         refreshMessageText.text = message;
         messageArea.gameObject.SetActive(!string.IsNullOrEmpty(message));
         bool resetAllowed = host.CanResetTrial, editAllowed = host.CanEditEnvironment;
-        messageArea.anchoredPosition = new UnityEngine.Vector2(0f, editAllowed ? 560f : 140f);
         if (backpackArea == null) backpackArea = transform.Find("CognitionBackpackArea")?.gameObject;
         if (openBackpackButton == null) openBackpackButton = transform.Find("OpenCognitionBackpackButton")?.gameObject;
         // 模拟与逃生不留下漫游背包入口。
@@ -144,7 +144,7 @@ public class GameplayPanel : BasePanel
         UnityEngine.Vector3 right = gameCamera.WorldToScreenPoint(new UnityEngine.Vector3(visible.max.x, bounds.center.y, bounds.center.z));
         if (center.z <= 0f) { staminaBar.gameObject.SetActive(false); oxygenBar.gameObject.SetActive(false); return; }
         UnityEngine.Camera uiCamera = canvas.renderMode == UnityEngine.RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-        float gap = 18f * canvas.scaleFactor;
+        float gap = resourceBarGap * canvas.scaleFactor;
         PlaceBar(staminaBar, new UnityEngine.Vector2(left.x - gap, center.y), uiCamera);
         PlaceBar(oxygenBar, new UnityEngine.Vector2(right.x + gap, center.y), uiCamera);
     }

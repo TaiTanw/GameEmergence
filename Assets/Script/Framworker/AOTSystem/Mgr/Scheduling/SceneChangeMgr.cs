@@ -17,6 +17,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     bool refreshing;
     public bool IsFailureRecovering => refreshing;
     bool loading;
+    public bool IsLoading => loading;
     int loadSerial;
     bool enterFromMenu;
     public bool GameMenuOpen { get; private set; }
@@ -348,6 +349,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             return false;
         }
         UIMgr.Instance.HideOneUI<ChangePanel>();
+        loading = true;
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
         {
             if (serial == loadSerial) panel.SetTransitionWeight(1f);
@@ -356,9 +358,25 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         {
             // 实际逻辑：加载被新的进入或返回作废时，不能关掉新的加载页。
             if (serial != loadSerial) return;
-            UIMgr.Instance.HideOneUI<LoadingPanel>();
+            UIMgr.Instance.ShowOneUI<BeginPanel>(callBack: begin =>
+                MonoPublicMgr.Instance.StartCoroutine(RevealMenu(begin, serial)));
         });
         return true;
+    }
+
+    IEnumerator RevealMenu(BeginPanel begin, int serial)
+    {
+        // 菜单资源及视频首帧就绪后才揭开黑幕，不在场景加载回调里提前露出底色。
+        while (!begin.IsFullyShown)
+        { if (serial != loadSerial) yield break; yield return null; }
+        if (serial != loadSerial) yield break;
+        LoadingPanel mask = null;
+        UIMgr.Instance.GetOnePanel<LoadingPanel>(panel => mask = panel);
+        yield return FadeTransition(mask, 1f, 0f, serial);
+        if (serial != loadSerial) yield break;
+        loading = false;
+        UIMgr.Instance.HideOneUI<LoadingPanel>();
+        begin.GetComponent<CanvasGroup>().interactable = true;
     }
 
     void EnterLevel(int index, LevelOrderFile order, bool confirmPrevious = false, bool keepLevelClearPlayback = false)
@@ -421,6 +439,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     {
         yield return FadeTransition(panel, 0f, 1f, serial);
         if (serial != loadSerial) yield break;
+        // 开始封面只在全黑后退出；首次遮罩加载等待期间始终保留原画面。
+        if (enterFromMenu) UIMgr.Instance.HideOneUI<BeginPanel>();
         ReleaseLevelRules();
         InputControlMgr.Instance.BindPlayer(null);
         if (body != null) body.ApplyCapabilities(PlayerCapabilityPermissions.Standby);
@@ -499,6 +519,13 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
 
     IEnumerator BrightenThenPlay(LoadingPanel panel, int serial)
     {
+        bool uiReady = false;
+        // 游戏面板也可能首次异步加载，放在黑幕下完成，避免揭幕后才突然出现。
+        UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom, _ => uiReady = true);
+        while (!uiReady)
+        { if (serial != loadSerial) yield break; yield return null; }
+        yield return null;
+        if (serial != loadSerial) yield break;
         float settleDuration = panel != null ? panel.PhysicsSettleDuration : .25f;
         float elapsed = 0f;
         // 实际逻辑：用有限的全黑时间容纳出生点小幅下落，不额外模拟物理，也不无限等待落地。
@@ -523,7 +550,6 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         loading = false;
         UIMgr.Instance.HideOneUI<LoadingPanel>();
         InputControlMgr.Instance.InputOpenOrClose(true);
-        UIMgr.Instance.ShowOneUI<GameplayPanel>(E_UILayer.Bottom);
     }
 
     /// <summary>人工阅读入口：场景配置 → 留下的实体 → 本关精神体 → 唯一输入目标；成功后才确认效果并保存进度。</summary>
@@ -629,6 +655,9 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         }
         LevelStageMgr.Instance.BindRules(levelRules);
         levelRules.BindExplorationMap(setup);
+        // 此精神体只在创建时订阅一次；复用原四秒提示框，不改失败的形态／认知／冷却。
+        spirit.GetComponent<CharacterPhysics>().WalkingRestoreRejected += _ =>
+            ShowGameplayMessage("无法在物体内部转换");
         if (!setup.PrepareRisingWater(out string waterError))
         { Debug.LogError(waterError, setup); return false; }
         MonoPublicMgr.Instance.AddUpdatEvent(AdvanceLevelCognition);

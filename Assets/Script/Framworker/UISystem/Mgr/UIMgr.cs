@@ -94,6 +94,8 @@ public class UIMgr : BaseMgr<UIMgr>
         uiCanvas = GameObject.Instantiate
             (Resources.Load<GameObject>(DataAndInitMgr.Instance.resourcesNecessaryAssetsPath+"Canvas")).GetComponent<Canvas>();
         uiCanvas.worldCamera = uiCamera;
+        // 固定 16:9 时按可容纳画面的短边缩放，4:3 屏幕的上下黑边不挤压预设布局。
+        uiCanvas.GetComponent<UnityEngine.UI.CanvasScaler>().screenMatchMode = UnityEngine.UI.CanvasScaler.ScreenMatchMode.Expand;
         GameObject.DontDestroyOnLoad(uiCanvas.gameObject);
 
 

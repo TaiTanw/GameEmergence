@@ -40,7 +40,7 @@ public sealed class EnvironmentEditView : MonoBehaviour
         GameplayPanel panel = GetComponentInParent<GameplayPanel>();
         // 安全：预设必须挂在游戏面板下；缺少宿主时不创建游离背包。
         if (panel == null) { enabled = false; return; }
-        EnvironmentEditLayout.Ensure(transform, panel.transform);
+        // 静态布局直接使用预设；制作工具只在编辑器中补建，不在加载时重排。
         editor = (RectTransform)transform.Find("EnvironmentEditorContent");
         selectionHint = transform.Find("EnvironmentSelectionHint").gameObject;
         backpack = (RectTransform)panel.transform.Find("CognitionBackpackArea");

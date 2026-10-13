@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>环境编辑和侧栏背包共用的布局；旧预设在运行时补齐，编辑器生成也走同一份布局。</summary>
+/// <summary>环境与背包的制作布局及动态行创建工具；静态布局仅由编辑器制作入口补建。</summary>
 public static class EnvironmentEditLayout
 {
     public static readonly Color Ink = new Color(.18f, .14f, .20f);
@@ -11,20 +11,23 @@ public static class EnvironmentEditLayout
     public static readonly Color Highlight = new Color(.94f, .85f, .68f);
     public static readonly Color Inactive = new Color(.58f, .55f, .50f);
 
+#if UNITY_EDITOR
     public static void Ensure(Transform area, Transform panel)
     {
-        // 旧数字输入只隐藏；已保存预设立即使用槽编辑，不要求先运行编辑器生成器。
-        foreach (Transform child in area)
-            if (child.name != "EnvironmentEditorContent" && child.name != "EnvironmentSelectionHint")
-            {
-                foreach (Selectable control in child.GetComponentsInChildren<Selectable>(true)) control.interactable = false;
-                child.gameObject.SetActive(false);
-            }
-        Image oldBackground = area.GetComponent<Image>();
-        if (oldBackground != null) { oldBackground.color = Color.clear; oldBackground.raycastTarget = false; }
-        // 同名节点只构造一次，面板停用再启用不会复制背包或事件控件。
+        // 制作入口只在编辑状态补建；播放时完整使用保存的预设。
+        if (Application.isPlaying) return;
+        // 首次迁移旧数字面板才清理旧入口；已有槽面板保留背景和手工装饰。
         if (area.Find("EnvironmentEditorContent") == null)
         {
+            foreach (Transform child in area)
+                if (child.name != "EnvironmentSelectionHint")
+                {
+                    foreach (Selectable control in child.GetComponentsInChildren<Selectable>(true)) control.interactable = false;
+                    child.gameObject.SetActive(false);
+                }
+            Image oldBackground = area.GetComponent<Image>();
+            // 安全：没有旧背景组件时只创建槽面板。
+            if (oldBackground != null) { oldBackground.color = Color.clear; oldBackground.raycastTarget = false; }
             RectTransform areaRect = (RectTransform)area;
             areaRect.anchorMin = areaRect.anchorMax = areaRect.pivot = new Vector2(.5f, 0f);
             areaRect.anchoredPosition = new Vector2(0f, -((RectTransform)area.parent).anchoredPosition.y);
@@ -35,27 +38,20 @@ public static class EnvironmentEditLayout
         // 固定特性只读行独立于能力槽，较早生成的面板也在同一入口补齐。
         if (editor.Find("EnvironmentFixedFeatureText") == null)
             Label(editor, "EnvironmentFixedFeatureText", "", new Vector2(20, -150), new Vector2(680, 26), 18, Ink);
-        RectTransform abilityScroll = (RectTransform)editor.Find("EnvironmentAbilityScroll");
-        abilityScroll.anchoredPosition = new Vector2(20, -184);
-        abilityScroll.sizeDelta = new Vector2(680, 120);
         if (panel.Find("CognitionBackpackArea") == null) BuildBackpack(panel);
         Transform bag = panel.Find("CognitionBackpackArea");
         // 已生成侧栏同样补齐容量说明，避免较早制作的预设漏掉预览占用口径。
         if (bag.Find("BackpackCapacityText") == null)
-            Label(bag, "BackpackCapacityText", "", new Vector2(18, -84), new Vector2(324, 40), 15, Muted);
+            Label(bag, "BackpackCapacityText", "", new Vector2(18, -114), new Vector2(324, 40), 15, Muted);
         Text mode = bag.Find("BackpackModeText").GetComponent<Text>();
-        mode.rectTransform.anchoredPosition = new Vector2(18, -50); mode.rectTransform.sizeDelta = new Vector2(324, 60);
-        mode.fontSize = 16; mode.color = Ink;
         if (bag.Find("BackpackExplanationBox") == null)
         {
-            RectTransform explanation = Region(bag, "BackpackExplanationBox", new Vector2(0, 1), new Vector2(18, -50), new Vector2(324, 60));
+            RectTransform label = mode.rectTransform;
+            RectTransform explanation = Region(bag, "BackpackExplanationBox", label.anchorMin, label.anchoredPosition, label.sizeDelta);
+            explanation.anchorMax = label.anchorMax; explanation.pivot = label.pivot;
             Background(explanation, Normal, false); explanation.SetSiblingIndex(mode.transform.GetSiblingIndex());
             ApplyPaper(explanation.GetComponent<Image>(), GameUIAssets.Shared.note);
         }
-        ((RectTransform)bag.Find("BackpackCapacityText")).anchoredPosition = new Vector2(18, -114);
-        RectTransform bagScroll = (RectTransform)bag.Find("CognitionBackpackScroll");
-        bagScroll.anchoredPosition = new Vector2(18, -160); bagScroll.sizeDelta = new Vector2(324, 212);
-        ((RectTransform)bag.Find("BackpackSelectionText")).anchoredPosition = new Vector2(18, -378);
         // 旧预设的背包拆点入口移除；功能只通过环境数值行暴露。
         Transform oldSplit = bag.Find("SplitBackpackCalculationButton");
         if (oldSplit != null)
@@ -71,6 +67,7 @@ public static class EnvironmentEditLayout
         TitlePaper(editor.Find("EnvironmentSelectionTitleText"));
         TitlePaper(bag.Find("BackpackTitleText"));
     }
+#endif
 
     static void ApplyPaper(Image image, Sprite sprite)
     {
@@ -125,7 +122,7 @@ public static class EnvironmentEditLayout
         Label(card, "EnvironmentListStateText", "", new Vector2(406, -56), new Vector2(294, 34), 18, Muted);
         Button(card, "EnvironmentGeometrySlot", "触发器性质 · 独立槽", new Vector2(0, 1), new Vector2(20, -100), new Vector2(610, 46), 21);
         Button(card, "ExtractTriggerNatureButton", "抽取", new Vector2(0, 1), new Vector2(638, -100), new Vector2(62, 46), 18);
-        Scroll(card, "EnvironmentAbilityScroll", new Vector2(20, -156), new Vector2(680, 148));
+        Scroll(card, "EnvironmentAbilityScroll", new Vector2(20, -184), new Vector2(680, 120));
         Label(card, "EnvironmentOccupancyText", "", new Vector2(20, -314), new Vector2(680, 23), 17, Muted);
         Label(card, "EnvironmentPreviewCostText", "", new Vector2(20, -342), new Vector2(680, 25), 19, Ink);
         Text message = Label(card, "EnvironmentDraftHintText", "", new Vector2(20, -374), new Vector2(470, 42), 17, Muted);
@@ -142,11 +139,11 @@ public static class EnvironmentEditLayout
         Background(bag, Card, true);
         Label(bag, "BackpackTitleText", "认知背包", new Vector2(18, -12), new Vector2(240, 32), 24, Ink);
         Button(bag, "CloseCognitionBackpackButton", "关闭", new Vector2(0, 1), new Vector2(280, -12), new Vector2(62, 32), 18);
-        Text mode = Label(bag, "BackpackModeText", "只读查看", new Vector2(18, -50), new Vector2(324, 32), 17, Muted);
+        Text mode = Label(bag, "BackpackModeText", "只读查看", new Vector2(18, -50), new Vector2(324, 60), 16, Ink);
         mode.horizontalOverflow = HorizontalWrapMode.Wrap;
-        Label(bag, "BackpackCapacityText", "", new Vector2(18, -84), new Vector2(324, 40), 15, Muted);
-        Scroll(bag, "CognitionBackpackScroll", new Vector2(18, -132), new Vector2(324, 190));
-        Label(bag, "BackpackSelectionText", "", new Vector2(18, -328), new Vector2(324, 28), 17, Ink);
+        Label(bag, "BackpackCapacityText", "", new Vector2(18, -114), new Vector2(324, 40), 15, Muted);
+        Scroll(bag, "CognitionBackpackScroll", new Vector2(18, -160), new Vector2(324, 212));
+        Label(bag, "BackpackSelectionText", "", new Vector2(18, -378), new Vector2(324, 28), 17, Ink);
         bag.gameObject.SetActive(false);
     }
 
