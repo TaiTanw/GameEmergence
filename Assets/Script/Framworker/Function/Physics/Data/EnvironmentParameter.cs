@@ -19,7 +19,8 @@ public abstract class EnvironmentParameter
     [NonSerialized] private bool defaultsCaptured;
     [NonSerialized] private float defaultValue;
     [NonSerialized] private float runtimeValue;
-    [NonSerialized] private readonly List<EnvironmentCalculationPoint> calculationPoints = new List<EnvironmentCalculationPoint>();
+    [SerializeField, Tooltip("制作时预附加的计算点，按列表顺序相乘；开局不扣费，运行中可抽取。")]
+    private List<EnvironmentCalculationPoint> calculationPoints = new List<EnvironmentCalculationPoint>();
     [NonSerialized] private System.Collections.ObjectModel.ReadOnlyCollection<EnvironmentCalculationPoint> readOnlyCalculationPoints;
 
     public abstract string DisplayName { get; }
@@ -59,21 +60,22 @@ public abstract class EnvironmentParameter
     public string CalculationFormula => BaseValueText
         + (CalculationCount == 0 ? "" : " " + CalculationText.Replace(" → ", " ")) + " = " + ValueText;
 
-    internal virtual bool IsConfigurationValid => IsValidBaseValue(ConfiguredValue);
+    internal virtual bool IsConfigurationValid => IsValidBaseValue(ConfiguredValue)
+        && (defaultsCaptured || CalculationsValid(ConfiguredValue));
     internal bool IsRuntimeValid
     {
-        get
+        get => IsValidBaseValue(BaseValue) && CalculationsValid(BaseValue);
+    }
+    bool CalculationsValid(float basis)
+    {
+        if (calculationPoints == null || (CalculationCount > 0 && !SupportsCalculation)) return false;
+        foreach (EnvironmentCalculationPoint point in calculationPoints)
         {
-            if (!IsValidBaseValue(BaseValue) || (CalculationCount > 0 && !SupportsCalculation)) return false;
-            float result = BaseValue;
-            foreach (EnvironmentCalculationPoint point in calculationPoints)
-            {
-                if (point == null || !IsValidValue(point.Multiplier)) return false;
-                result *= point.Multiplier;
-                if (!IsValidBaseValue(result)) return false;
-            }
-            return true;
+            if (point == null || !IsValidValue(point.Multiplier)) return false;
+            basis *= point.Multiplier;
+            if (!IsValidBaseValue(basis)) return false;
         }
+        return true;
     }
     protected virtual bool IsValidBaseValue(float value) => IsValidValue(value);
     internal static bool IsValidValue(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
@@ -86,7 +88,9 @@ public abstract class EnvironmentParameter
         copy.defaultsCaptured = true;
         copy.defaultValue = DefaultValue;
         copy.runtimeValue = BaseValue;
-        copy.calculationPoints.AddRange(calculationPoints);
+        // 制作默认点为每个运行实例单独创建；草稿和默认快照保留已有点身份。
+        foreach (EnvironmentCalculationPoint point in calculationPoints)
+            copy.calculationPoints.Add(defaultsCaptured ? point : new EnvironmentCalculationPoint(point.Multiplier));
         return copy;
     }
 

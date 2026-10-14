@@ -12,6 +12,7 @@ public sealed class PlayerUpgradeConfigurationWindow : EditorWindow
     const string SpiritPath = "Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab";
     static readonly string[] Operations = { "乘法", "加减" };
     [SerializeField] Player selectedPlayer;
+    [SerializeField] SceneLevelSetup selectedLevel;
     [SerializeField] int tab;
     Vector2 scroll;
     PlayerUpgradeCatalog catalog;
@@ -107,6 +108,9 @@ public sealed class PlayerUpgradeConfigurationWindow : EditorWindow
 
     void DrawCosts()
     {
+        DrawSceneCosts();
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("全局降费购买配置", EditorStyles.boldLabel);
         using (new EditorGUI.DisabledScope(true)) EditorGUILayout.ObjectField("全局降费配置", catalog, typeof(PlayerUpgradeCatalog), false);
         if (catalog == null) { EditorGUILayout.HelpBox("缺少 " + CatalogPath, MessageType.Error); return; }
         EditorGUILayout.HelpBox("只开放三项永久降费；菜单 1 列全三项，可多次购买。等级在通关后确认，本关新购在失败或退出时撤销。旧运动编号保留兼容，不参与升级。", MessageType.None);
@@ -135,6 +139,45 @@ public sealed class PlayerUpgradeConfigurationWindow : EditorWindow
         if (!valid) EditorGUILayout.HelpBox(error, MessageType.Error);
         using (new EditorGUI.DisabledScope(!valid))
             if (GUILayout.Button("保存三项降费配置")) { AssetDatabase.SaveAssetIfDirty(catalog); savedMessage = "已保存降费配置。"; }
+    }
+
+    void DrawSceneCosts()
+    {
+        EditorGUILayout.LabelField("关卡基础扣费", EditorStyles.boldLabel);
+        selectedLevel = (SceneLevelSetup)EditorGUILayout.ObjectField("本关配置", selectedLevel, typeof(SceneLevelSetup), true);
+        if (GUILayout.Button("使用当前场景配置"))
+        {
+            selectedLevel = null;
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            var found = new System.Collections.Generic.List<SceneLevelSetup>();
+            foreach (GameObject root in scene.GetRootGameObjects()) found.AddRange(root.GetComponentsInChildren<SceneLevelSetup>(true));
+            if (found.Count == 1) { selectedLevel = found[0]; savedMessage = null; }
+            else savedMessage = "当前场景须有唯一的 SceneLevelSetup，请手动指定本关配置。";
+        }
+        EditorGUILayout.HelpBox("原价归所选关卡。地图逐格原价仍在背景墙／MapCell；下方的降费购买价格与这里的基础扣费是不同配置。", MessageType.None);
+        if (selectedLevel == null) return;
+        var data = new SerializedObject(selectedLevel); data.Update();
+        string[] names = { "cognitionPropertyCost", "cognitionCalculationCost", "formChangeCost" };
+        string[] labels = { "性质入包原价", "计算点入包原价", "形态转换原价" };
+        EditorGUI.BeginChangeCheck();
+        for (int i = 0; i < names.Length; i++) EditorGUILayout.PropertyField(data.FindProperty(names[i]), new GUIContent(labels[i]));
+        if (EditorGUI.EndChangeCheck()) { ApplyData(data); savedMessage = null; }
+        bool valid = true;
+        foreach (string name in names)
+        {
+            float value = data.FindProperty(name).floatValue;
+            if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f) valid = false;
+        }
+        if (!valid) EditorGUILayout.HelpBox("基础费用必须是有限非负数。", MessageType.Error);
+        using (new EditorGUI.DisabledScope(!valid)) if (GUILayout.Button("保存本关基础费用"))
+        {
+            PrefabStage stage = PrefabStageUtility.GetPrefabStage(selectedLevel.gameObject);
+            bool saved;
+            if (stage != null) PrefabUtility.SaveAsPrefabAsset(stage.prefabContentsRoot, stage.assetPath, out saved);
+            else if (EditorUtility.IsPersistent(selectedLevel)) PrefabUtility.SavePrefabAsset(selectedLevel.transform.root.gameObject, out saved);
+            else saved = EditorSceneManager.SaveScene(selectedLevel.gameObject.scene);
+            savedMessage = saved ? "已保存本关基础费用。" : "保存失败，请检查控制台。";
+        }
     }
 
     void DrawPool()

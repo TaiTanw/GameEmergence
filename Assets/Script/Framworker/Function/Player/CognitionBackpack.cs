@@ -1,18 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using UnityEngine;
 
 /// <summary>一个不可变的乘法点；对象身份用于识别预览中的同一个点，不保存接收者或计算历史。</summary>
+[Serializable]
 public sealed class EnvironmentCalculationPoint
 {
-    public float Multiplier { get; }
+    [SerializeField, Tooltip("有限非负乘法倍率；场景制作后，运行时只读。")]
+    float multiplier = 1f;
+    public float Multiplier => multiplier;
     public string DisplayName => "×" + Multiplier.ToString("0.###", CultureInfo.InvariantCulture);
 
+    public EnvironmentCalculationPoint() { }
     public EnvironmentCalculationPoint(float multiplier)
     {
         if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
             throw new ArgumentOutOfRangeException(nameof(multiplier), "计算点必须是有限非负倍率。");
-        Multiplier = multiplier;
+        this.multiplier = multiplier;
     }
 }
 

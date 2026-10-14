@@ -57,6 +57,7 @@ public static class EnvironmentBackpackChecks
             CheckCompositeExtractionAndSplit();
             CheckCalculationStacks();
             CheckDefaultsAndCopies();
+            CheckConfiguredCalculationPoints();
             CheckEnvironmentOpacity();
             CheckCalculationEligibility();
             CheckEffectiveAbilityUpdates();
@@ -341,6 +342,49 @@ public static class EnvironmentBackpackChecks
             "移走零倍率暴露溢出时拒绝整次改选，保留两目标");
         Check(invalidMove.TryExtractCalculation(false, 0, out _) && invalidMove.TryUseItem(overflowBag.Items[0].Id, false, 1, false, out _),
             "先按栈顺序移走末尾点后零倍率可安全改选");
+    }
+
+    static void CheckConfiguredCalculationPoints()
+    {
+        BasicPhysicalObject source = Host("configured points", false, 2, new GroundSlowingParameter(.5f));
+        var data = new SerializedObject(source);
+        var points = data.FindProperty("environmentParameters").GetArrayElementAtIndex(0).FindPropertyRelative("calculationPoints");
+        Check(points != null, "环境性质的默认计算点具有序列化制作入口");
+        points.arraySize = 2;
+        points.GetArrayElementAtIndex(0).FindPropertyRelative("multiplier").floatValue = 2f;
+        points.GetArrayElementAtIndex(1).FindPropertyRelative("multiplier").floatValue = .25f;
+        data.ApplyModifiedPropertiesWithoutUndo();
+        string path = AssetDatabase.GenerateUniqueAssetPath("Assets/P20DefaultPointsCheck.prefab");
+        GameObject contents = null;
+        try
+        {
+            source.gameObject.hideFlags = HideFlags.None;
+            Check(PrefabUtility.SaveAsPrefabAsset(source.gameObject, path) != null, "默认点保存到临时预设");
+            contents = PrefabUtility.LoadPrefabContents(path);
+            BasicPhysicalObject loaded = contents.GetComponent<BasicPhysicalObject>();
+            EnvironmentParameter slot = loaded.CopyEnvironmentSlots(false)[0];
+            Check(slot.CalculationCount == 2, "预设重载后默认点保留数量和顺序");
+            Near(slot.Value, .25f, "初始化从原值按默认点完整计算一次");
+            var bag = new CognitionBackpack(4, 3f, 2f);
+            var wallet = new LevelCognition(10f);
+            var draft = new EnvironmentEditDraft(loaded, bag);
+            Check(draft.TryExtractCalculation(false, 0, out _) && draft.TryCommit(wallet, out _), "默认附加点能走原整面板抽取入口");
+            Near(wallet.Remaining, 8f, "开局不收点费，抽入背包才按原价收两点");
+            Near(loaded.CopyEnvironmentSlots(false)[0].Value, 1f, "默认点也按后进先出抽取");
+            loaded.RestoreEnvironmentDefaults();
+            loaded.RestoreEnvironmentDefaults();
+            Check(loaded.CopyEnvironmentSlots(false)[0].CalculationCount == 2, "重复默认恢复不重复附加制作点");
+            Near(loaded.CopyEnvironmentSlots(false)[0].Value, .25f, "默认恢复保留原值及制作点");
+            var raw = new GroundSlowingParameter(.5f);
+            typeof(EnvironmentParameter).GetField("calculationPoints", Hidden).SetValue(raw,
+                new List<EnvironmentCalculationPoint> { new EnvironmentCalculationPoint(2f) });
+            Check(!ReferenceEquals(raw.CopyRuntime().CalculationPoints[0], raw.CopyRuntime().CalculationPoints[0]),
+                "不同运行实例独立创建默认点身份");
+            var cap = new SerializedObject(loaded); cap.FindProperty("environmentCalculationPointLimit").intValue = 1;
+            cap.ApplyModifiedPropertiesWithoutUndo();
+            Check(!loaded.ValidateEnvironmentParameters(out _), "制作默认点超过单槽上限显式拒绝");
+        }
+        finally { if (contents != null) PrefabUtility.UnloadPrefabContents(contents); AssetDatabase.DeleteAsset(path); }
     }
 
     static void CheckDefaultsAndCopies()

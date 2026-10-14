@@ -228,7 +228,7 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
         int colliderIndex = 0, triggerIndex = 0;
         foreach (EnvironmentParameter parameter in configuration)
         {
-            EnvironmentParameter runtime = parameter.CreateRuntimeCopy();
+            EnvironmentParameter runtime = parameter.CopyRuntime();
             runtime.CaptureDefaults();
             if (runtime.IsTriggerProperty) triggerSlots[triggerIndex++] = runtime;
             else colliderSlots[colliderIndex++] = runtime;
@@ -311,6 +311,8 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
         { error = $"{name} 的环境参数配置无效：只允许已开放的六类性质。"; return false; }
         if (!parameter.IsConfigurationValid || (runtime && !parameter.IsRuntimeValid))
         { error = $"{name} 的{parameter.DisplayName}数值无效。"; return false; }
+        if (parameter.CalculationCount > EnvironmentCalculationPointLimit)
+        { error = $"{name} 的{parameter.DisplayName}超过单槽计算点上限。"; return false; }
         return true;
     }
     private static EnvironmentParameter[] CopySlots(EnvironmentParameter[] slots)

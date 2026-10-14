@@ -41,6 +41,7 @@ public sealed class EnvironmentParameterEditor : Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("环境参数", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox("实心／触发器列表各自占槽、共用上限。接触条件固定，每类最多一项；显式项优先，缺项沿旧字段。独特触发器性质由碰撞器默认几何确定。", MessageType.Info);
+            EditorGUILayout.HelpBox("展开性质的 Calculation Points，使用 ＋ 添加默认点并填写 Multiplier。开局直接附在该性质上、不扣费；局内抽入背包按原计算点费用结算。失败重刷新恢复制作默认点。四向游泳等纯能力不接受计算点。", MessageType.None);
             for (int i = 0; i < parameters.arraySize; i++)
             {
                 SerializedProperty element = parameters.GetArrayElementAtIndex(i);
