@@ -18,6 +18,7 @@ public static class P6LevelFlowChecks
     private static readonly List<string> passed = new List<string>();
     private static readonly List<GameObject> fixtures = new List<GameObject>();
     private static string progressPath;
+    private static string previousProgressDirectory;
     private static byte[] previousProgress;
     private static bool hadProgress;
     private static bool previousOptionsEnabled;
@@ -43,7 +44,10 @@ public static class P6LevelFlowChecks
     {
         if (!Application.isBatchMode || Application.isPlaying)
             throw new InvalidOperationException("P6 关卡流程检查要求新开的 batch editor。");
-        progressPath = Path.Combine(Application.persistentDataPath, "LevelProgress.txt");
+        previousProgressDirectory = DataAndInitMgr.debugPlayerProgressDirectory;
+        DataAndInitMgr.debugPlayerProgressDirectory = Path.GetFullPath(Path.Combine(".utmp/GameUIValidation", "Save-" + Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(DataAndInitMgr.debugPlayerProgressDirectory);
+        progressPath = Path.Combine(DataAndInitMgr.debugPlayerProgressDirectory, "LevelProgress.txt");
         hadProgress = File.Exists(progressPath);
         previousProgress = hadProgress ? File.ReadAllBytes(progressPath) : null;
         previousOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
@@ -107,6 +111,8 @@ public static class P6LevelFlowChecks
                     Check(effects.GrantEffect(PlayerEffectKind.MovementMultiplier, .9f, PlayerEffectScope.Permanent),
                         "布置此前已经通关确认的永久效果");
                     effects.CommitLevel();
+                    Check(DataAndInitMgr.Instance.SavePlayerProgress(0, effects),
+                        "夹具将此前已确认效果写入可恢复的进度，重进沿正式存档读取");
                     AddPendingEffects();
                     StartFailedNextLevel(true);
                     stage = 20;
@@ -153,7 +159,7 @@ public static class P6LevelFlowChecks
                     stage = 24;
                     break;
                 case 24:
-                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
+                    if (SceneChangeMgr.Instance.IsLoading || SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
                     Check(effects.ConfirmedPermanentEffects.Count == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
                         "作废请求及菜单实际加载结束仍不提前确认或推进进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
@@ -170,7 +176,7 @@ public static class P6LevelFlowChecks
                     stage = 242;
                     break;
                 case 242:
-                    if (SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0
+                    if (SceneChangeMgr.Instance.IsLoading || SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0
                         || EditorApplication.timeSinceStartup < cooldownEnds) return;
                     Check(InputControlMgr.Instance.Player == null && !InputControlMgr.Instance.InputEnabled
                         && Time.timeScale == 1f && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
@@ -547,6 +553,7 @@ public static class P6LevelFlowChecks
     private static void Finish()
     {
         EditorApplication.update -= Advance;
+        DataAndInitMgr.debugPlayerProgressDirectory = previousProgressDirectory;
         Application.logMessageReceived -= RecordRuntimeError;
         SceneManager.sceneLoaded -= BreakIncomingSetup;
         P66TransitionChecks.ReleaseFixture();

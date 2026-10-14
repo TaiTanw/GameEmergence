@@ -46,6 +46,7 @@ public static class P66TransitionChecks
         SceneChangeMgr flow = SceneChangeMgr.Instance;
         if (!(bool)typeof(SceneChangeMgr).GetField("loading", Hidden).GetValue(flow))
         {
+            TransitionPixelationChecks.AssertState(false, "转场结束或取消后关闭像素化");
             Require(!Object.FindObjectsOfType<Camera>().Any(c => c.enabled && c.name == "PlayerPortraitCamera"),
                 "演出结束或取消后关闭实体前景镜头");
             Require(Object.FindObjectsOfType<AudioListener>().Count(a => a.enabled) <= 1,
@@ -67,6 +68,8 @@ public static class P66TransitionChecks
         int serial = (int)typeof(SceneChangeMgr).GetField("loadSerial", Hidden).GetValue(flow);
         string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         float weight = panel.TransitionWeight;
+        TransitionPixelationChecks.AssertState(!fromMenu && body != null && weight > 0f,
+            "普通跨关随黑幕像素化，菜单进关及失败返回保持纯黑幕");
         if (!paused && body != null)
         {
             SpriteRenderer sprite = body.GetComponentInChildren<SpriteRenderer>();
@@ -124,6 +127,7 @@ public static class P66TransitionChecks
         Require(animationAdvanced, "物理暂停期间真实 Animator 的播放时间继续推进");
         Require(settledBeforeReveal, "实际教学进关在淡入前完成小幅出生下落");
         passed.Add("PASS P6.6 菜单/跨关渐暗渐亮、安置前暂停、安置后物理恢复、实体动画继续、精神体隐藏与取消清理");
+        passed.Add("PASS P19 菜单纯黑幕、跨关背景像素化、角色前景与 UI 清晰、结束和取消关闭后处理");
     }
 
     static void CreateRaisedSpawn(Player body)

@@ -68,7 +68,8 @@ public static class EndingFlowChecks
     {
         while (Main.Instance == null || string.IsNullOrEmpty(InputControlMgr.Instance.PlayerModleName)) yield return null;
         SceneChangeMgr.Instance.EnterSavedLevel();
-        while (!OrdinaryReady()) yield return null;
+        while (!OrdinaryReady())
+        { TransitionPixelationChecks.AssertState(false, "菜单进普通关不启用像素化"); yield return null; }
         Player body = Body(); SceneProp prop = Prop(body);
         DataAndInitMgr.debugLevelOrder.endings = new EndingSceneEntry[0];
         Check(!SceneChangeMgr.Instance.TryClearLevel(body, source: prop), "未配置结局时最后关明确拒绝");
@@ -84,15 +85,19 @@ public static class EndingFlowChecks
         ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent);
         SceneProp.OfferInteract(body);
         Check(body.IsLevelClearing && !Loading(), "最后关沿真实通关前段受理");
-        bool sawBlackPreparation = false, sawOldActor = false;
+        bool sawBlackPreparation = false, sawOldActor = false, capturedDarkening = false, capturedBlack = false;
         while (!EndingReady())
         {
             LoadingPanel cover = Object.FindObjectOfType<LoadingPanel>();
+            if (cover != null) TransitionPixelationChecks.AssertState(cover.TransitionWeight > 0f,
+                "关卡入结局的旧角色和新场景沿世界镜头一起像素化");
             if (Loading() && body != null && cover != null && cover.TransitionWeight < 1f)
             {
                 Require(!body.GetComponentInChildren<SpriteRenderer>().forceRenderingOff, "最后关渐暗覆盖旧角色前不得隐藏");
                 Require(!Array.Exists(Object.FindObjectsOfType<Camera>(), c => c.enabled && c.name == "PlayerPortraitCamera"),
                     "最后关不用遮罩上方的普通跨关角色镜头"); sawOldActor = true;
+                if (!capturedDarkening && cover.TransitionWeight > .3f && cover.TransitionWeight < .7f)
+                { Capture("ending-darkening.png"); capturedDarkening = true; }
             }
             var host = Object.FindObjectOfType<EndingSceneController>();
             if (host != null && host.Context != null && !host.Context.IsRevealed)
@@ -100,10 +105,17 @@ public static class EndingFlowChecks
                 Require(!SceneChangeMgr.Instance.IsEnding && !InputControlMgr.Instance.InputEnabled
                     && !Object.FindObjectOfType<EndingActor>().GetComponent<Rigidbody2D>().simulated, "准备及揭幕期间不开演、不开角色运动");
                 sawBlackPreparation = true;
+                if (!capturedBlack && cover != null && cover.TransitionWeight == 1f)
+                {
+                    Require(body == null && Object.FindObjectsOfType<Player>().Length == 0, "全黑准备时旧角色已删除");
+                    Capture("ending-full-black.png"); capturedBlack = true;
+                }
             }
             yield return null;
         }
         Check(sawOldActor && sawBlackPreparation, "旧角色全黑交接，新角色等揭完开演");
+        TransitionPixelationChecks.AssertState(false, "结局开演前关闭像素化");
+        Check(true, "P19 关卡入结局覆盖角色，全黑删除旧角色，揭幕后恢复清晰");
         var ending = Object.FindObjectOfType<EndingSceneController>(); var context = ending.Context;
         var actor = context.ControlledActor; var rigidbody = actor.GetComponent<Rigidbody2D>();
         Check(Body() == null && Object.FindObjectsOfType<Player>().Length == 0 && SceneLevelSetup.Current == null
@@ -169,7 +181,9 @@ public static class EndingFlowChecks
         Check(SceneChangeMgr.Instance.ReturnToMenu(), "结局允许返回菜单"); while (!MenuReady()) yield return null;
         Check(!context.IsActive && File.ReadAllText(path) == saved, "退出失效旧通信并保留结局存档");
         var oldCamera = Object.FindObjectOfType<MainCamera>(); Object.Destroy(oldCamera.gameObject); yield return null;
-        SceneChangeMgr.Instance.EnterSavedLevel(); while (!EndingReady()) yield return null;
+        SceneChangeMgr.Instance.EnterSavedLevel();
+        while (!EndingReady())
+        { TransitionPixelationChecks.AssertState(false, "菜单直接重播结局保持纯黑幕"); yield return null; }
         var replay = Object.FindObjectOfType<EndingSceneController>().Context;
         Check(replay.Data.IsReplay && replay.Data.SceneName == "EndingExample" && replay.Data.Vector == new Vector3(2, -3, 0)
             && File.ReadAllText(path) == saved && Object.FindObjectsOfType<Player>().Length == 0,
@@ -262,8 +276,14 @@ public static class EndingFlowChecks
     static bool Loading() => SceneChangeMgr.Instance.IsLoading;
     static bool OrdinaryReady() => !Loading() && SceneLevelSetup.Current != null && Body() != null;
     static bool EndingReady() => !Loading() && SceneChangeMgr.Instance.IsEnding;
-    static bool MenuReady() => !Loading() && SceneManager.GetActiveScene().name == "BeginScenes"
-        && Object.FindObjectOfType<BeginPanel>() != null && Object.FindObjectOfType<BeginPanel>().IsFullyShown;
+    static bool MenuReady()
+    {
+        // 等待准备失败返回期间，仍在结局加载的帧应继续像素化；菜单出现后才核对清理。
+        if (SceneManager.GetActiveScene().name == "BeginScenes")
+            TransitionPixelationChecks.AssertState(false, "返回菜单或取消结局加载后清除像素化");
+        return !Loading() && SceneManager.GetActiveScene().name == "BeginScenes"
+            && Object.FindObjectOfType<BeginPanel>() != null && Object.FindObjectOfType<BeginPanel>().IsFullyShown;
+    }
     static T Find<T>(Component root, string name) where T : Component
         => Array.Find(root.GetComponentsInChildren<T>(true), item => item.name == name);
     static string PreferenceFiles()
