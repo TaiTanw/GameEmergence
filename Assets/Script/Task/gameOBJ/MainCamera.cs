@@ -77,9 +77,15 @@ public class MainCamera : MonoBehaviour
     public void SetGameViewEnabled(bool on)
     {
         Camera world = GetComponent<Camera>();
-        AudioListener listener = GetComponent<AudioListener>();
-        // 安全：镜头与监听器分别判断，缺少其中一个时仍处理另一个。
         if (world != null) world.enabled = on;
+        // 实际逻辑：关掉渲染时先留着监听器，避免菜单镜头加载前出现空档。
+        if (on) SetListenerEnabled(true);
+    }
+
+    /// <summary>菜单镜头已经在听之后，再关掉常驻游戏镜头的监听器。</summary>
+    public void SetListenerEnabled(bool on)
+    {
+        AudioListener listener = GetComponent<AudioListener>();
         if (listener != null) listener.enabled = on;
     }
 

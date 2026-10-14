@@ -364,6 +364,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         DestroyActor(ref body);
         if (!inLevel)
         {
+            InputControlMgr.Instance.SilenceGameListener();
             UIMgr.Instance.HideOneUI<LoadingPanel>();
             return false;
         }
@@ -379,6 +380,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         {
             // 实际逻辑：加载被新的进入或返回作废时，不能关掉新的加载页。
             if (serial != loadSerial) return;
+            InputControlMgr.Instance.SilenceGameListener();
             UIMgr.Instance.ShowOneUI<BeginPanel>(callBack: begin =>
                 MonoPublicMgr.Instance.StartCoroutine(RevealMenu(begin, serial)));
         });

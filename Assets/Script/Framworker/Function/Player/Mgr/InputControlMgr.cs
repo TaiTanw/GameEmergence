@@ -528,11 +528,13 @@ public partial class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         if (snap && mainCamera != null && target != null) mainCamera.SnapTo(target.position);
     }
 
+    public void SilenceGameListener() => mainCamera?.SetListenerEnabled(false);
+
     public void EndTransitionView(bool returningToMenu = false)
     {
         transitionFollow = null;
         mainCamera?.SetTransitionPortrait(false);
-        // 实际逻辑：菜单保留镜头实例，但不让它与菜单镜头同时渲染或监听声音。
+        // 实际逻辑：菜单保留镜头实例，但不让它与菜单镜头同时渲染。监听器等菜单镜头就绪再关。
         if (returningToMenu) mainCamera?.SetGameViewEnabled(false);
     }
     void Update()
