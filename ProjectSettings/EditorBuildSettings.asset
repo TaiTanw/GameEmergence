@@ -20,5 +20,20 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/MyObjAssets/Scenes/EndScenes/EndingExample.unity
     guid: 7b5703ee3ed91ff47b391de4208f40a2
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/Designed/L00_Orientation.unity
+    guid: 21d7051bb465dc94aaf7a4c8d5d594b1
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/Designed/L01_PropertyLabyrinth.unity
+    guid: 20a8bce77f8d53e4c90725c91f7bc4c7
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/Designed/L02_SequentialGates.unity
+    guid: d8fba9bc6c39b854a8e39043bcfff66f
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/Designed/L03_ElectricTraverse.unity
+    guid: d1ddf6a46d6cd644aabe02a1b4cc846c
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/Designed/L04_FoldedWells.unity
+    guid: 3a4dcc25277a8a245ba1e7c6e6c9f61b
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 6f260eee2256a634592d3ee81ff1af98, type: 2}

@@ -1,0 +1,13 @@
+﻿PASS / 437 focused checks
+L01_PropertyLabyrinth: intermediate platforms 127 -> 35, safe centre platforms 36 preserved.
+L02_SequentialGates: intermediate platforms 176 -> 45, safe centre platforms 44 preserved.
+L03_ElectricTraverse: intermediate platforms 178 -> 44, safe centre platforms 48 preserved.
+L04_FoldedWells: intermediate platforms 90 -> 21, safe centre platforms 22 preserved.
+Slider 0: bank overlap=1.516, final centre=(38.756, 12.785, 0.000), velocity=(0.000, 0.000)
+Slider 1: bank overlap=1.622, final centre=(25.138, 36.785, 0.000), velocity=(0.000, 0.000)
+Slider 2: bank overlap=1.506, final centre=(38.746, 60.785, 0.000), velocity=(0.000, 0.000)
+Jump 14.2 -> 18.2 air=1, speed=13.5, result=True, final=(11.887, 18.950, -1.000)
+Jump 18.2 -> 22.2 air=1, speed=13.5, result=True, final=(8.053, 22.950, -1.000)
+Jump 14.2 -> 18.2 air=0, speed=13.5, result=False, final=(11.887, 12.950, -1.000)
+Jump 62.2 -> 70.2 air=1, speed=15, result=False, final=(56.000, 62.950, -1.000)
+Jump 62.2 -> 70.2 air=1, speed=18, result=True, final=(56.000, 70.950, -1.000)

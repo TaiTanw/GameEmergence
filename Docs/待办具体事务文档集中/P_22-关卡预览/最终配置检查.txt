@@ -1,0 +1,2 @@
+﻿PASS / 608 final scene checks
+Actual spirit collider (0.56, 1.47), cognition costs 0 / 1 / 2 verified; final edited scenes have no overlapping instruction zones.

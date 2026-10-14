@@ -1,8 +1,10 @@
 {
     "scenes": [
-        "TeskScenes1",
-        "TeskScenes2",
-        "TeskScenes3"
+        "L00_Orientation",
+        "L01_PropertyLabyrinth",
+        "L02_SequentialGates",
+        "L03_ElectricTraverse",
+        "L04_FoldedWells"
     ],
     "endings": [
         {

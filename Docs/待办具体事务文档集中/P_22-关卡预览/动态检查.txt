@@ -1,0 +1,25 @@
+﻿FAIL 15 checks
+cart: pos=(46.52, 2.20, 0.00), bounds=Center: (46.52, 2.23, 0.00), Extents: (0.65, 0.21, 0.00), rb.velocity=(0.00, 0.00)
+box 普通滑箱: pos=(48.09, 2.77, 0.00), bounds=Center: (48.09, 2.77, 0.00), Extents: (0.90, 0.75, 0.00), rb.velocity=(0.00, 0.00)
+box 带电机关箱: pos=(52.00, 76.97, 0.00), bounds=Center: (52.00, 76.97, 0.00), Extents: (0.90, 0.75, 0.00), rb.velocity=(0.00, 0.00)
+plate 压板_门16: pressed=False, target=(16.00, 6.20, 0.00)
+plate 压板_门32: pressed=False, target=(32.00, 22.20, 0.00)
+plate 压板_门48: pressed=True, target=(48.00, 38.20, 0.00)
+collider 连续推箱轨道: bounds=Center: (25.40, 1.80, 0.00), Extents: (23.40, 0.20, 0.00), exclude=0
+collider 末板止挡: bounds=Center: (49.40, 2.80, 0.00), Extents: (0.40, 0.80, 0.00), exclude=0
+collider 箱车通道挡栅_0: bounds=Center: (16.00, 2.70, 0.00), Extents: (0.35, 1.10, 0.00), exclude=64
+collider 箱车通道挡栅_1: bounds=Center: (32.00, 2.70, 0.00), Extents: (0.35, 1.10, 0.00), exclude=64
+collider 箱车通道挡栅_2: bounds=Center: (48.00, 2.70, 0.00), Extents: (0.35, 1.10, 0.00), exclude=64
+collider 带电箱止挡: bounds=Center: (58.30, 77.00, 0.00), Extents: (0.25, 0.80, 0.00), exclude=0
+rail plate 0: pressed 3.12s to 24.82s
+rail plate 1: pressed 27.74s to 49.44s
+rail plate 2: pressed 52.34s to 79.98s
+rail end box x=48.085, foot=2.020
+Player native barrier probe center=(15.36, 2.77), bounds=Center: (15.36, 2.77, 0.00), Extents: (0.28, 0.74, 0.00)
+final wall opening lower edge 12 -> 11.75
+final wall opening lower edge 36 -> 35.75
+final wall opening lower edge 60 -> 59.75
+FAILED: L03_ElectricTraverse motion: 4单位初速滑箱前缘抵达第 0 段止动地
+slide 0: crossed=False, bounds=Center: (36.84, 12.77, 0.00), Extents: (1.40, 0.75, 0.00), rb.velocity=(0.00, 0.00)
+slide 1: crossed=True, bounds=Center: (24.49, 36.77, 0.00), Extents: (1.40, 0.75, 0.00), rb.velocity=(0.00, 0.00)
+slide 2: crossed=True, bounds=Center: (39.51, 60.77, 0.00), Extents: (1.40, 0.75, 0.00), rb.velocity=(0.00, 0.00)

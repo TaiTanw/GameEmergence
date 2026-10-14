@@ -54,7 +54,8 @@ public sealed class MapView : MonoBehaviour
             tile.Value.GetComponent<Button>().interactable = scene.CanViewMap && !scene.EscapeSelectionPending;
             Outline outline = tile.Value.GetComponent<Outline>();
             outline.effectColor = tile.Key == selected ? new Color(.88f, .75f, .4f)
-                : LevelStageMgr.Instance.HasExploration && tile.Key == record.CurrentCell
+                : tile.Key == record.CurrentCell
+                    && (LevelStageMgr.Instance.HasExploration || LevelStageMgr.Instance.Stage == PlayerGameplayStage.Escape)
                     ? new Color(.55f, .86f, .92f) : new Color(0f, 0f, 0f, .6f);
         }
         selectedText.text = selected == null ? "仅显示已点亮的地图"

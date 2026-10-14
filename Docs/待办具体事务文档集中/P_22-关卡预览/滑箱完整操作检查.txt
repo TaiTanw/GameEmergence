@@ -1,0 +1,53 @@
+﻿PASS / 29 checks
+First level spirit root=(2.00, 3.50), intro previous=(4.00, 4.20, 0.00)
+Slider 0: bank overlap=3.892, final centre=(40.492, 12.770, 0.000), velocity=(0.000, 0.000)
+Slider 1: bank overlap=1.813, final centre=(25.587, 36.770, 0.000), velocity=(0.000, 0.000)
+Slider 2: bank overlap=3.892, final centre=(40.492, 60.770, 0.000), velocity=(0.000, 0.000)
+Pre-E lane 0: player=(16.30, 12.76, -1.00), foot=12.02483, grounded=True, box=(18.00, 12.77, 0.00), supported=True, state=isOnGround, target=box (PhysicalBox)
+Post-E lane 0: selected=box (PhysicalBox), player=(16.30, 12.76, -1.00), foot=12.02483, grounded=True, box=(18.00, 12.77, 0.00), supported=True
+Launch lane 0: box=(24.65, 12.77, 0.00), player=(22.96, 12.76, -1.00), playerVelocity=(7.00, 0.00), playerState=isOnGround, selected=box (PhysicalBox)
+Board tick 0: player=(23.10, 13.06, -1.00) pv=(7.00, 15.00), box=(24.79, 12.77, 0.00) bv=(7.00, 0.00), grounded=True, contact=False, state=isOnGround
+Board tick 5: player=(23.80, 14.35, -1.00) pv=(7.00, 11.50), box=(25.49, 12.77, 0.00) bv=(7.00, 0.00), grounded=False, contact=False, state=inAir
+Board tick 10: player=(24.50, 15.49, -1.00) pv=(7.00, 10.80), box=(26.19, 12.77, 0.00) bv=(6.96, 0.00), grounded=False, contact=False, state=isOnGround
+Board tick 15: player=(25.20, 16.35, -1.00) pv=(7.00, 7.30), box=(26.88, 12.77, 0.00) bv=(6.92, 0.00), grounded=False, contact=False, state=inAir
+Board tick 20: player=(25.90, 16.87, -1.00) pv=(7.00, 3.80), box=(27.57, 12.77, 0.00) bv=(6.88, 0.00), grounded=False, contact=False, state=inAir
+Board tick 25: player=(26.60, 17.04, -1.00) pv=(7.00, 0.30), box=(28.26, 12.77, 0.00) bv=(6.84, 0.00), grounded=False, contact=False, state=inAir
+Board tick 30: player=(27.30, 16.86, -1.00) pv=(7.00, -3.20), box=(28.94, 12.77, 0.00) bv=(6.80, 0.00), grounded=False, contact=False, state=inAir
+Board tick 35: player=(28.00, 16.33, -1.00) pv=(7.00, -6.70), box=(29.62, 12.77, 0.00) bv=(6.76, 0.00), grounded=False, contact=False, state=inAir
+Board tick 40: player=(28.70, 15.45, -1.00) pv=(7.00, -10.20), box=(30.29, 12.77, 0.00) bv=(6.72, 0.00), grounded=False, contact=False, state=inAir
+Board tick 45: player=(29.39, 14.26, -1.00) pv=(4.11, 0.00), box=(30.96, 12.76, 0.00) bv=(4.11, 0.00), grounded=False, contact=False, state=inAir
+Board tick 50: player=(30.09, 14.26, -1.00) pv=(7.00, 0.00), box=(31.37, 12.76, 0.00) bv=(4.07, 0.00), grounded=True, contact=False, state=isOnGround
+Board tick 55: player=(30.79, 14.26, -1.00) pv=(7.00, 0.00), box=(31.77, 12.76, 0.00) bv=(4.03, 0.00), grounded=True, contact=False, state=isOnGround
+Interactive lane 0: launch=True velocity=7.000, boarded=True, bank=True, exited=True, electric contact=False, follow maximum error=1.567, player=(43.047, 12.750, -1.000), box=(39.773, 12.765, 0.000)
+Pre-E lane 1: player=(47.70, 36.76, -1.00), foot=36.02483, grounded=True, box=(46.00, 36.77, 0.00), supported=True, state=isOnGround, target=box (PhysicalBox)
+Post-E lane 1: selected=box (PhysicalBox), player=(47.70, 36.76, -1.00), foot=36.02483, grounded=True, box=(46.00, 36.77, 0.00), supported=True
+Launch lane 1: box=(39.35, 36.77, 0.00), player=(41.04, 36.76, -1.00), playerVelocity=(-7.00, 0.00), playerState=isOnGround, selected=box (PhysicalBox)
+Board tick 0: player=(40.90, 37.06, -1.00) pv=(-7.00, 15.00), box=(39.21, 36.77, 0.00) bv=(-7.00, 0.00), grounded=True, contact=False, state=isOnGround
+Board tick 5: player=(40.20, 38.35, -1.00) pv=(-7.00, 11.50), box=(38.51, 36.77, 0.00) bv=(-7.00, 0.00), grounded=False, contact=False, state=inAir
+Board tick 10: player=(39.50, 39.49, -1.00) pv=(-7.00, 10.80), box=(37.81, 36.77, 0.00) bv=(-6.96, 0.00), grounded=False, contact=False, state=isOnGround
+Board tick 15: player=(38.80, 40.35, -1.00) pv=(-7.00, 7.30), box=(37.12, 36.77, 0.00) bv=(-6.92, 0.00), grounded=False, contact=False, state=inAir
+Board tick 20: player=(38.10, 40.87, -1.00) pv=(-7.00, 3.80), box=(36.43, 36.77, 0.00) bv=(-6.88, 0.00), grounded=False, contact=False, state=inAir
+Board tick 25: player=(37.40, 41.04, -1.00) pv=(-7.00, 0.30), box=(35.74, 36.77, 0.00) bv=(-6.84, 0.00), grounded=False, contact=False, state=inAir
+Board tick 30: player=(36.70, 40.86, -1.00) pv=(-7.00, -3.20), box=(35.06, 36.77, 0.00) bv=(-6.80, 0.00), grounded=False, contact=False, state=inAir
+Board tick 35: player=(36.00, 40.33, -1.00) pv=(-7.00, -6.70), box=(34.38, 36.77, 0.00) bv=(-6.76, 0.00), grounded=False, contact=False, state=inAir
+Board tick 40: player=(35.30, 39.45, -1.00) pv=(-7.00, -10.20), box=(33.71, 36.77, 0.00) bv=(-6.72, 0.00), grounded=False, contact=False, state=inAir
+Board tick 45: player=(34.61, 38.26, -1.00) pv=(-4.11, 0.00), box=(33.04, 36.76, 0.00) bv=(-4.11, 0.00), grounded=False, contact=False, state=inAir
+Board tick 50: player=(33.91, 38.26, -1.00) pv=(-7.00, 0.00), box=(32.63, 36.76, 0.00) bv=(-4.07, 0.00), grounded=True, contact=False, state=isOnGround
+Board tick 55: player=(33.21, 38.26, -1.00) pv=(-7.00, 0.00), box=(32.23, 36.76, 0.00) bv=(-4.03, 0.00), grounded=True, contact=False, state=isOnGround
+Interactive lane 1: launch=True velocity=7.000, boarded=True, bank=True, exited=True, electric contact=False, follow maximum error=1.567, player=(20.953, 36.750, -1.000), box=(24.227, 36.765, 0.000)
+Pre-E lane 2: player=(16.30, 60.76, -1.00), foot=60.02483, grounded=True, box=(18.00, 60.77, 0.00), supported=True, state=isOnGround, target=box (PhysicalBox)
+Post-E lane 2: selected=box (PhysicalBox), player=(16.30, 60.76, -1.00), foot=60.02483, grounded=True, box=(18.00, 60.77, 0.00), supported=True
+Launch lane 2: box=(24.65, 60.77, 0.00), player=(22.96, 60.76, -1.00), playerVelocity=(7.00, 0.00), playerState=isOnGround, selected=box (PhysicalBox)
+Board tick 0: player=(23.10, 61.06, -1.00) pv=(7.00, 15.00), box=(24.79, 60.77, 0.00) bv=(7.00, 0.00), grounded=True, contact=False, state=isOnGround
+Board tick 5: player=(23.80, 62.35, -1.00) pv=(7.00, 11.50), box=(25.49, 60.77, 0.00) bv=(7.00, 0.00), grounded=False, contact=False, state=inAir
+Board tick 10: player=(24.50, 63.49, -1.00) pv=(7.00, 10.80), box=(26.19, 60.77, 0.00) bv=(6.96, 0.00), grounded=False, contact=False, state=isOnGround
+Board tick 15: player=(25.20, 64.35, -1.00) pv=(7.00, 7.30), box=(26.88, 60.77, 0.00) bv=(6.92, 0.00), grounded=False, contact=False, state=inAir
+Board tick 20: player=(25.90, 64.87, -1.00) pv=(7.00, 3.80), box=(27.57, 60.77, 0.00) bv=(6.88, 0.00), grounded=False, contact=False, state=inAir
+Board tick 25: player=(26.60, 65.04, -1.00) pv=(7.00, 0.30), box=(28.26, 60.77, 0.00) bv=(6.84, 0.00), grounded=False, contact=False, state=inAir
+Board tick 30: player=(27.30, 64.86, -1.00) pv=(7.00, -3.20), box=(28.94, 60.77, 0.00) bv=(6.80, 0.00), grounded=False, contact=False, state=inAir
+Board tick 35: player=(28.00, 64.33, -1.00) pv=(7.00, -6.70), box=(29.62, 60.77, 0.00) bv=(6.76, 0.00), grounded=False, contact=False, state=inAir
+Board tick 40: player=(28.70, 63.45, -1.00) pv=(7.00, -10.20), box=(30.29, 60.77, 0.00) bv=(6.72, 0.00), grounded=False, contact=False, state=inAir
+Board tick 45: player=(29.39, 62.26, -1.00) pv=(4.11, 0.00), box=(30.96, 60.76, 0.00) bv=(4.11, 0.00), grounded=False, contact=False, state=inAir
+Board tick 50: player=(30.09, 62.26, -1.00) pv=(7.00, 0.00), box=(31.37, 60.76, 0.00) bv=(4.07, 0.00), grounded=True, contact=False, state=isOnGround
+Board tick 55: player=(30.79, 62.26, -1.00) pv=(7.00, 0.00), box=(31.77, 60.76, 0.00) bv=(4.03, 0.00), grounded=True, contact=False, state=isOnGround
+Interactive lane 2: launch=True velocity=7.000, boarded=True, bank=True, exited=True, electric contact=False, follow maximum error=1.567, player=(43.047, 60.750, -1.000), box=(39.773, 60.765, 0.000)

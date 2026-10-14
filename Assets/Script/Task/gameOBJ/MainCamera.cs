@@ -32,7 +32,12 @@ public class MainCamera : MonoBehaviour
         if (transform.parent != null) transform.SetParent(null, true);
         resident = this;
         DontDestroyOnLoad(gameObject);
-        if (incoming != null) incoming.cullingMask |= 1 << Player.PlayerLayer;
+        if (incoming != null)
+        {
+            incoming.depth = -1f;
+            incoming.cullingMask &= ~(1 << 5);
+            incoming.cullingMask |= 1 << Player.PlayerLayer;
+        }
         EnsurePortrait();
         InputControlMgr.Instance.SetMainCamera(this);
     }
@@ -57,8 +62,10 @@ public class MainCamera : MonoBehaviour
     {
         if (kept == null || scene == null) return;
         kept.backgroundColor = scene.backgroundColor;
-        int withoutPlayer = scene.cullingMask & ~(1 << Player.PlayerLayer);
+        int withoutPlayer = scene.cullingMask & ~(1 << Player.PlayerLayer) & ~(1 << 5);
         kept.cullingMask |= withoutPlayer;
+        kept.cullingMask &= ~(1 << 5);
+        kept.depth = -1f;
         if (!resident.showingPortrait) kept.cullingMask |= 1 << Player.PlayerLayer;
         if (kept.orthographic && scene.orthographic) kept.orthographicSize = scene.orthographicSize;
         // 实际逻辑：变亮时仍使用实体镜头，新关镜头尺寸要同时交给它。

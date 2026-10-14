@@ -18,7 +18,7 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     [SerializeField, Range(0f, 1f), Tooltip("触发器时主体精灵的不透明度；直接使用此值，不乘旧颜色 Alpha。")]
     private float triggerOpacity = .5f;
     private EnvironmentParameter[] colliderSlots, triggerSlots, defaultColliderSlots, defaultTriggerSlots;
-    private bool parametersInitialized, parameterConfigurationValid, triggerEnvironment, defaultTriggerEnvironment;
+    [System.NonSerialized] private bool parametersInitialized, parameterConfigurationValid, triggerEnvironment, defaultTriggerEnvironment;
     private int defaultEnvironmentLayer, solidEnvironmentLayer;
     private Collider2D[] defaultGeometry;
     private bool[] defaultGeometryTriggers;
@@ -47,7 +47,8 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
             return count;
         }
     }
-    private EnvironmentParameter[] ActiveSlots => triggerEnvironment ? triggerSlots : colliderSlots;
+    private EnvironmentParameter[] ActiveSlots =>
+        (triggerEnvironment ? triggerSlots : colliderSlots) ?? System.Array.Empty<EnvironmentParameter>();
 
     public bool TryGetEnvironmentParameter(int index, out EnvironmentParameter parameter)
     {
@@ -219,7 +220,11 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
 
     private bool EnsureEnvironmentParameters()
     {
-        if (parametersInitialized) return parameterConfigurationValid;
+        if (parametersInitialized)
+        {
+            if (!parameterConfigurationValid) return false;
+            if (colliderSlots != null && triggerSlots != null) return true;
+        }
         parametersInitialized = true;
         if (!TryBuildParameterConfiguration(out List<EnvironmentParameter> configuration, out string error))
         { Debug.LogError(error, this); return false; }

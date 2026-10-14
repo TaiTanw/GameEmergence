@@ -1387,6 +1387,7 @@ MonoBehaviour:
     - rid: 808884573901160448
       type: {class: GroundSlowingParameter, ns: , asm: Assembly-CSharp}
       data:
+        calculationPoints: []
         multiplier: 6
 --- !u!1001 &1084853594
 PrefabInstance:
@@ -1871,6 +1872,67 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 372f5bf4cba5c9f4cbf4f5f2d606c38a, type: 3}
+--- !u!1001 &1833144622
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_Text
+      value: "\u5927\u5927\u5927\u5927\u5927\u5927"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -10.313435
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.54025936
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8592829422388944120, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
+      propertyPath: m_Name
+      value: Signboard
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
 --- !u!1001 &881100881100881100
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2271,3 +2333,4 @@ SceneRoots:
   - {fileID: 1809215385}
   - {fileID: 1618199299}
   - {fileID: 119141327}
+  - {fileID: 1833144622}

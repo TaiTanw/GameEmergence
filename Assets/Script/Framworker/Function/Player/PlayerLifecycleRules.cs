@@ -91,9 +91,16 @@ public sealed class PlayerLifecycleRules : IPlayerDeathReceiver, IPlayerFormRule
     /// <summary>现有场景 Update 顺带采样碰撞框中心，不加入物理触发器或第二条移动管线。</summary>
     public void AdvanceExplorationMap()
     {
-        if (Stage != PlayerGameplayStage.Exploration || EscapeSelectionPending || spirit == null || MapRecord == null
-            || !spirit.Permissions.motionUpdates) return;
-        if (MapRecord.SampleNormalMovement(spirit.BodyBounds.center)) RequestCognitionExhaustion();
+        if (EscapeSelectionPending || MapRecord == null) return;
+        if (Stage == PlayerGameplayStage.Exploration)
+        {
+            if (spirit == null || !spirit.Permissions.motionUpdates) return;
+            if (MapRecord.SampleNormalMovement(spirit.BodyBounds.center)) RequestCognitionExhaustion();
+            return;
+        }
+        // 逃生只同步实体所在格，不点亮、不扣认知。
+        if (Stage == PlayerGameplayStage.Escape && body != null && body.Permissions.motionUpdates)
+            MapRecord.OnRelocated(body.BodyBounds.center);
     }
 
     public void NotifyMapRelocated()
