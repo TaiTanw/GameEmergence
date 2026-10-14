@@ -425,6 +425,34 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: environmentParameters.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: environmentParameters.Array.data[0]
+      value: 808884639343050752
+      objectReference: {fileID: 0}
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: managedReferences[808884639343050752]
+      value: Assembly-CSharp WallSlideMultiplierParameter
+      objectReference: {fileID: 0}
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: managedReferences[808884639343050752].multiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: managedReferences[808884639343050752].calculationPoints.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: managedReferences[808884639343050752].calculationPoints.Array.data[0].multiplier
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8592108679609369140, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
+      propertyPath: managedReferences[808884639343050752].calculationPoints.Array.data[1].multiplier
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 958127543240876501, guid: 8abbb685d21f87e4389580688cb0fd6c, type: 3}
       propertyPath: m_Name
       value: wall (1)
