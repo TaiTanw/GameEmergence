@@ -1,98 +1,98 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>只显示本次锁存候选并发送购买／下一步请求，等级、付款和阶段归规则侧。</summary>
+/// <summary>两页只展示规则结果；静态文案和布局留在预设，不在运行时补建或排版。</summary>
 public sealed class EscapeChoiceView : MonoBehaviour
 {
-    readonly List<Button> choices = new List<Button>();
+    GameObject costPage, abilityPage, emptyResult, positiveRow, negativeRow, lockedNote;
+    Text budget, summary, positiveText, negativeText, finalValues;
+    Button costTab, abilityTab, next, begin;
+    Button[] purchases;
+    Text[] levels, states;
     int displayedVersion = -1;
-    Text budget, costSummary, empty, penalty;
-    Button preserve, next;
-    Transform content, template;
-    GameObject keepTitle, offerTitle;
+    bool showingAbilities;
+
     void Awake()
     {
-        budget = transform.Find("Choices/EscapeBudgetText").GetComponent<Text>();
-        content = transform.Find("Choices/Viewport/Content");
-        template = content.Find("ChoiceTemplate");
-        costSummary = content.Find("EscapeCostText").GetComponent<Text>();
-        empty = content.Find("EmptyPoolText").GetComponent<Text>();
-        penalty = content.Find("PenaltyText").GetComponent<Text>();
-        keepTitle = content.Find("KeepTitle").gameObject;
-        offerTitle = content.Find("OfferTitle").gameObject;
-        preserve = content.Find("PreserveSceneButton").GetComponent<Button>();
-        next = transform.Find("Choices/NextEscapeButton").GetComponent<Button>();
-        preserve.onClick.AddListener(() => SceneChangeMgr.Instance.PurchasePreserveScene());
-        next.onClick.AddListener(() => {
-            SceneChangeMgr host = SceneChangeMgr.Instance;
-            if (host.EscapeNegativePending) host.ConfirmEscapePenalty();
-            else host.NextEscapeStep();
-        });
+        Transform card = transform.Find("Choices");
+        costPage = card.Find("CostPage").gameObject;
+        abilityPage = card.Find("AbilityPage").gameObject;
+        budget = card.Find("EscapeBudgetText").GetComponent<Text>();
+        summary = costPage.transform.Find("Content/EscapeCostText").GetComponent<Text>();
+        lockedNote = costPage.transform.Find("Content/LockedPurchaseText").gameObject;
+        costTab = card.Find("Tabs/CostTabButton").GetComponent<Button>();
+        abilityTab = card.Find("Tabs/AbilityTabButton").GetComponent<Button>();
+        next = card.Find("NextEscapeButton").GetComponent<Button>();
+        begin = card.Find("BeginEscapeButton").GetComponent<Button>();
+        emptyResult = abilityPage.transform.Find("EmptyResultText").gameObject;
+        positiveRow = abilityPage.transform.Find("PositiveResult").gameObject;
+        negativeRow = abilityPage.transform.Find("NegativeResult").gameObject;
+        positiveText = positiveRow.transform.Find("PositiveResultValueText").GetComponent<Text>();
+        negativeText = negativeRow.transform.Find("NegativeResultValueText").GetComponent<Text>();
+        finalValues = abilityPage.transform.Find("FinalValuesText").GetComponent<Text>();
+        purchases = new Button[3]; levels = new Text[3]; states = new Text[3];
+        string[] names = { "MapCostRow", "BackpackCostRow", "FormCostRow" };
+        for (int i = 0; i < purchases.Length; i++)
+        {
+            int index = i;
+            Transform row = costPage.transform.Find("Content/" + names[i]);
+            purchases[i] = row.Find(names[i] + "PurchaseButton").GetComponent<Button>();
+            levels[i] = row.Find(names[i] + "ValuesText").GetComponent<Text>();
+            states[i] = row.Find(names[i] + "StateText").GetComponent<Text>();
+            purchases[i].onClick.AddListener(() => SceneChangeMgr.Instance.PurchaseEscapeAbility(index));
+        }
+        costTab.onClick.AddListener(() => { showingAbilities = false; Refresh(); });
+        abilityTab.onClick.AddListener(() => { if (SceneChangeMgr.Instance.EscapeAutomaticReady) { showingAbilities = true; Refresh(); } });
+        next.onClick.AddListener(() => { if (SceneChangeMgr.Instance.NextEscapeStep()) { showingAbilities = true; Refresh(); } });
+        begin.onClick.AddListener(() => SceneChangeMgr.Instance.BeginEscapeFromAbilities());
     }
+
     void OnEnable() { if (budget != null) Refresh(); }
     void Update() => Refresh();
+
     void Refresh()
     {
         SceneChangeMgr host = SceneChangeMgr.Instance;
-        SceneLevelSetup setup = SceneLevelSetup.Current;
-        if (setup == null) return;
-        // 同次准备候选不变；重建由规则版本驱动，菜单关闭不会重新抽取。
+        if (SceneLevelSetup.Current == null) return;
+        bool ready = host.EscapeAutomaticReady;
         if (displayedVersion != host.EscapePreparationVersion)
-        {
-            foreach (Button choice in choices) { choice.gameObject.SetActive(false); Destroy(choice.gameObject); }
-            choices.Clear();
-            displayedVersion = host.EscapePreparationVersion;
-            for (int i = 0; i < host.EscapeOffers.Count; i++)
-            {
-                int index = i;
-                Button button = Instantiate(template.gameObject, content).GetComponent<Button>();
-                button.name = "EscapeChoice" + i;
-                button.onClick.AddListener(() => host.PurchaseEscapeAbility(index));
-                button.transform.SetSiblingIndex(template.GetSiblingIndex() + i + 1);
-                button.gameObject.SetActive(true);
-                choices.Add(button);
-            }
-        }
+        { displayedVersion = host.EscapePreparationVersion; showingAbilities = ready; }
+        bool active = host.EscapeSelectionPending && !host.IsEscapeHandoff && !host.GameMenuOpen && Time.timeScale > 0f;
         float remaining = LevelStageMgr.Instance.CognitionRemaining;
-        bool negative = host.EscapeNegativePending;
-        bool active = host.EscapeSelectionPending && !host.GameMenuOpen && Time.timeScale > 0f;
-        budget.text = $"逃生准备 · 剩余认知 {remaining:0.##}";
-        keepTitle.SetActive(!negative); offerTitle.SetActive(!negative);
-        preserve.gameObject.SetActive(!negative); costSummary.gameObject.SetActive(!negative);
-        empty.gameObject.SetActive(!negative && choices.Count == 0);
-        penalty.gameObject.SetActive(negative);
-        empty.text = "本次没有可升级项目，可以直接下一步。";
-        costSummary.text = host.EscapeCostSummary();
-        preserve.interactable = active && !host.PreserveEscapeScene && remaining >= setup.PreserveSceneCost;
-        preserve.GetComponentInChildren<Text>().text = host.PreserveEscapeScene ? "已购买 · 保留当前现场"
-            : $"保留现场 · {setup.PreserveSceneCost:0.##} 认知" + (remaining < setup.PreserveSceneCost ? " · 认知不足" : "");
-        for (int i = 0; i < choices.Count; i++)
+        SetText(budget, $"剩余认知 {remaining:0.##}");
+        SetText(summary, host.EscapeCostSummary());
+        costPage.SetActive(!showingAbilities);
+        abilityPage.SetActive(showingAbilities);
+        lockedNote.SetActive(ready);
+        abilityTab.interactable = active && ready;
+        costTab.interactable = active;
+        next.gameObject.SetActive(!showingAbilities && !ready);
+        begin.gameObject.SetActive(showingAbilities && ready);
+        next.interactable = begin.interactable = active;
+        for (int i = 0; i < purchases.Length; i++)
         {
+            if (i >= host.EscapeOffers.Count) { purchases[i].interactable = false; continue; }
             PlayerUpgradeDefinition item = host.EscapeOffers[i];
             int level = host.PlayerEffects.GetUpgradeLevel(item.Kind);
-            bool full = !host.PlayerEffects.CanUpgrade(item.Kind);
+            bool full = level >= item.MaxLevel;
+            bool affordable = remaining >= item.Cost;
             float basis = host.EscapeUpgradeBaseValue(item.Kind);
-            float current = item.Evaluate(basis, level);
-            float upgraded = item.Evaluate(basis, level + 1);
-            string operation = item.Operation == PlayerUpgradeOperation.Multiply ? $"每级 ×{item.Step:0.###}"
-                : $"每级 {item.Step:+0.###;-0.###;0}";
-            string values = $"{current:0.##} → {upgraded:0.##} · {operation}";
-            if (item.Kind == PlayerUpgradeKind.MapCost || item.Kind == PlayerUpgradeKind.BackpackCost)
-                values = item.Operation == PlayerUpgradeOperation.Multiply
-                    ? $"费用倍率 ×{current:0.###} → ×{upgraded:0.###} · {operation}"
-                    : $"累计减费 {(-item.Step * level):0.##} → {(-item.Step * (level + 1)):0.##} · {operation}";
-            choices[i].gameObject.SetActive(!negative);
-            choices[i].interactable = active && !negative && !full && remaining >= item.Cost;
-            choices[i].GetComponentInChildren<Text>().text = $"{item.Label} · 等级 {level}/{item.MaxLevel}\n"
-                + (full ? "已满级" : $"{values} · 升级 {item.Cost:0.##} 认知" + (remaining < item.Cost ? " · 认知不足" : ""));
+            float current = item.Evaluate(basis, level), upgraded = full ? current : item.Evaluate(basis, level + 1);
+            string step = item.Operation == PlayerUpgradeOperation.Multiply ? $"每级 ×{item.Step:0.###}" : $"每级 {item.Step:+0.###;-0.###;0}";
+            SetText(levels[i], $"等级 {level}/{item.MaxLevel} · {current:0.###} → {upgraded:0.###}\n{step} · 每次 {item.Cost:0.##} 认知");
+            string state = ready ? "购买已关闭" : !item.Enabled ? "未开放" : full ? "已满级" : !affordable ? "认知不足" : "可重复购买";
+            SetText(states[i], state);
+            purchases[i].interactable = active && !ready && item.Enabled && !full && affordable;
         }
-        if (negative && host.SelectedEscapePenalty != null)
-        {
-            EscapePenaltyOffer result = host.SelectedEscapePenalty;
-            penalty.text = $"本次逃生负面\n\n{result.Label} · ×{result.Multiplier:0.##}\n\n确认后开始逃生，仅本局生效。";
-        }
-        next.interactable = active;
-        next.GetComponentInChildren<Text>().text = negative ? "确认负面并开始逃生" : "下一步";
+        PlayerAbilityEffect? positive = host.PlayerEffects.PositiveAbility, negative = host.PlayerEffects.NegativeAbility;
+        positiveRow.SetActive(positive.HasValue);
+        negativeRow.SetActive(negative.HasValue);
+        emptyResult.SetActive(!positive.HasValue && !negative.HasValue);
+        if (positive.HasValue) SetText(positiveText, positive.Value.Description);
+        if (negative.HasValue) SetText(negativeText, negative.Value.Description);
+        if (ready) SetText(finalValues, host.AutomaticAbilityPreview());
     }
+
+    static void SetText(Text target, string value)
+    { if (target.text != value) target.text = value; }
 }

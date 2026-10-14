@@ -69,8 +69,9 @@ public class SceneLevelSetup : MonoBehaviour
     float waterRiseSpeed = 0.5f;
     [SerializeField, Tooltip("关联主水后必填。拖入独立空物体，用其世界 Y 表示最高水面；不得挂在上涨水下。")]
     Transform risingWaterMaximum;
-    [SerializeField, Range(0.01f, 1f)] float lowCognitionMovementMultiplier = 0.8f;
-    [SerializeField] EscapeAbilityOffer[] escapeAbilities = {
+    // 封存旧关卡字段以保留场景序列化身份，P20 不再消费或展示这些局部候选。
+    [SerializeField, HideInInspector] float lowCognitionMovementMultiplier = 0.8f;
+    [SerializeField, HideInInspector] EscapeAbilityOffer[] escapeAbilities = {
         new EscapeAbilityOffer("步伐强化", PlayerEffectKind.MovementMultiplier, 20f, 1.2f),
         new EscapeAbilityOffer("起跳强化", PlayerEffectKind.JumpMultiplier, 20f, 1.2f)
     };
@@ -80,9 +81,9 @@ public class SceneLevelSetup : MonoBehaviour
     public float LowCognitionMovementMultiplier => lowCognitionMovementMultiplier;
     public System.Collections.Generic.IReadOnlyList<EscapeAbilityOffer> EscapeAbilities => escapeAbilities;
 
-    [SerializeField, Min(0f), Tooltip("主动逃生准备中一次性购买保留现场；不受认知降费影响。")]
+    [SerializeField, HideInInspector]
     float preserveSceneCost = 10f;
-    [SerializeField, Tooltip("只配置本关适用的负面。上涨水变快要求有关联主水且基础速度大于 0。")]
+    [SerializeField, HideInInspector]
     EscapePenaltyOffer[] escapePenalties = {
         new EscapePenaltyOffer(EscapePenaltyKind.Movement, .8f),
         new EscapePenaltyOffer(EscapePenaltyKind.Jump, .9f)
@@ -93,27 +94,19 @@ public class SceneLevelSetup : MonoBehaviour
     public bool ValidateEscapePreparation(out string error)
     {
         error = null;
-        if (float.IsNaN(preserveSceneCost) || float.IsInfinity(preserveSceneCost) || preserveSceneCost < 0f)
-            error = $"{name}：保留现场价格必须是有限非负数。";
-        else if (escapePenalties == null || escapePenalties.Length == 0)
-            error = $"{name}：至少配置一个本关适用的负面候选。";
-        else
-        {
-            var kinds = new HashSet<EscapePenaltyKind>();
-            foreach (EscapePenaltyOffer item in escapePenalties)
-            {
-                if (item == null || !item.IsValid)
-                { error = $"{name}：负面候选类型或倍率无效。"; break; }
-                if (!kinds.Add(item.Kind))
-                { error = $"{name}：负面类型 {item.Kind} 重复。"; break; }
-                if (item.Kind == EscapePenaltyKind.WaterRise && (risingWater == null || waterRiseSpeed <= 0f
-                    || float.IsInfinity(waterRiseSpeed * item.Multiplier)))
-                { error = $"{name}：上涨水负面需要有效主水、正基础水速及有限最终速度。"; break; }
-            }
-        }
-        if (error == null) return ValidateRisingWaterConfiguration(out error);
-        return false;
+        // 教学没有探索结算，允许实际认知为零；非教学必须有合法分母。
+        if (!teaching && (!PlayerUpgradeDefinition.Finite(initialCognition) || initialCognition <= 0f))
+        { error = name + "：非教学关初始认知必须是有限正数。"; return false; }
+        return ValidateRisingWaterConfiguration(out error);
     }
+
+#if UNITY_EDITOR
+    void OnValidate()
+    {
+        if (!teaching && (!PlayerUpgradeDefinition.Finite(initialCognition) || initialCognition <= 0f))
+            Debug.LogError(name + "：非教学关初始认知必须是有限正数。", this);
+    }
+#endif
 
     public bool ValidateRisingWaterConfiguration(out string error)
     {

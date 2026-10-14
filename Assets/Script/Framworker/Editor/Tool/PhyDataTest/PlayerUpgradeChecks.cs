@@ -20,11 +20,11 @@ public static class PlayerUpgradeChecks
 
     public static void RunForBatch()
     {
-        try { Run(); EditorApplication.Exit(0); }
+        try { Run(); PlayerEffectChecks.Run(); PlayerProgressChecks.Run(); EditorApplication.Exit(0); }
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
-    [MenuItem("自定义工具/测试工具/验证/P4 验证升级与三类降费（Edit Mode）")]
+    [MenuItem("自定义工具/测试工具/验证/P20 验证能力池与三类降费（Edit Mode）")]
     public static void Run()
     {
         if (Application.isPlaying) throw new InvalidOperationException("请在 Edit Mode 验证升级。");
@@ -97,129 +97,92 @@ public static class PlayerUpgradeChecks
     static void CheckCatalog()
     {
         PlayerUpgradeCatalog catalog = Catalog();
-        Check(catalog.Validate(out _) && catalog.Definitions.Count == 6, "配置恰好包含六个稳定能力标识");
-        Near(catalog.Get(PlayerUpgradeKind.MovementSpeed).Evaluate(10f, 3), 17.28f, "固定乘法步长连续三级从基础值重算");
-        Near(catalog.Get(PlayerUpgradeKind.JumpStrength).Evaluate(10f, 3), 16f, "固定加法步长连续三级从基础值重算");
-        var additiveCost = new PlayerUpgradeDefinition(PlayerUpgradeKind.FormCost, "定额降费", PlayerUpgradeOperation.Add, -3f, 5, 2f);
-        Check(additiveCost.Validate(out _), "认知类别允许一条固定减法规则");
-        Near(additiveCost.Evaluate(5f, 3), 0f, "定额降费超过基础价后保持零，不退款");
-        PlayerUpgradeDefinition jumpCount = catalog.Get(PlayerUpgradeKind.AirJumps);
-        jumpCount.Step = .5f;
-        Check(!catalog.Validate(out _), "跳跃次数不接受分数步长"); jumpCount.Step = 1f;
-        catalog.Definitions[5] = catalog.Definitions[0];
-        Check(!catalog.Validate(out _), "重复标识不能冒充缺失的第六能力");
+        Check(catalog.Validate(out _), "三项降费有稳定标识，旧运动条目不再使用");
+        catalog.Get(PlayerUpgradeKind.MovementSpeed).Step = float.NaN;
+        Check(catalog.Validate(out _), "旧运动制作值不影响降费或续关");
+        Near(catalog.Get(PlayerUpgradeKind.MapCost).Evaluate(8f, 3), 1f, "降费从基础值按等级重算");
+        var additive = new PlayerUpgradeDefinition(PlayerUpgradeKind.FormCost, "定额降费", PlayerUpgradeOperation.Add, -3f, 5, 2f);
+        Check(additive.Validate(out _) && additive.Evaluate(5f, 3) == 0f, "定额降费不产生退款");
+        catalog.Get(PlayerUpgradeKind.FormCost).Step = 1.1f;
+        Check(!catalog.Validate(out _), "费用上涨的制作配置拒绝");
         catalog = Catalog(); catalog.Definitions.RemoveAt(5);
-        Check(!catalog.Validate(out _), "少一个固定类别时整份配置拒绝");
-        catalog = Catalog(); catalog.Get(PlayerUpgradeKind.FormCost).Step = 1.1f;
-        Check(!catalog.Validate(out _), "降费类别拒绝使费用上涨的配置");
-        catalog = Catalog(); catalog.Get(PlayerUpgradeKind.MovementSpeed).Cost = float.NaN;
-        Check(!catalog.Validate(out _), "非数值价格拒绝整份配置");
-        catalog = Catalog(); catalog.Get(PlayerUpgradeKind.MovementSpeed).Step = float.MaxValue;
-        Check(!catalog.Validate(out _), "等级上限溢出在购买前拒绝");
+        Check(!catalog.Validate(out _), "缺少三项中的一项拒绝");
+        catalog = Catalog(); catalog.Definitions.Add(catalog.Get(PlayerUpgradeKind.MapCost));
+        Check(!catalog.Validate(out _), "重复降费标识拒绝");
     }
 
     static void CheckPurchaseTransaction()
     {
-        PlayerUpgradeCatalog catalog = Catalog(); PlayerEffectLedger ledger = Ledger(catalog);
-        var wallet = new LevelCognition(6f);
+        PlayerEffectLedger ledger = Ledger(); var wallet = new LevelCognition(6f);
         for (int i = 1; i <= 3; i++)
-            Check(ledger.TryUpgrade(PlayerUpgradeKind.MovementSpeed, wallet)
-                && ledger.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == i, $"同关第 {i} 次购买增加一级");
-        Near(wallet.Remaining, 0f, "每级扣同一固定价格，恰好足够可以付完");
-        Check(!ledger.CanUpgrade(PlayerUpgradeKind.MovementSpeed)
-            && !ledger.TryUpgrade(PlayerUpgradeKind.MovementSpeed, new LevelCognition(100f)), "满级拒绝继续购买");
-        Check(ledger.CaptureConfirmedUpgradeLevels()[0] == 0, "购买尚不写入已确认等级");
+            Check(ledger.TryUpgrade(PlayerUpgradeKind.MapCost, wallet) && ledger.GetUpgradeLevel(PlayerUpgradeKind.MapCost) == i,
+                "同一降费可重复购买 " + i);
+        Near(wallet.Remaining, 0f, "每次完整扣费，恰好足够也能购买");
+        Check(!ledger.TryUpgrade(PlayerUpgradeKind.MapCost, new LevelCognition(100f)), "满级不能继续扣费");
+        Check(ledger.CaptureConfirmedUpgradeLevels()[3] == 0, "本关购买尚不写入确认等级");
         var poor = new LevelCognition(1f);
-        Check(!ledger.TryUpgrade(PlayerUpgradeKind.JumpStrength, poor)
-            && ledger.GetUpgradeLevel(PlayerUpgradeKind.JumpStrength) == 0 && poor.Remaining == 1f,
-            "余额不足拒绝，不部分扣款或增加等级");
-        catalog.Get(PlayerUpgradeKind.JumpStrength).Cost = float.PositiveInfinity;
-        Check(!ledger.TryUpgrade(PlayerUpgradeKind.JumpStrength, poor) && poor.Remaining == 1f
-            && ledger.GetUpgradeLevel(PlayerUpgradeKind.JumpStrength) == 0, "运行中非法价格保持余额及等级");
-        catalog.Get(PlayerUpgradeKind.JumpStrength).Cost = 2f;
-        catalog.Get(PlayerUpgradeKind.JumpStrength).Enabled = false;
-        Check(!ledger.CanUpgrade(PlayerUpgradeKind.JumpStrength)
-            && !ledger.TryUpgrade(PlayerUpgradeKind.JumpStrength, new LevelCognition(100f)), "关闭制作开放项后不能购买");
-        Check(!ledger.TryUpgrade((PlayerUpgradeKind)99, poor)
-            && !ledger.TryUpgrade(PlayerUpgradeKind.AirJumps, null), "未知类别及缺少钱包拒绝");
-        var invalid = Catalog(); invalid.Get(PlayerUpgradeKind.MapCost).Step = 0f;
-        Check(!ledger.Configure(invalid) && ledger.Catalog == catalog, "绑定坏配置保留原配置及已有升级");
+        Check(!ledger.TryUpgrade(PlayerUpgradeKind.FormCost, poor) && poor.Remaining == 1f && ledger.GetUpgradeLevel(PlayerUpgradeKind.FormCost) == 0,
+            "余额不足保持等级及钱包");
+        foreach (PlayerUpgradeKind kind in new[] { PlayerUpgradeKind.MovementSpeed, PlayerUpgradeKind.JumpStrength, PlayerUpgradeKind.AirJumps })
+            Check(!ledger.TryUpgrade(kind, poor) && ledger.GetUpgradeLevel(kind) == 0, "旧运动永久购买关闭 " + kind);
+        ledger.Catalog.Get(PlayerUpgradeKind.BackpackCost).Enabled = false;
+        Check(!ledger.TryUpgrade(PlayerUpgradeKind.BackpackCost, wallet), "停用降费不能购买");
+        Check(!ledger.TryUpgrade((PlayerUpgradeKind)99, poor) && !ledger.TryUpgrade(PlayerUpgradeKind.FormCost, null), "未知能力及空钱包拒绝");
     }
 
     static void CheckRecordLifetime()
     {
         PlayerEffectLedger ledger = Ledger(); var wallet = new LevelCognition(100f);
-        foreach (PlayerUpgradeDefinition definition in ledger.Catalog.Definitions)
-            Check(ledger.TryUpgrade(definition.Kind, wallet), $"{definition.Kind} 购买可立即读取等级");
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.25f, PlayerEffectScope.Permanent);
-        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, .8f);
-        Near(ledger.GetUpgradedValue(PlayerUpgradeKind.FormCost, 8f), 4f, "待确认降费立即作用于后续费用");
+        ledger.TryUpgrade(PlayerUpgradeKind.MapCost, wallet);
+        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f);
+        Check(ledger.TryGrantAutomaticAbilities(new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, true, 2f)), null),
+            "本场自动效果可以锁存");
         ledger.ResetCurrentLevel();
-        foreach (PlayerUpgradeDefinition definition in ledger.Catalog.Definitions)
-            Check(ledger.GetUpgradeLevel(definition.Kind) == 0, $"失败撤销 {definition.Kind} 本关新增");
-        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 0,
-            "失败同时撤销普通道具未确认永久与临时负面");
-        ledger.TryUpgrade(PlayerUpgradeKind.MovementSpeed, wallet);
-        ledger.TryUpgrade(PlayerUpgradeKind.BackpackCost, wallet);
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.25f, PlayerEffectScope.Permanent);
-        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, .8f);
-        ledger.CommitLevel(); ledger.CommitLevel();
-        Check(ledger.CaptureConfirmedUpgradeLevels()[0] == 1 && ledger.CaptureConfirmedUpgradeLevels()[4] == 1
-            && ledger.ConfirmedPermanentEffects.Count == 1 && ledger.CurrentLevelEffects.Count == 0,
-            "重复跨关确认不重复升级或叠普通永久效果，临时负面结束");
-        int[] levels = ledger.CaptureConfirmedUpgradeLevels(); PlayerEffectRecord[] effects = ledger.CaptureConfirmedEffects();
-        PlayerEffectLedger restored = Ledger();
-        Check(restored.RestoreConfirmed(levels, effects) && restored.RestoreConfirmed(levels, effects),
-            "同一已确认快照可重复重建");
-        Near(restored.GetUpgradedValue(PlayerUpgradeKind.MovementSpeed, 10f) * restored.MovementMultiplier, 15f,
-            "重建一次等级运算与一次普通永久倍率，没有重复堆叠");
-        restored.TryUpgrade(PlayerUpgradeKind.MovementSpeed, wallet); restored.ResetCurrentLevel();
-        Check(restored.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 1 && restored.ConfirmedPermanentEffects.Count == 1,
-            "后续退出只撤销本关新增，保留历史确认项");
-        levels[0] = -1;
-        Check(!restored.RestoreConfirmed(levels, effects) && restored.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 1,
-            "无效快照不能部分替换现有等级");
-        restored.ResetAll();
-        Check(restored.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 0 && restored.ConfirmedPermanentEffects.Count == 0
-            && restored.CurrentLevelEffects.Count == 0, "清进度清掉确认等级、普通永久及本关新增");
+        Check(ledger.GetUpgradeLevel(PlayerUpgradeKind.MapCost) == 0 && !ledger.AutomaticResultLocked && ledger.CurrentLevelEffects.Count == 0,
+            "失败清本场体能与本关新购");
+        ledger.TryUpgrade(PlayerUpgradeKind.BackpackCost, wallet); ledger.CommitLevel(); ledger.CommitLevel();
+        Check(ledger.GetUpgradeLevel(PlayerUpgradeKind.BackpackCost) == 1 && ledger.CaptureConfirmedEffects().Length == 0,
+            "重复通关只确认降费一次，不保存运动效果");
+        int[] legacy = { 3, 4, 5, 1, 2, 3 };
+        var oldEffects = new[] { new PlayerEffectRecord(PlayerEffectKind.MovementMultiplier, 5f, PlayerEffectScope.Permanent) };
+        Check(ledger.RestoreConfirmed(legacy, oldEffects), "旧六槽存档兼容读取");
+        Check(ledger.GetUpgradeLevel(PlayerUpgradeKind.MovementSpeed) == 0 && ledger.GetUpgradeLevel(PlayerUpgradeKind.FormCost) == 3
+            && ledger.MovementMultiplier == 1f && ledger.CaptureConfirmedEffects().Length == 0, "只保留旧档降费，旧永久运动不会继续加持");
+        legacy[3] = -1;
+        Check(!ledger.RestoreConfirmed(legacy, oldEffects) && ledger.GetUpgradeLevel(PlayerUpgradeKind.MapCost) == 1,
+            "损坏降费快照不部分替换有效记录");
     }
 
     static void CheckCharacterConsumers()
     {
         Player body = Actor("player20.prefab"), spirit = Actor("SpiritPlayer.prefab");
-        CharacterPhysics bodyPhysics = body.GetComponent<CharacterPhysics>();
-        CharacterPhysics spiritPhysics = spirit.GetComponent<CharacterPhysics>();
-        float baseSpeed = bodyPhysics.speed, baseJump = bodyPhysics.upSpeed;
-        PlayerEffectLedger ledger = Ledger(); var wallet = new LevelCognition(100f);
-        body.BindEffectLedger(ledger); spirit.BindEffectLedger(ledger);
-        ledger.TryUpgrade(PlayerUpgradeKind.MovementSpeed, wallet);
-        ledger.TryUpgrade(PlayerUpgradeKind.JumpStrength, wallet);
-        ledger.TryUpgrade(PlayerUpgradeKind.AirJumps, wallet);
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.25f, PlayerEffectScope.Permanent);
-        Near(bodyPhysics.EffectiveMovementSpeed, baseSpeed * 1.2f * 1.25f, "实体消费等级升级及普通道具倍率");
-        Near(spiritPhysics.EffectiveMovementSpeed, spiritPhysics.speed * 1.2f * 1.25f, "精神体从自身基础值消费共享记录");
-        Near(bodyPhysics.EffectiveJumpSpeed, baseJump + 2f, "普通起跳消费者读取固定加值");
-        var bodyFSM = (PlayerStateMachine)typeof(Player).GetField("fsm", Hidden).GetValue(body);
-        Check(bodyFSM.EffectiveAirJumps == body.BaseAirJumps + 1, "原状态机读取升级后的额外空中跳次数");
-        bodyFSM.JumpCountToNum();
-        Check(bodyFSM.jumpCount == body.BaseAirJumps + 1,
-            "原着地补充入口用升级后的次数补齐可用空中跳");
-        MovementData action = (MovementData)typeof(Player).GetField("actionData", Hidden).GetValue(body);
-        action.nowState = PlayerStateMachine.E_playerState.isOnGround; action.onMove = 1f; action.speedScale = 1.5f;
-        Near((float)typeof(CharacterPhysics).GetMethod("HorizontalSpeedCalculation", Hidden).Invoke(bodyPhysics, null),
-            baseSpeed * 1.2f * 1.25f * 1.5f, "真实水平动作同时消费升级、普通倍率及原疾跑倍率");
-        Invoke(bodyPhysics, "Jump"); Invoke(bodyPhysics, "PhyEventUpdate");
-        Near(bodyPhysics.ReadOnly_PlayersPhysicsData.verticalSpeed, baseJump + 2f, "真实起跳消费固定加值一次");
-        body.BindEffectLedger(ledger); spirit.BindEffectLedger(ledger);
-        Near(bodyPhysics.EffectiveMovementSpeed, baseSpeed * 1.2f * 1.25f, "重复角色绑定不重复加成");
-        Check(bodyPhysics.speed == baseSpeed && bodyPhysics.upSpeed == baseJump, "升级与绑定不回写角色基础属性");
-        ledger.ResetCurrentLevel();
-        Near(bodyPhysics.EffectiveMovementSpeed, baseSpeed, "本关失败实际角色移速回基础值");
-        Near(bodyPhysics.EffectiveJumpSpeed, baseJump, "本关失败实际起跳回基础值");
-        Check(bodyFSM.EffectiveAirJumps == body.BaseAirJumps, "本关失败空中跳次数回基础值");
-        bodyFSM.JumpCountToNum();
-        Check(bodyFSM.jumpCount == body.BaseAirJumps,
-            "升级回滚后原补充入口不保留额外跳跃次数");
+        CharacterPhysics physics = body.GetComponent<CharacterPhysics>();
+        var ledger = Ledger(); body.BindEffectLedger(ledger); spirit.BindEffectLedger(ledger);
+        float basis = physics.speed;
+        Set(physics, "movementSpeedLimits", new PlayerAttributeRange(0f, basis * 1.5f));
+        var positive = new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, true, 2f));
+        var negative = new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, false, .75f));
+        Check(ledger.TryGrantAutomaticAbilities(positive, negative), "同属性正负成对锁存");
+        Near(physics.EffectiveMovementSpeed, basis * 1.5f, "先正后负后只截断最终值，中间越上限不会先截断");
+        Near(physics.EffectiveFourWaySpeed, physics.BaseFourWaySpeed * 1.5f, "四向速度消费同一移动效果");
+        body.BindEffectLedger(ledger); Near(physics.EffectiveMovementSpeed, basis * 1.5f, "重复绑定不重复授予");
+        Check(physics.speed == basis && ledger.PositiveAbility.HasValue && ledger.NegativeAbility.HasValue, "基础值不回写且两项生效记录均保留");
+        ledger.ClearAutomaticAbilities();
+        Check(ledger.TryGrantAutomaticAbilities(new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.JumpStrength, true, 100f)), null), "合法大效果允许超出范围");
+        Near(physics.EffectiveJumpSpeed, 100f, "起跳最终上界限制运行参数");
+        ledger.ClearAutomaticAbilities();
+        Check(ledger.TryGrantAutomaticAbilities(new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.AirJumps, true, 10f)),
+            new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.AirJumps, false, -9f))), "跳数先加正面再减负面");
+        var fsm = (PlayerStateMachine)typeof(Player).GetField("fsm", Hidden).GetValue(body);
+        Check(fsm.EffectiveAirJumps == body.BaseAirJumps + 1, "状态机消费合成后的整数跳数");
+        fsm.JumpCountToNum(); Check(fsm.jumpCount == fsm.EffectiveAirJumps, "实际补充入口读取本场跳数");
+        ledger.ResetCurrentLevel(); Check(fsm.EffectiveAirJumps == body.BaseAirJumps, "失败后跳数恢复基础值");
+        Check(!new PlayerAttributeRange(8f, 2f).Validate(4f, false, out _)
+            && !new PlayerAttributeRange(0f, 1.5f).Validate(1, true, out _), "反向范围及小数跳数范围拒绝");
+        Player highJump = Actor("player20.prefab", 20);
+        var highFSM = (PlayerStateMachine)typeof(Player).GetField("fsm", Hidden).GetValue(highJump);
+        Check(highFSM.EffectiveAirJumps == 20 && highFSM.jumpCount == 20,
+            "初次 Awake 使用角色制作范围，允许高于默认十次的合法基础跳数");
     }
 
     static void CheckMapConsumer()
@@ -296,14 +259,32 @@ public static class PlayerUpgradeChecks
 
     static void CheckThreshold()
     {
-        Check(!SceneChangeMgr.RequiresEscapePenalty(10f, 100f), "恰好初始容量百分之十不触发负面");
-        Check(SceneChangeMgr.RequiresEscapePenalty(9.999f, 100f), "低于百分之十才触发负面");
-        Check(!SceneChangeMgr.RequiresEscapePenalty(10.001f, 100f), "高于百分之十不触发负面");
-        Check(SceneChangeMgr.RequiresEscapePenalty(0f, 100f) && SceneChangeMgr.RequiresEscapePenalty(0f, 0f),
-            "耗尽及零初始容量统一需要负面确认");
+        float[] ratios = { 0f, .25f, .375f, .5f, .75f, 1f };
+        float[] positive = { 0f, 0f, .25f, .5f, 1f, 1f }, negative = { 1f, .5f, .25f, 0f, 0f, 0f };
+        for (int i = 0; i < ratios.Length; i++)
+        { Near(PlayerAbilityPool.PositiveProbability(ratios[i]), positive[i], "正面概率边界 " + ratios[i]);
+          Near(PlayerAbilityPool.NegativeProbability(ratios[i]), negative[i], "负面概率边界 " + ratios[i]); }
+        Check(PlayerAbilityPool.Triggers(1f, 1f) && !PlayerAbilityPool.Triggers(0f, 0f), "随机端点确保百分百触发和零概率不触发");
+        var pool = ScriptableObject.CreateInstance<PlayerAbilityPool>(); objects.Add(pool);
+        pool.Entries = new List<PlayerAbilityOffer> {
+            new PlayerAbilityOffer(PlayerAbilityKind.AirJumps, true, 1f, 0f),
+            new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, true, 2f, 1f),
+            new PlayerAbilityOffer(PlayerAbilityKind.JumpStrength, true, 3f, 3f),
+            new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, false, .5f) };
+        Check(pool.Validate(out _) && pool.Draw(true, 0f).Kind == PlayerAbilityKind.MovementSpeed
+            && pool.Draw(true, .25f).Kind == PlayerAbilityKind.JumpStrength && pool.Draw(true, 1f).Kind == PlayerAbilityKind.JumpStrength,
+            "正负分组独立加权，零权重不可命中，权重边界及样本一可命中");
+        pool.Entries[0].Weight = -1f;
+        Check(!pool.Validate(out _), "负权重显式拒绝，不静默改成零"); pool.Entries[0].Weight = 0f;
+        pool.Entries[1].Weight = pool.Entries[2].Weight = 0f;
+        Check(!pool.Validate(out _), "任一分组总权重零显式拒绝");
+        pool.Entries.Clear(); Check(!pool.Validate(out _), "空池显式拒绝");
+        var ledger = new PlayerEffectLedger();
+        Check(ledger.TryGrantAutomaticAbilities(null, null) && ledger.AutomaticResultLocked
+            && !ledger.TryGrantAutomaticAbilities(null, null), "无命中也是锁定结果，不可重新抽取");
     }
 
-    static Player Actor(string prefab)
+    static Player Actor(string prefab, int airJumps = -1)
     {
         PlayerLifecycleRules.SetWorldPaused(false);
         GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/Player/" + prefab);
@@ -311,6 +292,7 @@ public static class PlayerUpgradeChecks
         GameObject item = Object.Instantiate(asset); item.hideFlags = HideFlags.DontSave; objects.Add(item);
         item.transform.position = new Vector2(56000f + 200f * actorNumber++, 56000f);
         Physics2D.SyncTransforms(); Player actor = item.GetComponent<Player>();
+        if (airJumps >= 0) { Set(actor, "baseAirJumps", airJumps); Set(actor, "airJumpLimits", new PlayerAttributeRange(0f, 25f)); }
         Invoke(actor.GetComponent<CharacterPhysics>(), "Awake"); Invoke(actor, "Awake");
         Invoke(actor.GetComponentInChildren<PresentationLayer>(), "Awake"); Invoke(actor, "Start");
         Invoke(actor.GetComponent<CharacterPhysics>(), "OnEnable"); actor.ChangeInputAsset(new PlayerInputData());

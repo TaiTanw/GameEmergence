@@ -65,16 +65,13 @@ public sealed class PlayerUpgradeDefinition
     internal static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 }
 
-/// <summary>跨关共用的六项升级配置；候选抽取属于逃生准备编排。</summary>
-[CreateAssetMenu(menuName = "GameEmergence/玩家升级配置", fileName = "PlayerUpgradeCatalog")]
+/// <summary>跨关共用的三项降费配置；旧运动编号仅保留序列化兼容。</summary>
+[CreateAssetMenu(menuName = "GameEmergence/认知降费配置", fileName = "PlayerUpgradeCatalog")]
 public sealed class PlayerUpgradeCatalog : ScriptableObject
 {
     public const int KindCount = 6;
     public List<PlayerUpgradeDefinition> Definitions = new List<PlayerUpgradeDefinition>
     {
-        new PlayerUpgradeDefinition(PlayerUpgradeKind.MovementSpeed, "移速强化", PlayerUpgradeOperation.Multiply, 1.2f),
-        new PlayerUpgradeDefinition(PlayerUpgradeKind.JumpStrength, "起跳强化", PlayerUpgradeOperation.Multiply, 1.2f),
-        new PlayerUpgradeDefinition(PlayerUpgradeKind.AirJumps, "额外空中跳", PlayerUpgradeOperation.Add, 1f, 3),
         new PlayerUpgradeDefinition(PlayerUpgradeKind.MapCost, "地图认知降费", PlayerUpgradeOperation.Multiply, .9f),
         new PlayerUpgradeDefinition(PlayerUpgradeKind.BackpackCost, "入包认知降费", PlayerUpgradeOperation.Multiply, .9f),
         new PlayerUpgradeDefinition(PlayerUpgradeKind.FormCost, "转换认知降费", PlayerUpgradeOperation.Multiply, .9f)
@@ -91,16 +88,20 @@ public sealed class PlayerUpgradeCatalog : ScriptableObject
     public bool Validate(out string error)
     {
         error = null;
-        if (Definitions == null || Definitions.Count != KindCount)
-        { error = "升级配置必须包含六个固定能力；不开放的能力请关闭 Enabled。"; return false; }
+        if (Definitions == null)
+        { error = "认知降费配置缺失。"; return false; }
         var seen = new HashSet<PlayerUpgradeKind>();
         foreach (PlayerUpgradeDefinition definition in Definitions)
         {
             // 安全：缺失或重复标识不能由列表位置猜测，避免读档后套到其它能力。
-            if (definition == null || !seen.Add(definition.Kind))
+            // 旧运动编号只保留序列化兼容；当前只校验三项费用配置。
+            if (definition == null || !IsCost(definition.Kind)) continue;
+            if (!seen.Add(definition.Kind))
             { error = "升级配置有空项或重复能力标识。"; return false; }
             if (!definition.Validate(out error)) return false;
         }
+        if (seen.Count != 3)
+        { error = "降费配置必须包含地图、入包和形态转换三个固定标识。"; return false; }
         return true;
     }
 

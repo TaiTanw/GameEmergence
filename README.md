@@ -6,7 +6,7 @@ Unity 2022.3.54f1c1 项目。P5.4 操作与 K11 原生物理迁移已实现：�
 
 | 要看什么 | 入口 |
 |---|---|
-| 当前问题与下一步 | [待办安排](Docs/待办安排.md)，优先看第 11–18 天机关／逃生准备／永久效果闭环 |
+| 当前问题与下一步 | [待办安排](Docs/待办安排.md)，优先看 P20 本场能力池、认知降费与剩余人工定标 |
 | 游戏规则与数据所有权 | [玩法大纲](Docs/玩法大纲.md) |
 | 分层、当前时序与收束方向 | [工程原则](Docs/工程原则.md) |
 | 推拉／收纳已经实现什么 | [P5.4 摘要](Docs/待办具体事务文档集中/P_5.4-执行编排.md) |
@@ -26,8 +26,8 @@ Unity 2022.3.54f1c1 项目。P5.4 操作与 K11 原生物理迁移已实现：�
 | 环境事实与水位 | [EntityEnvironmentContext](Assets/Script/Framworker/Function/Physics/Base/EntityEnvironmentContext.cs)、[WaterRegion](Assets/Script/Framworker/Function/Physics/Component/SceneObjects/WaterRegion.cs) |
 | 阶段、认知、逃生与退出 | [SceneChangeMgr](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.cs) → [PlayerLifecycleRules](Assets/Script/Framworker/Function/Player/PlayerLifecycleRules.cs) → [LevelCognition](Assets/Script/Framworker/Function/Player/LevelCognition.cs) |
 | 制作结局演出 | [EndingExample](Assets/Script/Task/Ending/EndingExample.cs) → [EndingSceneContext](Assets/Script/Framworker/Function/Ending/EndingSceneContext.cs) → [EndingActor](Assets/Script/Framworker/Function/Ending/EndingActor.cs)；在场景挂一个宿主子类即可，数据与回调见[制作入口](注意事项.md#结局场景制作p164p165)，不用调用普通关／存档／流转管理器 |
-| 逃生准备与最终确认 | [SceneChangeMgr.EscapePreparation](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.EscapePreparation.cs) → [EscapeChoiceView](Assets/Script/Framworker/UISystem/UIobject/EscapeChoiceView.cs) → [EscapeHandoff](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.EscapeHandoff.cs)；最多三项固定候选、重复购买、独立下一步与负面确认，已实现并通过自动联验 |
-| 升级配置、效果确认与进度 | [PlayerUpgradeCatalog](Assets/Script/Framworker/Function/Player/PlayerUpgradeCatalog.cs) → [PlayerEffectLedger](Assets/Script/Framworker/Function/Player/PlayerEffectLedger.cs) → [DataAndInitMgr](Assets/Script/Framworker/AOTSystem/Mgr/MemoryMgr/DataAndInitMgr.cs)；六项等级与普通效果共用记录，关序及已确认永久数据同份保存，本轮自动联验通过 |
+| 逃生准备与最终确认 | [SceneChangeMgr.EscapePreparation](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.EscapePreparation.cs) → [EscapeChoiceView](Assets/Script/Framworker/UISystem/UIobject/EscapeChoiceView.cs) → [EscapeHandoff](Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.EscapeHandoff.cs)；固定三项降费重复购买、购买后余额抽本场正负效果、二级页确认与原消散交接，已实现并通过原生联验 |
+| 升级配置、效果确认与进度 | [PlayerUpgradeCatalog](Assets/Script/Framworker/Function/Player/PlayerUpgradeCatalog.cs) → [PlayerEffectLedger](Assets/Script/Framworker/Function/Player/PlayerEffectLedger.cs) → [DataAndInitMgr](Assets/Script/Framworker/AOTSystem/Mgr/MemoryMgr/DataAndInitMgr.cs)；三项降费与本场运动共用记录，关序及已确认降费同份保存；旧运动数据只读兼容，本轮原生联验通过 |
 | 提示与动画 | [PresentationLayer](Assets/Script/Framworker/Function/Performance/Component/PresentationLayer.cs)、[InteractionHintView](Assets/Script/Framworker/Function/Performance/Component/InteractionHintView.cs) |
 
 K11 顺序为平台／水并同步几何 → 原生接触与探针／区域事实 → 环境／能力／选中 → 合成并写入本步刚体速度 → 统一模拟一次 → 回读实际位置／速度。实际刚体速度是跨帧运动基准；跳跃／墙滑规则仍由行为与执行负责。推拉保留水平贴合与独立竖直运动，收纳和恢复沿用既有事务。
@@ -36,6 +36,6 @@ K11 顺序为平台／水并同步几何 → 原生接触与探针／区域事�
 
 使用项目版本与 New Input System；当前角色／箱子开启 Interpolate、物理根节点冻结旋转。冰面与推拉手感未最终定标，只要求可调结构。
 
-玩家基础值沿 `CharacterPhysics.speed`／`upSpeed` 与 `Player.baseAirJumps`；升级使用 [PlayerUpgradeCatalog.asset](Assets/Resources/PlayerUpgradeCatalog.asset)，每项配置开放、上限、固定价格、固定乘法或加减法及每级步长，首批六项合池。小型配置面板已实现并通过 Unity 全工程编译，人工制作入口与独立保存操作见[注意事项](注意事项.md#玩家基础属性与永久升级配置)，窗口操作及原关卡手感仍待人工验收。
+玩家基础值沿 `CharacterPhysics.speed`／`upSpeed`、四向速度与 `Player.baseAirJumps`，各属性范围保存在同一角色配置。P20 保留 [PlayerUpgradeCatalog.asset](Assets/Resources/PlayerUpgradeCatalog.asset) 的三项永久降费购买，[PlayerAbilityPool.asset](Assets/Resources/PlayerAbilityPool.asset) 共用池按购买后余额抽本场运动效果，先正后负、最终一次限界。运行时两页结算无命中也显示结果页；编辑器入口“玩家属性与能力池”，制作与独立保存操作见[注意事项](注意事项.md#p20-能力池与降费购买制作)，实际窗口与通路仍待人工定标。
 
 环境检查菜单为「自定义工具/EPhy 验证环境接入（Edit Mode）」，批处理入口 EnvironmentIntegrationChecks.RunForBatch；相关行为检查入口见专题。本轮环境、观测、游泳、真实 ICE 场景、箱子与死亡周期检查通过，证据集中在[历史回顾](Docs/历史回顾.md#近期完成与验证)。自动通过不等于人工手感或完整核心循环通过。

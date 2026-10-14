@@ -28,20 +28,30 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
     public float BaseFourWaySpeed => fourWaySpeed;
 
     public float upSpeed = 15;//基础跳跃速度
+    [SerializeField] PlayerAttributeRange movementSpeedLimits = new PlayerAttributeRange(0f, 100f);
+    [SerializeField] PlayerAttributeRange jumpSpeedLimits = new PlayerAttributeRange(0f, 100f);
+    [SerializeField] PlayerAttributeRange fourWaySpeedLimits = new PlayerAttributeRange(0f, 100f);
     private PlayerEffectLedger effectLedger;
-    public float EffectiveMovementSpeed => ResolveAttribute(PlayerUpgradeKind.MovementSpeed, speed, effectLedger?.MovementMultiplier ?? 1f);
-    public float EffectiveJumpSpeed => ResolveAttribute(PlayerUpgradeKind.JumpStrength, upSpeed, effectLedger?.JumpMultiplier ?? 1f);
-    private float EffectiveFourWaySpeed => ResolveAttribute(PlayerUpgradeKind.MovementSpeed, fourWaySpeed, effectLedger?.MovementMultiplier ?? 1f);
+    public float EffectiveMovementSpeed => ResolveAttribute(PlayerAbilityKind.MovementSpeed, speed, movementSpeedLimits);
+    public float EffectiveJumpSpeed => ResolveAttribute(PlayerAbilityKind.JumpStrength, upSpeed, jumpSpeedLimits);
+    public float EffectiveFourWaySpeed => ResolveAttribute(PlayerAbilityKind.MovementSpeed, fourWaySpeed, fourWaySpeedLimits);
     /// <summary>只绑定共享记录；消费时从角色自身基础值重算，不回写配置或积累加成。</summary>
     internal void BindEffectLedger(PlayerEffectLedger ledger) => effectLedger = ledger;
 
-    private float ResolveAttribute(PlayerUpgradeKind kind, float baseValue, float ordinaryMultiplier)
+    public bool ValidateMotionConfiguration(out string error)
     {
-        double value = (effectLedger?.GetUpgradedValue(kind, baseValue) ?? baseValue) * (double)ordinaryMultiplier;
-        // 安全：实际角色基础值与普通效果共同导致溢出时，拒绝本步执行，避免写入无穷速度。
-        if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d || value > float.MaxValue)
-            throw new System.InvalidOperationException($"{name} 的 {kind} 基础属性与效果组合无效或溢出。");
-        return (float)value;
+        if (!movementSpeedLimits.Validate(speed, false, out error)) { error = "水平移速：" + error; return false; }
+        if (!jumpSpeedLimits.Validate(upSpeed, false, out error)) { error = "起跳初速度：" + error; return false; }
+        if (!fourWaySpeedLimits.Validate(fourWaySpeed, false, out error)) { error = "四向速度：" + error; return false; }
+        return true;
+    }
+
+    float ResolveAttribute(PlayerAbilityKind kind, float basis, PlayerAttributeRange limits)
+    {
+        // 安全：基础配置无效时拒绝，不把限界当作修正制作值。
+        if (!limits.Validate(basis, false, out string error)) throw new System.InvalidOperationException(name + "：" + error);
+        double value = effectLedger?.ResolveMotionAttribute(kind, basis) ?? basis;
+        return limits.Limit(value);
     }
     const float SpawnGroundSearchDistance = 4f;
     readonly List<RaycastHit2D> spawnDropHits = new List<RaycastHit2D>();

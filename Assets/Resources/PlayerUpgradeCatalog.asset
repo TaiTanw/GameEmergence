@@ -13,27 +13,6 @@ MonoBehaviour:
   m_Name: PlayerUpgradeCatalog
   m_EditorClassIdentifier: 
   Definitions:
-  - Kind: 0
-    Label: "\u79FB\u901F\u5F3A\u5316"
-    Enabled: 1
-    MaxLevel: 10
-    Cost: 20
-    Operation: 0
-    Step: 1.2
-  - Kind: 1
-    Label: "\u8D77\u8DF3\u5F3A\u5316"
-    Enabled: 1
-    MaxLevel: 10
-    Cost: 20
-    Operation: 0
-    Step: 1.2
-  - Kind: 2
-    Label: "\u989D\u5916\u7A7A\u4E2D\u8DF3"
-    Enabled: 1
-    MaxLevel: 3
-    Cost: 20
-    Operation: 1
-    Step: 1
   - Kind: 3
     Label: "\u5730\u56FE\u8BA4\u77E5\u964D\u8D39"
     Enabled: 1

@@ -66,46 +66,14 @@ public static class PlayerEffectChecks
     private static void CheckRecordLifetime()
     {
         var ledger = new PlayerEffectLedger();
-        Near(ledger.MovementMultiplier, 1f, "空记录不改变基础水平速度");
-        Near(ledger.JumpMultiplier, 1f, "空记录不改变基础普通跳跃");
-        Check(ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent)
-            && ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f)
-            && ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, .8f), "有限永久、正面和负面效果立即领取");
-        Near(ledger.MovementMultiplier, .96f, "同类有限倍率按有效记录相乘");
-        Near(ledger.JumpMultiplier, 1.2f, "不同类型分开汇总");
-        Check(ledger.CurrentLevelEffects.Count == 3 && ledger.ConfirmedPermanentEffects.Count == 0,
-            "新增永久先属于本关新增，不提前成为已确认永久");
-        ledger.ResetCurrentLevel();
-        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 0,
-            "失败清所有新增，包含未确认永久");
-        Near(ledger.MovementMultiplier, 1f, "失败撤销本局正负面水平倍率");
-        Near(ledger.JumpMultiplier, 1f, "失败撤销新增跳跃倍率");
-
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent);
-        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f);
-        ledger.CommitLevel();
-        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 1,
-            "通关结束本局项，仅移动新增永久记录");
-        Near(ledger.MovementMultiplier, 1.2f, "通关确认不重复施加永久效果");
-        Near(ledger.JumpMultiplier, 1f, "通关结束本局跳跃效果");
-        ledger.CommitLevel();
-        Check(ledger.ConfirmedPermanentEffects.Count == 1 && ledger.MovementMultiplier == 1.2f,
-            "重复确认不增加记录或再次施加");
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, .8f);
-        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f, PlayerEffectScope.Permanent);
-        ledger.ResetCurrentLevel();
-        Check(ledger.ConfirmedPermanentEffects.Count == 1 && ledger.CurrentLevelEffects.Count == 0,
-            "下一关失败保留此前已确认永久");
-        Near(ledger.MovementMultiplier, 1.2f, "此前已确认倍率失败后继续生效");
-        Near(ledger.JumpMultiplier, 1f, "本关未确认永久被失败撤销");
-        Check(!ledger.GrantEffect((PlayerEffectKind)99, 1f)
-            && !ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1f, (PlayerEffectScope)99)
-            && !ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, -1f)
-            && !ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, float.NaN)
-            && !ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, float.PositiveInfinity),
-            "未知种类、范围和非法倍率拒绝，不产生部分记录");
-        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 1,
-            "拒绝不改变记录边界");
+        Check(!ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent), "新运动入口拒绝永久范围");
+        Check(ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f)
+            && ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, .8f) && ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f), "普通道具保留本场正负效果入口");
+        Near(ledger.MovementMultiplier, .96f, "本场同类效果汇总一次");
+        ledger.CommitLevel(); ledger.CommitLevel();
+        Check(ledger.CurrentLevelEffects.Count == 0 && ledger.ConfirmedPermanentEffects.Count == 0 && ledger.MovementMultiplier == 1f, "跨关结束运动效果且重复确认无影响");
+        Check(!ledger.GrantEffect((PlayerEffectKind)99, 1f) && !ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, float.NaN)
+            && !ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, -1f), "非法种类或运算拒绝");
     }
 
     private static void CheckSharedCharacterValues()
@@ -119,7 +87,7 @@ public static class PlayerEffectChecks
         float bodyJump = bodyPhysics.upSpeed, spiritJump = spiritPhysics.upSpeed;
         body.BindEffectLedger(ledger); spirit.BindEffectLedger(ledger);
         ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f);
-        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f, PlayerEffectScope.Permanent);
+        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f);
         Near(bodyPhysics.EffectiveMovementSpeed, bodyBase * 1.2f, "本体从自己的基础值消费共享水平倍率");
         Near(spiritPhysics.EffectiveMovementSpeed, spiritBase * 1.2f, "精神体共读同份新增记录");
         Near(bodyPhysics.EffectiveJumpSpeed, bodyJump * 1.2f, "本体读取有效普通跳跃值");
@@ -132,9 +100,10 @@ public static class PlayerEffectChecks
             "绑定和领取不改角色制作基础配置");
         ledger.CommitLevel();
         Near(bodyPhysics.EffectiveMovementSpeed, bodyBase, "本局效果通关结束，无需逐角色减回数值");
-        Near(spiritPhysics.EffectiveJumpSpeed, spiritJump * 1.2f, "确认永久后共享角色不重复施加");
+        Near(spiritPhysics.EffectiveJumpSpeed, spiritJump, "通关后精神体也回到基础起跳值");
         ledger.ResetCurrentLevel();
-        Near(bodyPhysics.EffectiveJumpSpeed, bodyJump * 1.2f, "后续失败保留已确认永久的有效值");
+        Near(bodyPhysics.EffectiveJumpSpeed, bodyJump, "后续失败不恢复旧永久运动效果");
+        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.2f);
         body.BindEffectLedger(null);
         Near(bodyPhysics.EffectiveJumpSpeed, bodyJump, "解绑回自己的基础值，不回写另一角色记录");
         Near(spiritPhysics.EffectiveJumpSpeed, spiritJump * 1.2f, "单角色解绑不清共用记录");

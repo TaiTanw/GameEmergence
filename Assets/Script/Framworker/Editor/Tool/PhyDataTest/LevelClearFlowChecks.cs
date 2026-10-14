@@ -192,7 +192,7 @@ public static class LevelClearFlowChecks
         lightPropObject.GetComponent<SpriteRenderer>().GetPropertyBlock(lightProperties);
         Check(lightProperties.GetFloat("_Brightness") > 1f, "探索阶段实际提高道具本体亮度");
         Check(SceneProp.FindInteractTarget(spirit) == null, "普通关探索精神体靠近通关道具也没有交互目标");
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.NextEscapeStep(),
+        Check(SceneChangeMgr.Instance.StartEscape() && (SceneChangeMgr.Instance.NextEscapeStep() && SceneChangeMgr.Instance.BeginEscapeFromAbilities()),
             "逃生提示联验沿真实准备及最终确认入口交接");
         while (SceneChangeMgr.Instance.IsEscapeHandoff) yield return null;
         Check(LevelStageMgr.Instance.Stage == PlayerGameplayStage.Escape && InputControlMgr.Instance.Player == body,

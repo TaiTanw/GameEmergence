@@ -95,7 +95,7 @@ P18 水波接入位于 `PresentationLayer.Water.cs`：消费同次区域采样�
 
 `PlayerLifecycleRules` 区分模拟遇险和实体死亡。模拟遇险直接沿原转换回漫游并扣一次原费用，保留现场，不建立动画等待，也不依赖死亡动画组件；世界按漫游规则暂停。实体死亡关闭输入、角色行为和资源，继续被动惯性、重力、环境作用及共用碰撞，世界与上涨水继续运行，完整播放后才接逃生失败遮罩或教学重载。`CharacterPhysics` 的被动运动只关闭角色主动驱动、跳跃和游泳等动作执行，复用箱子的共用物理底层，显式刷新恢复角色执行。菜单暂停仍停止物理而动画使用真实时间；进入失败渐变或加载后沿原暂停规则。表现层不结算费用或切换阶段，刷新、禁用、返回菜单和受理换关均作废旧等待。
 
-`SceneChangeMgr.CompleteEscapePreparation(bool preserveScene = false)` 是准备最终确认后的统一入口，当前由原购买／低预算路径调用；消散完成后才保留／复位现场、安置实体、等待镜头抵达，再开放操作和涨水，不发送死亡请求或收转换费。新多项购买和负面确认面板后续复用此入口，当前尚未实现。隔离 Unity 实际流程验收入口为 `DeathAnimationFlowChecks.RunForBatch`，覆盖上述流程、重复死亡、暂停、退出和换关。
+P20 两页结算由 `SceneChangeMgr.NextEscapeStep()` 锁存自动结果，`BeginEscapeFromAbilities()` 从结果页最终确认后调用 `CompleteEscapePreparation()`。精神体完整消散后复位运行现场、安置实体并等待镜头抵达，最后开放操作与原速度涨水；不发送死亡请求或收转换费。零余额和无命中也走同一交接，不保留旧付费保留或独立负面确认。隔离 Unity 实际流程入口为 `PlayerUpgradeFlowChecks.RunForBatch` 和 `DeathAnimationFlowChecks.RunForBatch`。
 
 ## 实体通关播放
 

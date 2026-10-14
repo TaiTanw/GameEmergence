@@ -91,31 +91,30 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         && !levelRules.EscapeSelectionPending && body != null && spirit != null;
     public bool EscapeSelectionPending => levelRules != null && levelRules.EscapeSelectionPending && !escapeHandoff;
 
-    /// <summary>主动进入固定三项购买；探索耗尽直接锁定负面，均由最终确认入口交接。</summary>
+    /// <summary>主动和耗尽共用三项降费购买；下一页锁存体能结果，再沿原消散交接。</summary>
     public bool StartEscape()
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
         if (!CanStartEscape || setup == null || !EnsureUpgradeCatalog() || !ValidEscapeSetup(setup)) return false;
+        if (!ValidateAutomaticPool(setup)) return false;
         // 配置错误在购买／暂停前指出；不以占位延时跳过消散。
         if (!ValidateEscapeHandoff(setup)) return false;
         if (!levelRules.BeginEscapeSelection()) return false;
         InputControlMgr.Instance.BindPlayer(null);
         ResetEscapePreparation();
-        if (levelRules.Cognition.IsExhausted) LockEscapePenalty(setup);
-        else DrawEscapeOffers();
+        ListEscapeCostOffers();
         return true;
     }
 
     public bool PurchaseEscapeAbility(int index)
     {
         // 本次三项固定，重复购买只提升该项等级，不交接或重新抽取。
-        if (!CanPrepareEscape || negativePending || preparationConfirmed || index < 0 || index >= escapeOffers.Count)
+        if (!CanPrepareEscape || effects.AutomaticResultLocked || preparationConfirmed || index < 0 || index >= escapeOffers.Count)
             return false;
         PlayerUpgradeDefinition item = escapeOffers[index];
         if (!effects.CanUpgrade(item.Kind)) return false;
-        int nextLevel = effects.GetUpgradeLevel(item.Kind) + 1;
-        if (!ValidateActorUpgradeValues(body, out string error, item.Kind, nextLevel)
-            || !ValidateActorUpgradeValues(spirit, out error, item.Kind, nextLevel))
+        if (!ValidateActorUpgradeValues(body, out string error)
+            || !ValidateActorUpgradeValues(spirit, out error))
         {
             ShowGameplayMessage(error);
             return false;

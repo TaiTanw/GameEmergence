@@ -7,6 +7,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 /// <summary>在真实关卡、角色预设与 Animator 中核对死亡等待、退出作废和探索交接；不保存夹具场景。</summary>
@@ -126,7 +127,7 @@ public static class DeathAnimationFlowChecks
         Check(SceneChangeMgr.Instance.PurchaseEscapeAbility(0)
             && SceneChangeMgr.Instance.EscapeSelectionPending && !SceneChangeMgr.Instance.IsEscapeHandoff,
             "购买升级后保持准备，下一步前不受理精神体消散");
-        Check(SceneChangeMgr.Instance.NextEscapeStep(), "下一步最终确认后受理精神体消散");
+        Check((SceneChangeMgr.Instance.NextEscapeStep() && SceneChangeMgr.Instance.BeginEscapeFromAbilities()), "下一步最终确认后受理精神体消散");
         float paid = rules.Cognition.Remaining;
         float waterBefore = setup.RisingWater.SurfaceY;
         Near(paid, cognition - upgradeCost, "购买只收原能力价，不额外收转换费");
@@ -237,12 +238,12 @@ public static class DeathAnimationFlowChecks
         rules = Rules();
         box.RefreshMotionState(boxScene);
         cognition = rules.Cognition.Remaining;
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchasePreserveScene()
-            && SceneChangeMgr.Instance.NextEscapeStep(),
-            "后续面板可复用同一最终确认入口并选择保留现场");
+        Check(SceneChangeMgr.Instance.StartEscape()
+            && (SceneChangeMgr.Instance.NextEscapeStep() && SceneChangeMgr.Instance.BeginEscapeFromAbilities()),
+            "后续面板可复用同一最终确认入口并打开体能页确认");
         while (rules.Stage != PlayerGameplayStage.Escape) yield return null;
-        Near(box.DebugActualPosition.x, boxScene.x, "保留分支跳过现场运行默认复位");
-        Near(rules.Cognition.Remaining, cognition - setup.PreserveSceneCost, "保留交接只支付一次现场保留费，没有额外转换费用");
+        Near(box.DebugActualPosition.x, boxHome.x, "消散后恢复箱子现场默认");
+        Near(rules.Cognition.Remaining, cognition, "无购买交接没有额外转换费用");
         Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "第二次实体死亡重开独立播放周期");
         Check(SceneChangeMgr.Instance.ToggleGameMenu(), "第二次死亡中打开菜单");
         while (!SceneChangeMgr.Instance.IsFailureRecovering && Rules() == rules) yield return null;
@@ -253,15 +254,15 @@ public static class DeathAnimationFlowChecks
         while (Rules() == rules || SceneChangeMgr.Instance.IsFailureRecovering) yield return null;
 
         rules = Rules();
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchasePreserveScene()
-            && SceneChangeMgr.Instance.NextEscapeStep(),
+        Check(SceneChangeMgr.Instance.StartEscape()
+            && (SceneChangeMgr.Instance.NextEscapeStep() && SceneChangeMgr.Instance.BeginEscapeFromAbilities()),
             "退出回归进入实体逃生");
         while (rules.Stage != PlayerGameplayStage.Escape) yield return null;
         Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "退出回归建立未完成实体死亡");
         PlayerDeathRequest exitedDeath = body.PendingDeath.Value;
         cognition = rules.Cognition.Remaining;
         Check(SceneChangeMgr.Instance.ReturnToMenu(), "死亡动画未结束可退出菜单");
-        while (SceneLevelSetup.Current != null || Actor("body") != null) yield return null;
+        while (!MenuReady()) yield return null;
         Check(rules.ReceiveDeath(exitedDeath) == PlayerDeathStatus.Rejected && InputControlMgr.Instance.Player == null
             && !WorldPaused(), "退出作废死亡等待，不恢复旧操作或世界暂停");
         Near(rules.Cognition.Remaining, cognition, "退出的迟到动画不结算转换费");
@@ -269,12 +270,12 @@ public static class DeathAnimationFlowChecks
         Enter(1);
         while (!Ready(1)) yield return null;
         Rules().Cognition.TryPayAbilityCost(Rules().Cognition.Remaining);
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.EscapeNegativePending
-            && SceneChangeMgr.Instance.ConfirmEscapePenalty() && SceneChangeMgr.Instance.IsEscapeHandoff,
+        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.NextEscapeStep()
+            && SceneChangeMgr.Instance.BeginEscapeFromAbilities() && SceneChangeMgr.Instance.IsEscapeHandoff,
             "低预算路径等待消散，不提前切逃生阶段");
         rules = Rules(); cognition = rules.Cognition.Remaining;
         Check(SceneChangeMgr.Instance.ReturnToMenu(), "消散交接中途退出");
-        while (SceneLevelSetup.Current != null || Actor("body") != null) yield return null;
+        while (!MenuReady()) yield return null;
         double lateUntil = EditorApplication.timeSinceStartup + 2.2;
         while (EditorApplication.timeSinceStartup < lateUntil) yield return null;
         Check(!SceneChangeMgr.Instance.IsEscapeHandoff && InputControlMgr.Instance.Player == null
@@ -284,8 +285,8 @@ public static class DeathAnimationFlowChecks
         Enter(1);
         while (!Ready(1)) yield return null;
         rules = Rules(); body = Actor("body");
-        Check(SceneChangeMgr.Instance.StartEscape() && SceneChangeMgr.Instance.PurchasePreserveScene()
-            && SceneChangeMgr.Instance.NextEscapeStep(),
+        Check(SceneChangeMgr.Instance.StartEscape()
+            && (SceneChangeMgr.Instance.NextEscapeStep() && SceneChangeMgr.Instance.BeginEscapeFromAbilities()),
             "换关回归进入实体逃生");
         while (rules.Stage != PlayerGameplayStage.Escape) yield return null;
         Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "换关回归建立未完成实体死亡");
@@ -310,7 +311,7 @@ public static class DeathAnimationFlowChecks
             && Rules() != rules && !Actor("body").PendingDeath.HasValue && !Passive(Actor("body").GetComponent<CharacterPhysics>()),
             "教学完整播放后沿原加载重用实体，并退出被动运动");
         SceneChangeMgr.Instance.ReturnToMenu();
-        while (SceneLevelSetup.Current != null) yield return null;
+        while (!MenuReady()) yield return null;
     }
 
     static void CheckNativePlayback(Player actor)
@@ -374,7 +375,7 @@ public static class DeathAnimationFlowChecks
         Physics2D.SyncTransforms();
         var upgrades = ScriptableObject.CreateInstance<PlayerUpgradeCatalog>(); fixtures.Add(upgrades);
         foreach (PlayerUpgradeDefinition definition in upgrades.Definitions)
-            definition.Enabled = definition.Kind == PlayerUpgradeKind.MovementSpeed;
+            definition.Enabled = definition.Kind == PlayerUpgradeKind.MapCost;
         Check(SceneChangeMgr.Instance.PlayerEffects.Configure(upgrades), "死亡回归使用独立单项升级配置，不改制作资产");
         var waterObject = new GameObject("Death validation rising water"); fixtures.Add(waterObject);
         waterObject.transform.position = new Vector3(8010f, 7995f, 0f);
@@ -399,6 +400,8 @@ public static class DeathAnimationFlowChecks
             + $"position={camera.transform.position}, target={typeof(MainCamera).GetField("toPoint", Hidden).GetValue(camera)}, "
             + $"portrait={typeof(MainCamera).GetField("showingPortrait", Hidden).GetValue(camera)}, delta={Time.unscaledDeltaTime}";
     }
+    static bool MenuReady() => !Loading() && SceneManager.GetActiveScene().name == "BeginScenes"
+        && SceneLevelSetup.Current == null && Actor("body") == null;
     static bool Ready(int index) => SceneLevelSetup.Current != null && SceneLevelSetup.Current.gameObject.scene.name == order[index]
         && InputControlMgr.Instance.Player != null && InputControlMgr.Instance.InputEnabled && !Loading();
     static bool Loading() => (bool)typeof(SceneChangeMgr).GetField("loading", Hidden).GetValue(SceneChangeMgr.Instance);

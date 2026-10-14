@@ -108,8 +108,8 @@ public static class P6LevelFlowChecks
                     CheckCamera(body);
                     Check(DataAndInitMgr.Instance.LoadLevelIndex() == 0, "教学安置完成才保存当前序号");
                     effects = (PlayerEffectLedger)typeof(SceneChangeMgr).GetField("effects", Hidden).GetValue(SceneChangeMgr.Instance);
-                    Check(effects.GrantEffect(PlayerEffectKind.MovementMultiplier, .9f, PlayerEffectScope.Permanent),
-                        "布置此前已经通关确认的永久效果");
+                    Check(effects.TryUpgrade(PlayerUpgradeKind.MapCost, new LevelCognition(100f)),
+                        "布置此前已经通关确认的降费等级");
                     effects.CommitLevel();
                     Check(DataAndInitMgr.Instance.SavePlayerProgress(0, effects),
                         "夹具将此前已确认效果写入可恢复的进度，重进沿正式存档读取");
@@ -119,15 +119,15 @@ public static class P6LevelFlowChecks
                     break;
                 case 20:
                     if (!ReturnedToMenuAfterFailedLoad()) return;
-                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0
+                    Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && effects.CurrentLevelEffects.Count == 0
                         && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
-                        "配置缺失后回菜单，不确认永久效果也不推进进度");
+                        "配置缺失后回菜单，不确认降费等级也不推进进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 21;
                     break;
                 case 21:
                     if (!Ready(sceneOrder[0])) return;
-                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0,
+                    Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && effects.CurrentLevelEffects.Count == 0,
                         "回菜单后重进不保留失败前的本局新增");
                     AddPendingEffects();
                     StartFailedNextLevel(false);
@@ -135,9 +135,9 @@ public static class P6LevelFlowChecks
                     break;
                 case 22:
                     if (!ReturnedToMenuAfterFailedLoad()) return;
-                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0
+                    Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && effects.CurrentLevelEffects.Count == 0
                         && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
-                        "精神体无效后回菜单，不确认永久效果也不推进进度");
+                        "精神体无效后回菜单，不确认降费等级也不推进进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 23;
                     break;
@@ -148,19 +148,19 @@ public static class P6LevelFlowChecks
                     CheckPendingEffects("被返回菜单作废前");
                     int cancelledSerial = (int)typeof(SceneChangeMgr).GetField("loadSerial", Hidden).GetValue(SceneChangeMgr.Instance);
                     Check(SceneChangeMgr.Instance.ReturnToMenu(), "真实返回菜单作废尚在加载的跨关请求");
-                    Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 0,
-                        "返回菜单只撤销本局新增，不把待确认永久效果提升为已确认");
+                    Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && effects.CurrentLevelEffects.Count == 0,
+                        "返回菜单只撤销本局新增，不把待确认降费等级提升为已确认");
                     // 作废的回调即使迟到并报告成功，也不能确认效果、写进度或重新开放输入。
                     typeof(SceneChangeMgr).GetMethod("FinishEnter", Hidden).Invoke(SceneChangeMgr.Instance,
                         new object[] { 1, cancelledSerial, true, true });
-                    Check(effects.ConfirmedPermanentEffects.Count == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0
+                    Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0
                         && InputControlMgr.Instance.Player == null && !InputControlMgr.Instance.InputEnabled,
                         "旧请求的迟到成功回调不结算、不推进进度或交回控制");
                     stage = 24;
                     break;
                 case 24:
                     if (SceneChangeMgr.Instance.IsLoading || SceneManager.GetActiveScene().name != "BeginScenes" || Players().Length != 0) return;
-                    Check(effects.ConfirmedPermanentEffects.Count == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
+                    Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && DataAndInitMgr.Instance.LoadLevelIndex() == 0,
                         "作废请求及菜单实际加载结束仍不提前确认或推进进度");
                     SceneChangeMgr.Instance.EnterSavedLevel();
                     stage = 241;
@@ -200,14 +200,14 @@ public static class P6LevelFlowChecks
                     expectedCognition = SceneLevelSetup.Current.InitialCognition;
                     formCost = SceneLevelSetup.Current.FormChangeCost;
                     Check(DataAndInitMgr.Instance.LoadLevelIndex() == 1, "跨关成功保存第二关序号");
-                    Check(effects.CurrentLevelEffects.Count == 0 && effects.ConfirmedPermanentEffects.Count == 2,
-                        "下一关安置成功才确认新增永久效果并清本局项");
-                    Near(effects.MovementMultiplier, 1.08f, "成功跨关不重复叠加永久倍率");
+                    Check(effects.CurrentLevelEffects.Count == 0 && effects.CaptureConfirmedUpgradeLevels()[3] == 2,
+                        "下一关安置成功才确认新增降费等级并清本局项");
+                    Near(effects.MovementMultiplier, 1f, "成功跨关结束本场运动倍率");
                     Near(effects.JumpMultiplier, 1f, "成功跨关清除本局起跳效果");
                     Near(body.GetComponent<CharacterPhysics>().EffectiveMovementSpeed,
-                        body.GetComponent<CharacterPhysics>().speed * 1.08f, "本体消费安置成功后的永久倍率");
+                        body.GetComponent<CharacterPhysics>().speed, "本体在新关回到基础运动值");
                     Near(oldSpirit.GetComponent<CharacterPhysics>().EffectiveMovementSpeed,
-                        oldSpirit.GetComponent<CharacterPhysics>().speed * 1.08f, "新精神体消费同一确认记录");
+                        oldSpirit.GetComponent<CharacterPhysics>().speed, "新精神体消费同一确认记录");
                     UIMgr.Instance.GetOnePanel<GameplayPanel>(value => panel = value);
                     stage = 3;
                     break;
@@ -341,15 +341,16 @@ public static class P6LevelFlowChecks
 
     private static void AddPendingEffects()
     {
-        Check(effects.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent)
-            && effects.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.3f), "布置本局待确认永久效果和本局起跳效果");
+        Check(effects.TryUpgrade(PlayerUpgradeKind.MapCost, new LevelCognition(100f))
+            && effects.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f)
+            && effects.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.3f), "布置本局待确认降费等级和本局起跳效果");
     }
 
     private static void CheckPendingEffects(string context)
     {
-        Check(effects.ConfirmedPermanentEffects.Count == 1 && effects.CurrentLevelEffects.Count == 2,
-            context + "永久效果仍待确认，本局效果未提前清除");
-        Near(effects.MovementMultiplier, 1.08f, context + "当前永久倍率未重施或撤销");
+        Check(effects.CaptureConfirmedUpgradeLevels()[3] == 1 && effects.CurrentLevelEffects.Count == 2,
+            context + "降费等级仍待确认，本局效果未提前清除");
+        Near(effects.MovementMultiplier, 1.2f, context + "当前本场倍率未重施或撤销");
         Near(effects.JumpMultiplier, 1.3f, context + "本局起跳效果仍保留");
         Check(DataAndInitMgr.Instance.LoadLevelIndex() == 0, context + "进度仍停在原关");
     }

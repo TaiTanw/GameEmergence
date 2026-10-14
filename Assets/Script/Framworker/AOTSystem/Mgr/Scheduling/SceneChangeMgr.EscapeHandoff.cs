@@ -18,8 +18,8 @@ public partial class SceneChangeMgr
         return false;
     }
 
-    /// <summary>全部准备确认后的唯一入口；当前购买／低预算路径调用，后续新面板复用。</summary>
-    public bool CompleteEscapePreparation(bool preserveScene = false)
+    /// <summary>第二页确认后的唯一动画交接入口。</summary>
+    public bool CompleteEscapePreparation()
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
         if (loading || refreshing || GameMenuOpen || escapeHandoff || !EscapeSelectionPending
@@ -28,12 +28,12 @@ public partial class SceneChangeMgr
         escapeHandoff = true;
         int serial = ++loadSerial;
         InputControlMgr.Instance.InputOpenOrClose(false);
-        MonoPublicMgr.Instance.StartCoroutine(FinishEscapeHandoff(setup, levelRules, spirit, playback, preserveScene, serial));
+        MonoPublicMgr.Instance.StartCoroutine(FinishEscapeHandoff(setup, levelRules, spirit, playback, serial));
         return true;
     }
 
     IEnumerator FinishEscapeHandoff(SceneLevelSetup setup, PlayerLifecycleRules rules, Player departing,
-        uint playback, bool preserveScene, int serial)
+        uint playback, int serial)
     {
         while (serial == loadSerial && escapeHandoff && rules == levelRules && departing != null)
         {
@@ -57,7 +57,7 @@ public partial class SceneChangeMgr
             yield break;
         }
         // 确认消散完成后才处理现场及实体；探索交接不发死亡请求、不收转换费。
-        if (!preserveScene) PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
+        PlayerLifecycleRules.RestoreWorldDefaults(setup.gameObject.scene);
         body.BindEffectLedger(effects);
         body.BindDeathReceiver(rules);
         body.RefreshRuntime(setup.BodyPoint);
@@ -80,9 +80,7 @@ public partial class SceneChangeMgr
         Physics2D.SyncTransforms();
         LevelBoxContext.Resample(setup.gameObject.scene);
         body.ApplyCapabilities(PlayerCapabilityPermissions.Walking);
-        float waterMultiplier = escapePenalty != null && escapePenalty.Kind == EscapePenaltyKind.WaterRise
-            ? escapePenalty.Multiplier : 1f;
-        setup.RisingWater?.SetRunRiseSpeed(setup.WaterRiseSpeed * waterMultiplier);
+        setup.RisingWater?.SetRunRiseSpeed(setup.WaterRiseSpeed);
         setup.RisingWater?.SetRisingAllowed(true);
         escapeHandoff = false;
         InputControlMgr.Instance.InputOpenOrClose(true);

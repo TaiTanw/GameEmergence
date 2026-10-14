@@ -17,7 +17,7 @@ public static class PlayerProgressChecks
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
-    [MenuItem("自定义工具/测试工具/验证/P4.1 验证进度与永久能力存档（Edit Mode）")]
+    [MenuItem("自定义工具/测试工具/验证/P4.1 验证进度与降费存档（Edit Mode）")]
     public static void Run()
     {
         if (Application.isPlaying) throw new InvalidOperationException("请在 Edit Mode 执行验证。");
@@ -60,7 +60,7 @@ public static class PlayerProgressChecks
         string legacyPath = Path.Combine(directory, "LevelProgress.txt");
         const string oldContent = " 2\r\n";
         File.WriteAllText(legacyPath, oldContent);
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent);
+        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f);
         ledger.CommitLevel();
         ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 0.8f);
         Check(Load(directory, ledger, out int index) && index == 2, "旧纯关序可读");
@@ -72,34 +72,27 @@ public static class PlayerProgressChecks
 
     private static void CheckConfirmedRoundTrip(string directory)
     {
-        var ledger = new PlayerEffectLedger();
-        int[] levels = { 1, 2, 3, 4, 5, 6 };
-        var confirmed = new[] { new PlayerEffectRecord(PlayerEffectKind.MovementMultiplier, 1.5f, PlayerEffectScope.Permanent) };
-        Check(ledger.RestoreConfirmed(levels, confirmed), "准备六类已确认等级及普通永久效果");
-        Check(ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.4f, PlayerEffectScope.Permanent)
-            && ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 0.5f), "准备未确认永久项及本局负面");
-        Check(Save(directory, 3, ledger), "关序及已确认永久数据整体写入");
         string path = Path.Combine(directory, "PlayerProgress.json");
+        // 模拟真实旧 JSON；读取不应为迁移而重写原始文件。
+        const string legacy = "{\"version\":1,\"levelIndex\":3,\"confirmedUpgradeLevels\":[1,2,3,4,5,6],\"confirmedEffects\":[{\"kind\":0,\"multiplier\":1.5}]}";
+        File.WriteAllText(path, legacy);
+        var ledger = new PlayerEffectLedger();
+        Check(Load(directory, ledger, out int index) && index == 3 && File.ReadAllText(path) == legacy, "旧能力档只读迁移不改文件");
+        int[] levels = { 0, 0, 0, 4, 5, 6 };
+        Check(Same(levels, ledger.CaptureConfirmedUpgradeLevels()) && ledger.CaptureConfirmedEffects().Length == 0 && ledger.MovementMultiplier == 1f,
+            "旧运动等级与永久倍率忽略，降费等级完整保留");
+        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.4f);
+        ledger.TryGrantAutomaticAbilities(new PlayerAbilityEffect(new PlayerAbilityOffer(PlayerAbilityKind.AirJumps, true, 1f)), null);
+        Check(Save(directory, 3, ledger), "已确认降费与关序整体写入");
         string json = File.ReadAllText(path);
-        Check(json.Contains("\"version\": 3") && json.Contains("\"levelIndex\": 3"), "存档包含版本与同份关序");
-        Check(!File.Exists(path + ".tmp"), "成功写入不留下暂存文件");
-
+        Check(json.Contains("\"version\": 3") && json.Contains("\"levelIndex\": 3") && !File.Exists(path + ".tmp"), "完整替换保存且无暂存残留");
         var restored = new PlayerEffectLedger();
-        Check(Load(directory, restored, out int index) && index == 3, "新档优先于旧关序");
-        Check(Same(levels, restored.CaptureConfirmedUpgradeLevels()), "六类已确认等级完整往返");
-        PlayerEffectRecord[] effects = restored.CaptureConfirmedEffects();
-        Check(effects.Length == 1 && effects[0].Kind == PlayerEffectKind.MovementMultiplier
-            && effects[0].Scope == PlayerEffectScope.Permanent && effects[0].Multiplier == 1.5f,
-            "只保存已确认普通永久效果，未确认永久项和本局负面不存盘");
-        Check(Load(directory, restored, out int repeatIndex) && repeatIndex == 3
-            && restored.CaptureConfirmedEffects().Length == 1 && Same(levels, restored.CaptureConfirmedUpgradeLevels()),
-            "重复加载不重复叠加效果或等级");
-        Check(Save(directory, 4, restored) && Load(directory, restored, out int nextIndex) && nextIndex == 4,
-            "已有存档采用完整替换且仍可读取");
+        Check(Load(directory, restored, out index) && index == 3 && Same(levels, restored.CaptureConfirmedUpgradeLevels())
+            && restored.CaptureConfirmedEffects().Length == 0 && !restored.AutomaticResultLocked, "临时普通项与自动结果均不存盘");
+        Check(Load(directory, restored, out _) && Same(levels, restored.CaptureConfirmedUpgradeLevels()), "重复读档不叠加降费等级");
+        Check(Save(directory, 4, restored) && Load(directory, restored, out index) && index == 4, "已有存档完整替换");
         DataAndInitMgr.Instance.SaveLevelIndex(4);
-        Check(DataAndInitMgr.Instance.LoadLevelIndex() == 4 && Load(directory, restored, out _)
-            && Same(levels, restored.CaptureConfirmedUpgradeLevels()) && restored.CaptureConfirmedEffects().Length == 1,
-            "旧关序保存入口保留整份已确认等级与效果");
+        Check(Load(directory, restored, out index) && index == 4 && Same(levels, restored.CaptureConfirmedUpgradeLevels()), "旧关序保存入口保留降费等级");
     }
 
     private static void CheckInvalidInput(string directory)
@@ -119,16 +112,16 @@ public static class PlayerProgressChecks
             "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[1,2],\"confirmedEffects\":[]}",
             "{\"version\":2,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[]}",
             "{\"version\":2,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[],\"confirmedEndingVector\":{\"x\":1,\"y\":2}}",
-            "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[-1,0,0,0,0,0],\"confirmedEffects\":[]}",
-            "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[{\"kind\":99,\"multiplier\":1.2}]}",
-            "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0],\"confirmedEffects\":[{\"kind\":0,\"multiplier\":3.4e38},{\"kind\":0,\"multiplier\":2}]}"
+            "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,-1,0,0],\"confirmedEffects\":[]}",
+            "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,-1,0],\"confirmedEffects\":[]}",
+            "{\"version\":1,\"levelIndex\":4,\"confirmedUpgradeLevels\":[0,0,0,0,0,0,0],\"confirmedEffects\":[]}"
         };
         for (int i = 0; i < invalid.Length; i++)
         {
             File.WriteAllText(path, invalid[i]);
             // 此处的 Error 日志是预期诊断；坏的新档不能偷偷回退旧关序或覆盖原文件。
             Check(!Load(directory, ledger, out _) && File.ReadAllText(path) == invalid[i]
-                && Same(oldLevels, ledger.CaptureConfirmedUpgradeLevels()) && ledger.CaptureConfirmedEffects().Length == 1,
+                && Same(oldLevels, ledger.CaptureConfirmedUpgradeLevels()) && ledger.CaptureConfirmedEffects().Length == 0,
                 "无效进度 " + i + " 拒绝读取并保留已有记录与文件");
         }
         File.WriteAllText(path, goodJson);

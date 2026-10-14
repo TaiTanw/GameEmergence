@@ -202,6 +202,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   identity: 0
+  baseAirJumps: 1
+  airJumpLimits:
+    Min: 1
+    Max: 10
   interactContactGap: 0.5
   interactReleaseGap: 0.8
   storedReachGap: 0.6
@@ -302,6 +306,15 @@ MonoBehaviour:
   speed: 7
   fourWaySpeed: 6
   upSpeed: 15
+  movementSpeedLimits:
+    Min: 0
+    Max: 100
+  jumpSpeedLimits:
+    Min: 0
+    Max: 100
+  fourWaySpeedLimits:
+    Min: 0
+    Max: 100
   pushPullEngageGap: 0.04
   walkingRestoreTolerance: 0.02
 --- !u!1 &7743792163046834635

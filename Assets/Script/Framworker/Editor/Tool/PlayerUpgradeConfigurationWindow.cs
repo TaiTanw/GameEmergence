@@ -3,82 +3,49 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-/// <summary>直接制作已有角色基础值与六项共享升级配置，不持有第二套运行数据。</summary>
+/// <summary>复用原制作窗口，基础属性、三项降费与全局自动池分别制作，不持运行状态。</summary>
 public sealed class PlayerUpgradeConfigurationWindow : EditorWindow
 {
     const string CatalogPath = "Assets/Resources/PlayerUpgradeCatalog.asset";
+    const string PoolPath = "Assets/Resources/PlayerAbilityPool.asset";
     const string BodyPath = "Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab";
     const string SpiritPath = "Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab";
     static readonly string[] Operations = { "乘法", "加减" };
-    static readonly string[] KindLabels = { "移速", "起跳", "额外空中跳", "地图降费", "入包降费", "转换降费" };
     [SerializeField] Player selectedPlayer;
-    [SerializeField] bool advanced;
+    [SerializeField] int tab;
     Vector2 scroll;
     PlayerUpgradeCatalog catalog;
+    PlayerAbilityPool pool;
     string savedMessage;
     static bool CanEdit => !EditorApplication.isPlayingOrWillChangePlaymode;
 
-    [MenuItem("自定义工具/开发工具/玩法/玩家基础属性与升级")]
-    static void Open() => GetWindow<PlayerUpgradeConfigurationWindow>("玩家属性与升级");
+    [MenuItem("自定义工具/开发工具/玩法/玩家属性与能力池")]
+    static void Open() => GetWindow<PlayerUpgradeConfigurationWindow>("玩家属性与能力池");
 
     void OnEnable()
     {
         catalog = AssetDatabase.LoadAssetAtPath<PlayerUpgradeCatalog>(CatalogPath);
+        pool = AssetDatabase.LoadAssetAtPath<PlayerAbilityPool>(PoolPath);
         if (selectedPlayer == null) SelectDefault(BodyPath);
-        minSize = new Vector2(440f, 540f);
+        minSize = new Vector2(480f, 560f);
         Undo.undoRedoPerformed += Repaint;
     }
-
     void OnDisable() => Undo.undoRedoPerformed -= Repaint;
     void OnSelectionChange() => Repaint();
 
     void OnGUI()
     {
-        if (!CanEdit) EditorGUILayout.HelpBox("请停止播放后制作；运行时仅查看原配置。", MessageType.Info);
+        if (!CanEdit) EditorGUILayout.HelpBox("请停止播放后制作。", MessageType.Info);
+        tab = GUILayout.Toolbar(tab, new[] { "基础属性与上下限", "认知降费", "自动能力池" });
         scroll = EditorGUILayout.BeginScrollView(scroll);
-        DrawSelection();
-        CharacterPhysics physics = PhysicsOf(selectedPlayer);
         using (new EditorGUI.DisabledScope(!CanEdit))
         {
-            DrawBasics(physics);
-            DrawCatalog();
-        }
-        string error = ValidateConfiguration(physics);
-        EditorGUILayout.HelpBox(error ?? "配置有效；下方预览使用所选角色的原基础值，所有等级使用同一步长。",
-            error == null ? MessageType.Info : MessageType.Error);
-        if (error == null && physics != null) DrawMaximumPreview(physics);
-        using (new EditorGUI.DisabledScope(!CanEdit || error != null))
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                using (new EditorGUI.DisabledScope(selectedPlayer == null))
-                    if (GUILayout.Button("保存所选角色")) SavePlayer();
-                using (new EditorGUI.DisabledScope(catalog == null))
-                    if (GUILayout.Button("保存共享升级配置")) SaveCatalog();
-            }
+            if (tab == 0) DrawPlayer();
+            else if (tab == 1) DrawCosts();
+            else DrawPool();
         }
         if (!string.IsNullOrEmpty(savedMessage)) EditorGUILayout.HelpBox(savedMessage, MessageType.None);
         EditorGUILayout.EndScrollView();
-    }
-
-    void DrawSelection()
-    {
-        EditorGUILayout.LabelField("角色基础属性", EditorStyles.boldLabel);
-        Player chosen = (Player)EditorGUILayout.ObjectField("角色组件／预设", selectedPlayer, typeof(Player), true);
-        if (chosen != selectedPlayer) { selectedPlayer = chosen; savedMessage = null; }
-        using (new EditorGUILayout.HorizontalScope())
-        {
-            if (GUILayout.Button("默认实体")) SelectDefault(BodyPath);
-            if (GUILayout.Button("默认精神体")) SelectDefault(SpiritPath);
-            if (GUILayout.Button("使用当前选中"))
-            {
-                GameObject selected = Selection.activeGameObject;
-                selectedPlayer = selected != null ? selected.GetComponentInParent<Player>(true) : null;
-                savedMessage = null;
-            }
-        }
-        if (selectedPlayer != null)
-            EditorGUILayout.LabelField("当前身份", selectedPlayer.Identity == PlayerIdentity.Body ? "实体" : "精神体");
     }
 
     void SelectDefault(string path)
@@ -95,148 +62,165 @@ public sealed class PlayerUpgradeConfigurationWindow : EditorWindow
         return components.Length == 1 ? components[0] : null;
     }
 
-    void DrawBasics(CharacterPhysics physics)
+    void DrawPlayer()
     {
-        if (selectedPlayer == null) return;
-        if (physics == null)
-        { EditorGUILayout.HelpBox("所选角色须有且仅有一个 CharacterPhysics。", MessageType.Error); return; }
-        var actorData = new SerializedObject(selectedPlayer);
-        var physicsData = new SerializedObject(physics);
-        actorData.Update(); physicsData.Update();
-        EditorGUI.BeginChangeCheck();
-        EditorGUILayout.PropertyField(physicsData.FindProperty("speed"), new GUIContent("基础水平移速"));
-        EditorGUILayout.PropertyField(physicsData.FindProperty("upSpeed"), new GUIContent("基础起跳初速度"));
-        EditorGUILayout.PropertyField(actorData.FindProperty("baseAirJumps"), new GUIContent("基础额外空中跳次数"));
-        EditorGUILayout.HelpBox("起跳高度通过初速度调整，仍受重力和松开短跳影响。空中次数不包含地面起跳；0 表示不能额外空中跳。实体和精神体分别制作。", MessageType.None);
-        advanced = EditorGUILayout.Foldout(advanced, "高级：四向移动原基础值", true);
-        if (advanced)
-            EditorGUILayout.PropertyField(physicsData.FindProperty("fourWaySpeed"), new GUIContent("飞行／游泳基础速度"));
-        if (EditorGUI.EndChangeCheck() && CanEdit)
+        selectedPlayer = (Player)EditorGUILayout.ObjectField("角色组件／预设", selectedPlayer, typeof(Player), true);
+        using (new EditorGUILayout.HorizontalScope())
         {
-            Undo.SetCurrentGroupName("修改角色基础属性");
-            ApplyData(actorData);
-            ApplyData(physicsData);
-            savedMessage = null;
+            if (GUILayout.Button("默认实体")) SelectDefault(BodyPath);
+            if (GUILayout.Button("默认精神体")) SelectDefault(SpiritPath);
+            if (GUILayout.Button("使用当前选中")) selectedPlayer = Selection.activeGameObject != null
+                ? Selection.activeGameObject.GetComponentInParent<Player>(true) : null;
+        }
+        CharacterPhysics physics = PhysicsOf(selectedPlayer);
+        if (selectedPlayer == null || physics == null)
+        { EditorGUILayout.HelpBox("选择有唯一 CharacterPhysics 的角色。", MessageType.Error); return; }
+        var actor = new SerializedObject(selectedPlayer);
+        var data = new SerializedObject(physics);
+        actor.Update(); data.Update();
+        EditorGUI.BeginChangeCheck();
+        DrawAttribute(data, "speed", "movementSpeedLimits", "基础水平移速");
+        DrawAttribute(data, "upSpeed", "jumpSpeedLimits", "基础起跳初速度");
+        DrawAttribute(actor, "baseAirJumps", "airJumpLimits", "基础额外空中跳次数");
+        DrawAttribute(data, "fourWaySpeed", "fourWaySpeedLimits", "飞行／游泳基础速度");
+        if (EditorGUI.EndChangeCheck()) { ApplyData(actor); ApplyData(data); savedMessage = null; }
+        EditorGUILayout.HelpBox("正面后负面，最终值只限界一次。范围限制能力算出的主动参数，不截断重力或环境被动速度。", MessageType.None);
+        string error = null;
+        if (!physics.ValidateMotionConfiguration(out error) || !selectedPlayer.AirJumpLimits.Validate(selectedPlayer.BaseAirJumps, true, out error))
+            EditorGUILayout.HelpBox(error, MessageType.Error);
+        using (new EditorGUI.DisabledScope(error != null)) if (GUILayout.Button("保存所选角色与范围")) SavePlayer();
+    }
+
+    static void DrawAttribute(SerializedObject data, string valueName, string rangeName, string label)
+    {
+        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+        {
+            EditorGUILayout.PropertyField(data.FindProperty(valueName), new GUIContent(label));
+            SerializedProperty range = data.FindProperty(rangeName);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.PropertyField(range.FindPropertyRelative("Min"), new GUIContent("最小"));
+                EditorGUILayout.PropertyField(range.FindPropertyRelative("Max"), new GUIContent("最大"));
+            }
         }
     }
 
-    void DrawCatalog()
+    void DrawCosts()
     {
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("六项共享升级", EditorStyles.boldLabel);
-        using (new EditorGUI.DisabledScope(true))
-            EditorGUILayout.ObjectField("配置资源", catalog, typeof(PlayerUpgradeCatalog), false);
-        if (catalog == null)
-        { EditorGUILayout.HelpBox("缺少 " + CatalogPath + "；请恢复该配置资源，本面板不自动创建第二份。", MessageType.Error); return; }
-        EditorGUILayout.HelpBox("每个能力固定一种运算与一个步长，所有等级共用每次价格。乘法：基础值 × 步长^等级；加减：基础值 + 步长 × 等级。降费加减填负数，费用最低为 0。", MessageType.None);
-        var data = new SerializedObject(catalog);
-        data.Update();
+        using (new EditorGUI.DisabledScope(true)) EditorGUILayout.ObjectField("全局降费配置", catalog, typeof(PlayerUpgradeCatalog), false);
+        if (catalog == null) { EditorGUILayout.HelpBox("缺少 " + CatalogPath, MessageType.Error); return; }
+        EditorGUILayout.HelpBox("只开放三项永久降费；菜单 1 列全三项，可多次购买。等级在通关后确认，本关新购在失败或退出时撤销。旧运动编号保留兼容，不参与升级。", MessageType.None);
+        var data = new SerializedObject(catalog); data.Update();
         SerializedProperty definitions = data.FindProperty("Definitions");
         EditorGUI.BeginChangeCheck();
         for (int i = 0; i < definitions.arraySize; i++)
         {
             SerializedProperty item = definitions.GetArrayElementAtIndex(i);
+            PlayerUpgradeKind kind = (PlayerUpgradeKind)item.FindPropertyRelative("Kind").intValue;
+            if (!PlayerUpgradeCatalog.IsCost(kind)) continue;
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                PlayerUpgradeKind kind = (PlayerUpgradeKind)item.FindPropertyRelative("Kind").intValue;
-                string kindLabel = PlayerUpgradeCatalog.IsKnown(kind) ? KindLabels[(int)kind] : "无效能力标识";
-                EditorGUILayout.LabelField(kindLabel + "（固定标识）", EditorStyles.boldLabel);
-                EditorGUILayout.PropertyField(item.FindPropertyRelative("Enabled"), new GUIContent("开放抽取"));
-                EditorGUILayout.PropertyField(item.FindPropertyRelative("Label"), new GUIContent("显示名称"));
+                EditorGUILayout.LabelField(kind == PlayerUpgradeKind.MapCost ? "地图认知降费" : kind == PlayerUpgradeKind.BackpackCost ? "入包认知降费" : "转换认知降费", EditorStyles.boldLabel);
+                EditorGUILayout.PropertyField(item.FindPropertyRelative("Enabled"), new GUIContent("开放购买"));
+                EditorGUILayout.PropertyField(item.FindPropertyRelative("Label"), new GUIContent("配置名称"));
                 EditorGUILayout.PropertyField(item.FindPropertyRelative("MaxLevel"), new GUIContent("等级上限"));
-                EditorGUILayout.PropertyField(item.FindPropertyRelative("Cost"), new GUIContent("每次购买价格"));
-                SerializedProperty operation = item.FindPropertyRelative("Operation");
-                int selectedOperation = EditorGUILayout.Popup("固定运算", operation.enumValueIndex, Operations);
-                if (selectedOperation >= 0 && selectedOperation != operation.enumValueIndex)
-                    operation.enumValueIndex = selectedOperation;
+                EditorGUILayout.PropertyField(item.FindPropertyRelative("Cost"), new GUIContent("每次购买认知"));
+                SerializedProperty op = item.FindPropertyRelative("Operation");
+                op.enumValueIndex = EditorGUILayout.Popup("固定运算", op.enumValueIndex, Operations);
                 EditorGUILayout.PropertyField(item.FindPropertyRelative("Step"), new GUIContent("每级固定步长"));
             }
         }
-        if (EditorGUI.EndChangeCheck() && CanEdit)
+        if (EditorGUI.EndChangeCheck()) { ApplyData(data); savedMessage = null; }
+        bool valid = catalog.Validate(out string error);
+        if (!valid) EditorGUILayout.HelpBox(error, MessageType.Error);
+        using (new EditorGUI.DisabledScope(!valid))
+            if (GUILayout.Button("保存三项降费配置")) { AssetDatabase.SaveAssetIfDirty(catalog); savedMessage = "已保存降费配置。"; }
+    }
+
+    void DrawPool()
+    {
+        using (new EditorGUI.DisabledScope(true)) EditorGUILayout.ObjectField("全局自动池", pool, typeof(PlayerAbilityPool), false);
+        if (pool == null) { EditorGUILayout.HelpBox("缺少 " + PoolPath, MessageType.Error); return; }
+        EditorGUILayout.HelpBox("正负各按概率触发，然后在对应分组按权重抽一项；全池只作用本场。移速包含游泳速度，跳数使用整数增减。", MessageType.None);
+        var data = new SerializedObject(pool); data.Update();
+        SerializedProperty entries = data.FindProperty("Entries");
+        EditorGUI.BeginChangeCheck();
+        for (int group = 0; group < 2; group++)
         {
-            Undo.SetCurrentGroupName("修改共享升级配置");
-            ApplyData(data);
-            savedMessage = null;
+            bool positive = group == 0;
+            EditorGUILayout.LabelField(positive ? "正面分组" : "负面分组", EditorStyles.boldLabel);
+            for (int i = 0; i < entries.arraySize; i++)
+            {
+                SerializedProperty item = entries.GetArrayElementAtIndex(i);
+                if (item.FindPropertyRelative("Positive").boolValue != positive) continue;
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    SerializedProperty kind = item.FindPropertyRelative("Kind");
+                    kind.enumValueIndex = EditorGUILayout.Popup("能力", kind.enumValueIndex, new[] { "移动速度", "起跳强度", "额外空中跳" });
+                    SerializedProperty sign = item.FindPropertyRelative("Positive");
+                    sign.boolValue = EditorGUILayout.Popup("正负", sign.boolValue ? 0 : 1, new[] { "正面", "负面" }) == 0;
+                    EditorGUILayout.PropertyField(item.FindPropertyRelative("Weight"), new GUIContent("权重"));
+                    EditorGUILayout.PropertyField(item.FindPropertyRelative("Value"), new GUIContent(kind.enumValueIndex == 2 ? "次数增减（整数）" : "倍率"));
+                    if (GUILayout.Button("删除此条")) { entries.DeleteArrayElementAtIndex(i); GUI.changed = true; break; }
+                }
+            }
+            if (GUILayout.Button(positive ? "＋ 正面能力" : "＋ 负面能力")) ShowAddMenu(positive);
         }
+        if (EditorGUI.EndChangeCheck()) { ApplyData(data); savedMessage = null; }
+        bool valid = pool.Validate(out string error);
+        if (!valid) EditorGUILayout.HelpBox(error, MessageType.Error);
+        using (new EditorGUI.DisabledScope(!valid))
+            if (GUILayout.Button("保存全局自动池")) { AssetDatabase.SaveAssetIfDirty(pool); savedMessage = "已保存全局自动池。"; }
+    }
+
+    void ShowAddMenu(bool positive)
+    {
+        var menu = new GenericMenu();
+        foreach (PlayerAbilityKind kind in System.Enum.GetValues(typeof(PlayerAbilityKind)))
+        {
+            PlayerAbilityKind selected = kind;
+            menu.AddItem(new GUIContent(PlayerAbilityEffect.Name(kind)), false, () => {
+                if (!CanEdit || pool == null) return;
+                Undo.RecordObject(pool, "添加自动能力");
+                float value = selected == PlayerAbilityKind.AirJumps ? (positive ? 1f : -1f) : (positive ? 1.2f : .8f);
+                if (pool.Entries == null) pool.Entries = new System.Collections.Generic.List<PlayerAbilityOffer>();
+                pool.Entries.Add(new PlayerAbilityOffer(selected, positive, value));
+                EditorUtility.SetDirty(pool); savedMessage = null; Repaint();
+            });
+        }
+        menu.ShowAsContext();
     }
 
     static void ApplyData(SerializedObject data)
     {
         if (!CanEdit || !data.ApplyModifiedProperties()) return;
-        Object target = data.targetObject;
-        EditorUtility.SetDirty(target);
+        Object target = data.targetObject; EditorUtility.SetDirty(target);
         Component component = target as Component;
         if (component == null || EditorUtility.IsPersistent(component)) return;
         if (PrefabUtility.IsPartOfPrefabInstance(component)) PrefabUtility.RecordPrefabInstancePropertyModifications(component);
         if (component.gameObject.scene.IsValid()) EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
     }
 
-    string ValidateConfiguration(CharacterPhysics physics)
-    {
-        if (catalog == null) return "共享升级配置缺失。";
-        if (!catalog.Validate(out string error)) return error;
-        if (selectedPlayer == null) return null;
-        if (physics == null) return "所选角色的物理组件缺失或不唯一。";
-        if (PrefabUtility.GetPrefabAssetType(selectedPlayer) == PrefabAssetType.Model)
-            return "模型导入预设不能直接修改，请选择可制作的角色预设或场景组件。";
-        float[] bases = { physics.speed, physics.BaseFourWaySpeed, physics.upSpeed, selectedPlayer.BaseAirJumps };
-        PlayerUpgradeKind[] kinds = { PlayerUpgradeKind.MovementSpeed, PlayerUpgradeKind.MovementSpeed,
-            PlayerUpgradeKind.JumpStrength, PlayerUpgradeKind.AirJumps };
-        string[] labels = { "基础水平移速", "四向移动基础速度", "起跳初速度", "额外空中跳次数" };
-        for (int i = 0; i < bases.Length; i++)
-        {
-            if (!Finite(bases[i]) || bases[i] < 0f) return labels[i] + "必须是有限非负数。";
-            PlayerUpgradeDefinition definition = catalog.Get(kinds[i]);
-            if (!Finite(definition.Evaluate(bases[i], definition.MaxLevel)))
-                return labels[i] + "在配置等级上限产生无效值或溢出，请降低上限／步长或调整基础值。";
-        }
-        return null;
-    }
-
-    void DrawMaximumPreview(CharacterPhysics physics)
-    {
-        EditorGUILayout.LabelField("所选角色：等级上限预览", EditorStyles.boldLabel);
-        Preview("水平移速", PlayerUpgradeKind.MovementSpeed, physics.speed);
-        Preview("四向速度", PlayerUpgradeKind.MovementSpeed, physics.BaseFourWaySpeed);
-        Preview("起跳初速度", PlayerUpgradeKind.JumpStrength, physics.upSpeed);
-        Preview("额外空中跳次数", PlayerUpgradeKind.AirJumps, selectedPlayer.BaseAirJumps);
-    }
-
-    void Preview(string label, PlayerUpgradeKind kind, float basis)
-    {
-        PlayerUpgradeDefinition definition = catalog.Get(kind);
-        EditorGUILayout.LabelField(label, $"{basis:0.###} → {definition.Evaluate(basis, definition.MaxLevel):0.###}（{definition.MaxLevel} 级）");
-    }
-
-    static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
-
     void SavePlayer()
     {
-        if (!CanEdit || selectedPlayer == null || ValidateConfiguration(PhysicsOf(selectedPlayer)) != null) return;
+        if (!CanEdit || selectedPlayer == null) return;
         PrefabStage stage = PrefabStageUtility.GetPrefabStage(selectedPlayer.gameObject);
         bool saved;
-        if (stage != null)
-        {
-            PrefabUtility.SaveAsPrefabAsset(stage.prefabContentsRoot, stage.assetPath, out saved);
-            savedMessage = saved ? "已保存当前预设编辑场景对应的角色预设。" : "角色预设保存失败，请检查控制台。";
-        }
-        else if (EditorUtility.IsPersistent(selectedPlayer))
-        {
-            PrefabUtility.SavePrefabAsset(selectedPlayer.transform.root.gameObject, out saved);
-            savedMessage = saved ? "已保存所选角色预设。" : "角色预设保存失败，请检查控制台。";
-        }
-        else
-        {
-            saved = EditorSceneManager.SaveScene(selectedPlayer.gameObject.scene);
-            savedMessage = saved ? "已保存所选角色所在场景；场景预设实例改动保留为该场景的覆盖值。" : "场景未保存。";
-        }
+        if (stage != null) PrefabUtility.SaveAsPrefabAsset(stage.prefabContentsRoot, stage.assetPath, out saved);
+        else if (EditorUtility.IsPersistent(selectedPlayer)) PrefabUtility.SavePrefabAsset(selectedPlayer.transform.root.gameObject, out saved);
+        else saved = EditorSceneManager.SaveScene(selectedPlayer.gameObject.scene);
+        savedMessage = saved ? "已保存所选角色与上下限。" : "保存失败，请检查控制台。";
     }
+}
 
-    void SaveCatalog()
+// 直接从项目窗口打开资产时也能看到制作错误，避免必须进专用窗口才发现空池。
+[CustomEditor(typeof(PlayerAbilityPool))]
+sealed class PlayerAbilityPoolInspector : Editor
+{
+    public override void OnInspectorGUI()
     {
-        if (!CanEdit || ValidateConfiguration(PhysicsOf(selectedPlayer)) != null) return;
-        AssetDatabase.SaveAssetIfDirty(catalog);
-        savedMessage = "已保存共享升级配置；所选角色由独立保存按钮处理。";
+        using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode)) DrawDefaultInspector();
+        if (!((PlayerAbilityPool)target).Validate(out string error)) EditorGUILayout.HelpBox(error, MessageType.Error);
     }
 }
 #endif

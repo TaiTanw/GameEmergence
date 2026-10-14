@@ -82,7 +82,7 @@ public static class EndingFlowChecks
             "不可加载的结局在领取前拒绝，不修改贡献");
         SetOrder();
         var ledger = (PlayerEffectLedger)typeof(SceneChangeMgr).GetField("effects", Hidden).GetValue(SceneChangeMgr.Instance);
-        ledger.GrantEffect(PlayerEffectKind.MovementMultiplier, 1.2f, PlayerEffectScope.Permanent);
+        ledger.TryUpgrade(PlayerUpgradeKind.MapCost, new LevelCognition(100f));
         SceneProp.OfferInteract(body);
         Check(body.IsLevelClearing && !Loading(), "最后关沿真实通关前段受理");
         bool sawBlackPreparation = false, sawOldActor = false, capturedDarkening = false, capturedBlack = false;
@@ -124,8 +124,8 @@ public static class EndingFlowChecks
         Check(context.Data.Vector == new Vector3(2, -3, 0) && !context.Data.IsReplay && DataAndInitMgr.Instance.SavedEndingScene == "EndingExample"
             && DataAndInitMgr.Instance.ConfirmedEndingVector == context.Data.Vector && DataAndInitMgr.Instance.CurrentLevelEndingVector == Vector3.zero,
             "黑幕内整体确认最终贡献、能力和保存的结局目标");
-        Check(ledger.CaptureConfirmedEffects().Length == 1 && ledger.CurrentLevelEffects.Count == 0,
-            "最后关未确认永久效果也在结局就绪时一起确认");
+        Check(ledger.CaptureConfirmedUpgradeLevels()[3] == 1 && ledger.CaptureConfirmedEffects().Length == 0 && ledger.CurrentLevelEffects.Count == 0,
+            "最后关未确认降费等级也在结局就绪时一起确认");
         Check(actor.GetComponent<Player>() == null && actor.GetComponent<CharacterPhysics>() == null
             && actor.GetComponentInChildren<PresentationLayer>() == null && !actor.ControlEnabled, "专属角色复用形象和动画，脚本先锁输入");
         Check(Object.FindObjectOfType<LoadingPanel>() == null && Time.timeScale == 1 && InputControlMgr.Instance.InputEnabled,
@@ -251,7 +251,7 @@ public static class EndingFlowChecks
             "场景准备失败保留旧存档，丢弃本次贡献并返回菜单提示");
         replaceHost = false; SceneChangeMgr.Instance.EnterSavedLevel(); while (!OrdinaryReady()) yield return null;
         beforeFailure = File.ReadAllText(path); Directory.CreateDirectory(path + ".tmp");
-        ledger.GrantEffect(PlayerEffectKind.JumpMultiplier, 1.4f, PlayerEffectScope.Permanent);
+        ledger.TryUpgrade(PlayerUpgradeKind.FormCost, new LevelCognition(100f));
         expectedErrors.Enqueue("保存玩家进度失败："); expectedErrors.Enqueue("结局进度保存失败，已保留此前进度。");
         SceneProp.OfferInteract(CreatePropForBody());
         while (!Loading()) yield return null; while (!MenuReady()) yield return null;

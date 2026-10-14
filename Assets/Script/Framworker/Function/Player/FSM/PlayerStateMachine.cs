@@ -62,11 +62,21 @@ public class PlayerStateMachine
     /// </summary>
     public int jumpNum = 1;
     private PlayerEffectLedger effectLedger;
-    public int EffectiveAirJumps => (int)(effectLedger?.GetUpgradedValue(PlayerUpgradeKind.AirJumps, jumpNum) ?? jumpNum);
+    PlayerAttributeRange airJumpLimits = new PlayerAttributeRange(0f, 10f);
+    public int EffectiveAirJumps
+    {
+        get
+        {
+            if (!airJumpLimits.Validate(jumpNum, true, out string error)) throw new System.InvalidOperationException(error);
+            double value = effectLedger?.ResolveMotionAttribute(PlayerAbilityKind.AirJumps, jumpNum) ?? jumpNum;
+            return (int)airJumpLimits.Limit(value);
+        }
+    }
 
-    internal void BindEffectLedger(PlayerEffectLedger ledger)
+    internal void BindEffectLedger(PlayerEffectLedger ledger, PlayerAttributeRange? limits = null)
     {
         effectLedger = ledger;
+        if (limits.HasValue) airJumpLimits = limits.Value;
         // 组装时地面状态允许补齐次数；空中重复绑定不凭空补一次跳跃。
         if (onState == onGround) JumpCountToNum();
     }
