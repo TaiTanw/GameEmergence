@@ -37,6 +37,8 @@ public partial class SceneChangeMgr
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
         {
             if (serial != loadSerial || panel == null) return;
+            // 关卡入结局由世界镜头连角色一起像素化；菜单重播仍用原纯黑幕。
+            panel.SetPixelationEnabled(!fromMenu);
             MonoPublicMgr.Instance.StartCoroutine(DarkenThenEnterEnding(panel, scene, lastLevelIndex, replay, fromMenu, serial));
         });
     }

@@ -44,6 +44,15 @@ public class MainCamera : MonoBehaviour
         if (!MonoPublicMgr.IsQuitting) InputControlMgr.Instance.ReleaseMainCamera(this);
     }
 
+    /// <summary>加载面板提供表现权重；主镜头只消费，不决定加载或角色生命周期。</summary>
+    internal void SetTransitionPixelation(float weight, float pixels)
+    {
+        TransitionPixelation effect = GetComponent<TransitionPixelation>();
+        // 未使用过像素化的菜单进场不创建额外组件。
+        if (effect == null && weight > 0f) effect = gameObject.AddComponent<TransitionPixelation>();
+        if (effect != null) effect.SetWeight(weight, pixels);
+    }
+
     static void AdoptLens(Camera kept, Camera scene)
     {
         if (kept == null || scene == null) return;

@@ -371,7 +371,9 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         loading = true;
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
         {
-            if (serial == loadSerial) panel.SetTransitionWeight(1f);
+            if (serial != loadSerial || panel == null) return;
+            panel.SetPixelationEnabled(false);
+            panel.SetTransitionWeight(1f);
         });
         LoadSceneAsync(MenuSceneName, () =>
         {
@@ -451,6 +453,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         UIMgr.Instance.ShowOneUI<LoadingPanel>(E_UILayer.Top, panel =>
         {
             if (serial != loadSerial || panel == null) return;
+            panel.SetPixelationEnabled(!enterFromMenu);
             MonoPublicMgr.Instance.StartCoroutine(DarkenThenLoad(panel, index, order, confirmPrevious, serial));
         });
     }

@@ -513,6 +513,12 @@ public partial class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         mainCamera = camera;
     }
 
+    internal void SetTransitionPixelation(float weight, float pixels)
+    {
+        // 安全：菜单冷启动时尚无游戏镜头，不提前创建关卡服务。
+        if (mainCamera != null) mainCamera.SetTransitionPixelation(weight, pixels);
+    }
+
     /// <summary>换关期间镜头改看实体，并把实体画在变暗遮罩前面。搬到新位置时才立刻对齐。</summary>
     public void BeginTransitionView(Transform target, bool snap)
     {

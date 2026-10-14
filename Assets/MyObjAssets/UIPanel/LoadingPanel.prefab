@@ -292,6 +292,7 @@ MonoBehaviour:
   fadeOutSeconds: 0.7
   fadeInSeconds: 0.7
   physicsSettleSeconds: 0.25
+  maxPixelBlockSize: 48
 --- !u!1 &8188979374573414100
 GameObject:
   m_ObjectHideFlags: 0
