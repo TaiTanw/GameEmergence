@@ -17,5 +17,6 @@ MonoBehaviour:
   environmentPanel: {fileID: 21300000, guid: b65ea9c4b4bbae541831bf3e41d60f09, type: 3}
   note: {fileID: -1612326208, guid: 86faf7089a73c6e40975e42fac7f656e, type: 3}
   bar: {fileID: 21300000, guid: 291707e2bf5f5cf419eab39ee71fe214, type: 3}
+  buttonClickSound: {fileID: 8300000, guid: 4aa71ba8e3c36a346bd8fb39e576aa5d, type: 3}
   escapeHoldSeconds: 2
   escapeRefillSeconds: 0.2

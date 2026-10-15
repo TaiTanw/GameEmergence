@@ -8,6 +8,7 @@ public sealed class GameUIAssets : ScriptableObject
     public Sprite environmentPanel;
     public Sprite note;
     public Sprite bar;
+    [Header("界面音效")] public AudioClip buttonClickSound;
     [Header("结束探索手感"), Min(.1f)] public float escapeHoldSeconds = 2f;
     [Min(.01f)] public float escapeRefillSeconds = .2f;
     static GameUIAssets loaded;

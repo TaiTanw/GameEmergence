@@ -104,6 +104,7 @@ public sealed class MapView : MonoBehaviour
             Image image = item.GetComponent<Image>(); image.color = Recorded;
             item.AddComponent<Outline>().effectDistance = new Vector2(1.5f, -1.5f);
             Button button = item.GetComponent<Button>(); button.targetGraphic = image;
+            BasePanel.BindButtonSound(button);
             button.navigation = new Navigation { mode = Navigation.Mode.None };
             MapCell target = cell;
             button.onClick.AddListener(() => ClickCell(target));

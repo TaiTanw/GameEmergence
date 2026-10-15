@@ -50,6 +50,15 @@ public abstract class BasePanel : MonoBehaviour
     {
 
     }
+
+    /// <summary>预设按钮与动态按钮共用的点击反馈；重复接线先撤再加，避免一次点击叠音。</summary>
+    public static void BindButtonSound(Button button)
+    {
+        button.onClick.RemoveListener(PlayButtonSound);
+        button.onClick.AddListener(PlayButtonSound);
+    }
+
+    static void PlayButtonSound() => MusicMgr.Instance.PlayButtonClick();
     protected virtual void SliderValueChange(string UIname,float value)
     {
 
@@ -87,9 +96,10 @@ public abstract class BasePanel : MonoBehaviour
                     keyValueDic.Add(t.gameObject.name, new Dictionary<Type, UIBehaviour>());
                 }
                 
-                if (t is Button)
+                if (t is Button button)
                 {
-                    (t as Button).onClick.AddListener(() =>
+                    BindButtonSound(button);
+                    button.onClick.AddListener(() =>
                     {
                         OnClickButton(t.gameObject.name);
                     });

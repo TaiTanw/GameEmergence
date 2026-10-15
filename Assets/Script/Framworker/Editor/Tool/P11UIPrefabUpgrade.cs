@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.U2D.Sprites;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
@@ -58,8 +59,19 @@ public static class P11UIPrefabUpgrade
         if (importer.spriteImportMode != SpriteImportMode.Multiple)
         {
             importer.spriteImportMode = SpriteImportMode.Multiple;
-            importer.spritesheet = new[] { new SpriteMetaData { name = "SmallPaper", rect = new Rect(198, 96, 884, 528),
-                pivot = new Vector2(.5f, .5f), alignment = (int)SpriteAlignment.Center, border = new Vector4(64, 64, 64, 64) } };
+            var factories = new SpriteDataProviderFactories();
+            factories.Init();
+            var provider = factories.GetSpriteEditorDataProviderFromObject(importer);
+            provider.InitSpriteEditorDataProvider();
+            var rect = new SpriteRect
+            {
+                name = "SmallPaper", spriteID = GUID.Generate(), rect = new Rect(198, 96, 884, 528),
+                pivot = new Vector2(.5f, .5f), alignment = SpriteAlignment.Center, border = new Vector4(64, 64, 64, 64)
+            };
+            provider.SetSpriteRects(new[] { rect });
+            provider.GetDataProvider<ISpriteNameFileIdDataProvider>()
+                .SetNameFileIdPairs(new[] { new SpriteNameFileIdPair(rect.name, rect.spriteID) });
+            provider.Apply();
             importer.SaveAndReimport();
         }
         return AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().First(sprite => sprite.name == "SmallPaper");
@@ -183,7 +195,7 @@ public static class P11UIPrefabUpgrade
             Toggle toggle = root.transform.Find("tt" + i).GetComponent<Toggle>();
             Position((RectTransform)toggle.transform, new Vector2(-310, y), new Vector2(360, 64));
             Text text = toggle.GetComponentInChildren<Text>(true);
-            text.text = i == 1 ? "背景音乐" : "环境音效"; text.fontSize = 36; text.color = Ink;
+            text.text = i == 1 ? "背景音乐" : "音效"; text.fontSize = 36; text.color = Ink;
             Stretch(text.rectTransform); text.rectTransform.offsetMin = new Vector2(72, 0);
             RectTransform check = toggle.transform.Find("Background") as RectTransform;
             if (check != null) { check.anchoredPosition = new Vector2(28, -32); check.sizeDelta = new Vector2(48, 48); }

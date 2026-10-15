@@ -181,6 +181,7 @@ public static class EnvironmentEditLayout
         image.pixelsPerUnitMultiplier = 4f;
         ApplyLabelShadow(image);
         Button button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
+        BasePanel.BindButtonSound(button);
         button.navigation = new Navigation { mode = Navigation.Mode.None };
         ColorBlock colors = button.colors;
         colors.highlightedColor = new Color(.8f, 1f, 1f); colors.pressedColor = new Color(.55f, .85f, .88f);

@@ -33,6 +33,7 @@ public class MusicMgr : BaseMgr<MusicMgr>
     }
 
     private AudioSource BkMusic;
+    private AudioSource buttonClickAudio;
     /// <summary>
     /// 用于配置默认的开始背景音效名称，用于Addressable加载的资源名=========================================================
     /// </summary>
@@ -64,8 +65,19 @@ public class MusicMgr : BaseMgr<MusicMgr>
             //关联背景音乐的主要组件和脚本
             GameObject obj = new GameObject("BkMusicAudio");
             BkMusic = obj.AddComponent<AudioSource>();
+            // 点击声常驻且使用二维音源，关闭面板或暂停游戏都不截断这次反馈。
+            buttonClickAudio = obj.AddComponent<AudioSource>();
+            buttonClickAudio.playOnAwake = false;
+            buttonClickAudio.spatialBlend = 0f;
+            buttonClickAudio.ignoreListenerPause = true;
             GameObject.DontDestroyOnLoad(obj);//过场景不移除
         }
+
+        GameUIAssets uiAssets = GameUIAssets.Shared;
+        // 制作资源缺失时明确报错，不让每次点击重新加载或寻找替代音效。
+        if (uiAssets == null || uiAssets.buttonClickSound == null)
+            Debug.LogError("GameUIAssets 未关联按钮点击音效。");
+        else buttonClickAudio.clip = uiAssets.buttonClickSound;
 
         //读取本地音乐设置文件
         BknoMute = DataAndInitMgr.Instance.musicData.bkMusicOpen;
@@ -178,6 +190,16 @@ public class MusicMgr : BaseMgr<MusicMgr>
     #endregion
 
     #region 音效相关
+    /// <summary>共用按钮点击声；复用音效音量与开关，不经过异步加载或受固定步清理影响的音效池。</summary>
+    public void PlayButtonClick()
+    {
+        // 尚未初始化的界面或缺失制作资源不能发声。
+        if (buttonClickAudio == null || buttonClickAudio.clip == null) return;
+        // 用户关闭音效时不积压请求，开启后只播放新的点击。
+        if (!SoundnoMute) return;
+        buttonClickAudio.PlayOneShot(buttonClickAudio.clip);
+    }
+
     /// <summary>
     /// 播放声效,addressable异步加载
     /// </summary>
@@ -223,6 +245,7 @@ public class MusicMgr : BaseMgr<MusicMgr>
     public void SetSoundVolume(float value)
     {
         SoundVolume = value;
+        if (buttonClickAudio != null) buttonClickAudio.volume = value;
         foreach(AudioSource sound in ListSoundMusics)
         {
             sound.volume = SoundVolume;
@@ -251,6 +274,13 @@ public class MusicMgr : BaseMgr<MusicMgr>
     /// <param name="isPlay">true为播放</param>
     public void PauseOrPlaySoundMusic(bool isPlay)
     {
+        SoundnoMute = isPlay;
+        // 短点击关闭即停止，不在重新开启时重播旧反馈；其它音效沿原暂停语义。
+        if (buttonClickAudio != null)
+        {
+            buttonClickAudio.mute = !isPlay;
+            if (!isPlay) buttonClickAudio.Stop();
+        }
         isDelete=isPlay;
         foreach(AudioSource sound in ListSoundMusics)
         {
