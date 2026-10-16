@@ -1,0 +1,6 @@
+PASS
+L01_PropertyLabyrinth: 600 original serialized objects compared; 1201 decorative objects added; no added gameplay component.
+L02_SequentialGates: 815 original serialized objects compared; 1479 decorative objects added; no added gameplay component.
+L03_ElectricTraverse: 738 original serialized objects compared; 1491 decorative objects added; no added gameplay component.
+L04_FoldedWells: 436 original serialized objects compared; 922 decorative objects added; no added gameplay component.
+Allowed differences: SpriteRenderer sprite/color/draw mode; legacy art-only backdrop renderer disabled; camera background color; disabled-auto-tiling collider visual sprite cache; one new art root. All other original serialized data preserved.

@@ -1,0 +1,5 @@
+﻿PASS / 4832 art and preservation checks
+L01_PropertyLabyrinth: 36 cells; 105 colliders unchanged; 71 textured intermediate/safe platforms; original rule data and poses unchanged; art reloaded; static decorations below player.
+L02_SequentialGates: 44 cells; 147 colliders unchanged; 91 textured intermediate/safe platforms; original rule data and poses unchanged; art reloaded; static decorations below player.
+L03_ElectricTraverse: 48 cells; 132 colliders unchanged; 92 textured intermediate/safe platforms; original rule data and poses unchanged; art reloaded; static decorations below player.
+L04_FoldedWells: 32 cells; 73 colliders unchanged; 44 textured intermediate/safe platforms; original rule data and poses unchanged; art reloaded; static decorations below player.

@@ -1,0 +1,21 @@
+﻿PASS / 3705 art, serialization, opacity and water checks
+L01_PropertyLabyrinth prop -> terrace 出生地 top=0, x=8, width=7.5
+L01_PropertyLabyrinth prop -> terrace 普通绕行横口 top=20.2, x=34.25, width=7.5
+L01_PropertyLabyrinth prop -> terrace 捷径横口 top=44.2, x=18.25, width=7.5
+L01_PropertyLabyrinth prop -> terrace 捷径横口 top=60.2, x=50.25, width=7.5
+L01_PropertyLabyrinth: 4 resized props; 3 functional surfaces; 10 sign parts; 1 wording corrections; scene saved and reloaded.
+L01_PropertyLabyrinth: real WaterRegion/WaterSurfaceVisual preview at y=46.3; preview changes discarded.
+L02_SequentialGates prop -> terrace 连续推箱轨道 top=2, x=8, width=8
+L02_SequentialGates prop -> terrace 门前通路 top=20.2, x=34, width=8
+L02_SequentialGates prop -> terrace 高处绕行横口 top=68.2, x=18, width=8
+L02_SequentialGates prop -> terrace 高处绕行横口 top=68.2, x=50, width=8
+L02_SequentialGates: 4 resized props; 4 functional surfaces; 4 sign parts; 1 wording corrections; scene saved and reloaded.
+L02_SequentialGates: real WaterRegion/WaterSurfaceVisual preview at y=5.8; preview changes discarded.
+L03_ElectricTraverse prop -> terrace 出生地 top=0, x=8, width=8
+L03_ElectricTraverse prop -> terrace 第一段后的折返层 top=22.2, x=40, width=8
+L03_ElectricTraverse prop -> terrace 第二段后的折返层 top=46.2, x=24, width=8
+L03_ElectricTraverse prop -> terrace 普通止动地_2 top=60, x=56, width=8
+L03_ElectricTraverse: 4 resized props; 3 functional surfaces; 10 sign parts; 0 wording corrections; scene saved and reloaded.
+L03_ElectricTraverse: real WaterRegion/WaterSurfaceVisual preview at y=13.8; preview changes discarded.
+L04_FoldedWells: 7 resized props; 0 functional surfaces; 6 sign parts; 0 wording corrections; scene saved and reloaded.
+L04_FoldedWells: real WaterRegion/WaterSurfaceVisual preview at y=49.3; preview changes discarded.

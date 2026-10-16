@@ -1,0 +1,1 @@
+PASS / 32 midground checks; 19 nonphysical vignette sprites across four scenes. Scenes saved and reloaded; 16 native render previews refreshed.

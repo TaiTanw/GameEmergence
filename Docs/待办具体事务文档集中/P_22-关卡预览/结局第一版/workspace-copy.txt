@@ -1,0 +1,26 @@
+SHA256 MATCH Assets/MyObjAssets/Scenes/Designed/L01_PropertyLabyrinth.unity
+SHA256 MATCH Assets/MyObjAssets/Scenes/Designed/L02_SequentialGates.unity
+SHA256 MATCH Assets/MyObjAssets/Scenes/Designed/L03_ElectricTraverse.unity
+SHA256 MATCH Assets/MyObjAssets/Scenes/Designed/L04_FoldedWells.unity
+SHA256 MATCH Assets/Resources/LevelOrder.json
+SHA256 MATCH ProjectSettings/EditorBuildSettings.asset
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere.meta
+SHA256 MATCH Assets/MyObjAssets/gameObject/Pf/Player/Performance/EndingSpiritActor.prefab
+SHA256 MATCH Assets/MyObjAssets/gameObject/Pf/Player/Performance/EndingSpiritActor.prefab.meta
+SHA256 MATCH Assets/MyObjAssets/gameObject/Animation2/EndingSpiritActor.controller
+SHA256 MATCH Assets/MyObjAssets/gameObject/Animation2/EndingSpiritActor.controller.meta
+SHA256 MATCH Assets/MyObjAssets/Scenes/EndScenes/E01_StillRaining.unity
+SHA256 MATCH Assets/MyObjAssets/Scenes/EndScenes/E01_StillRaining.unity.meta
+SHA256 MATCH Assets/MyObjAssets/Scenes/EndScenes/E02_OtherSide.unity
+SHA256 MATCH Assets/MyObjAssets/Scenes/EndScenes/E02_OtherSide.unity.meta
+SHA256 MATCH Assets/MyObjAssets/Scenes/EndScenes/E03_Unfolded.unity
+SHA256 MATCH Assets/MyObjAssets/Scenes/EndScenes/E03_Unfolded.unity.meta
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-other-side-v1.png
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-other-side-v1.png.meta
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-props-v1.png
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-props-v1.png.meta
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-rain-room-v1.png
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-rain-room-v1.png.meta
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-unfolded-v1.png
+SHA256 MATCH Assets/MyObjAssets/gameObject/Art/EndingAtmosphere/ending-unfolded-v1.png.meta
+SHA256 MATCH runtime OrimeEnding.cs: True

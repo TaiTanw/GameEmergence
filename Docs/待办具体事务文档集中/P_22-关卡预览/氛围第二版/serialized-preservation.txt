@@ -1,0 +1,6 @@
+PASS
+L01_PropertyLabyrinth: 1801 existing serialized objects; 0 new label objects; no removed object.
+L02_SequentialGates: 2294 existing serialized objects; 32 new label objects; no removed object.
+L03_ElectricTraverse: 2229 existing serialized objects; 0 new label objects; no removed object.
+L04_FoldedWells: 1358 existing serialized objects; 0 new label objects; no removed object.
+Allowed changes: sprite appearance/size with world bounds verified in Unity; 19 nonphysical prop poses; art-root label children; two sign wording corrections; disabled-auto-tiling sprite cache; user-approved three box start positions and 2.8 x 1.5 dimensions, visual/probe alignment. Other gameplay components, transforms, collider geometry, map links, water settings and mechanism targets preserved.

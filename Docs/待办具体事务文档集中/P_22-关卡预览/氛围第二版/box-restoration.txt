@@ -1,0 +1,5 @@
+PASS / 1719 checks
+User approved restoring three lane positions and 2.8 x 1.5 collision sizes; visual child and probes aligned. Other scene components unchanged. Saved/reloaded before interaction tests.
+Restored lane 0: Center: (18.00, 12.77, 0.00), Extents: (1.40, 0.75, 0.00)
+Restored lane 1: Center: (46.00, 36.77, 0.00), Extents: (1.40, 0.75, 0.00)
+Restored lane 2: Center: (18.00, 60.77, 0.00), Extents: (1.40, 0.75, 0.00)

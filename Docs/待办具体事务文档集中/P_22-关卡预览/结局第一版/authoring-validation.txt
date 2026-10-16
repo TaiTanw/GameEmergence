@@ -1,0 +1,17 @@
+﻿PASS / 3879 content checks
+E01_StillRaining: flat bounded stage, 1 dedicated actors, 2 proximity phrases, subtle weather, no ordinary rules or hazards.
+E02_OtherSide: flat bounded stage, 2 dedicated actors, 2 proximity phrases, subtle weather, no ordinary rules or hazards.
+E03_Unfolded: flat bounded stage, 2 dedicated actors, 2 proximity phrases, subtle weather, no ordinary rules or hazards.
+L01_PropertyLabyrinth / 通关_等待涨水 -> Bed (-2.00, 0.00) at (8.00, 54.85, 0.00)
+L01_PropertyLabyrinth / 通关_性质迷宫 -> WetBook (1.00, -1.00) at (56.00, 62.85, 0.00)
+L01_PropertyLabyrinth / 通关_高层性能 -> Lantern (1.00, 1.00) at (56.00, 70.85, 0.00)
+L02_SequentialGates / 通关_等待涨水 -> WetBook (1.00, -1.00) at (8.00, 62.85, 0.00)
+L02_SequentialGates / 通关_连续开门 -> Lantern (1.00, 1.00) at (56.00, 70.85, 0.00)
+L02_SequentialGates / 通关_带电箱与高层 -> Bed (-2.00, 0.00) at (62.50, 86.85, 0.00)
+L03_ElectricTraverse / 通关_等待涨水 -> Lantern (1.00, 1.00) at (8.00, 38.85, 0.00)
+L03_ElectricTraverse / 通关_三段滑箱 -> Bed (-2.00, 0.00) at (56.00, 86.85, 0.00)
+L03_ElectricTraverse / 通关_高层性能 -> WetBook (1.00, -1.00) at (56.00, 94.85, 0.00)
+L04_FoldedWells / 通关_第一井等待涨水 -> WetBook (1.00, -1.00) at (6.00, 54.85, 0.00)
+L04_FoldedWells / 通关_第二井环境捷径 -> Bed (-2.00, 0.00) at (56.00, 94.85, 0.00)
+L04_FoldedWells / 通关_第二井高层 -> Lantern (1.00, 1.00) at (56.00, 110.85, 0.00)
+81 exit combinations uniquely covered; ending counts=33/21/27. X<=0 / X>0,Y<0 / X>0,Y>=0 partition covers every finite vector; tutorial zero contribution unchanged.
