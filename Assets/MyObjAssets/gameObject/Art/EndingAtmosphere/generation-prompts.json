@@ -1,0 +1,27 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "Assets/MyObjAssets/gameObject/Art/UI/封面.png (palette and atmosphere reference only)",
+  "note": "Exact prompts passed to the built-in image_gen tool. Original generated pixels are preserved.",
+  "assets": [
+    {
+      "file": "ending-rain-room-v1.png",
+      "transparent_background": false,
+      "prompt": "Create a NEW background asset for the 2D side-view game orime, using the supplied cover ONLY as palette and mood reference. Do not alter the cover or repeat its character, logo, text, or ornate frame. Asset: ending-rain-room-v1. Wide landscape 1536x1024. A recognizable bedroom whose walls and roof are missing, standing outdoors in blue-grey twilight haze. Side-on theatre composition, camera straight horizontal, no isometric perspective. A small low unmade bed on the RIGHT, a dim candle on its bedside crate, a cold small monitor on the LEFT, a few soaked loose pages and a plant that stays above the shallow water. Worn grey wooden floor across the bottom 22% of the frame, straight level top at approximately 78% image height; open spacious central floor reserved for a 2D character to walk. The horizon is indistinct, distant silhouettes of incomplete rooms and thin columns. Quiet, tired, melancholy, familiar but subtly displaced, no horror creatures, no gore, no dramatic disaster. Deliberately low-fidelity late-1990s 3D dreamlike game render with modest pixel-grain and restrained textures, soft indigo fog, very little warm amber candle light. Objects should read clearly at a low screen resolution. No people, no cats, no text, no UI, no borders. Rain and glow will be added as subtle real-time layers: do not bake large rain streaks, bloom flares, or floating particles. The central walking area should be visually quiet. This is a full opaque scenic background."
+    },
+    {
+      "file": "ending-other-side-v1.png",
+      "transparent_background": false,
+      "prompt": "Create a NEW full opaque scenic background for the 2D side-view game orime. Use supplied image only for blue-grey dusk palette and quiet melancholy, not its character or typography. Landscape 1536x1024. A tall white marble colonnade at dusk, roof absent, shallow still water reflecting open archways. A long horizontal stone floor at bottom 22%, straight-on side theatre view, generous empty central area for a small game character. On the far right, across a narrow distant strip of water, a recognizable tiny unmade bed in one open arch bay, strangely domestic and ordinary. Thin hanging curtains, repetitive columns fading in lavender-grey fog, one cold pale light in the distance. Low-fidelity dreamlike late-1990s 3D scenery, gentle pixel texture and soft forms, sparse objects, no terror or disaster, no bodies, no human figures, no text, no UI. No solid wall across centre. No baked weather particles. Keep objects readable when downsampled. This is the background for an ambiguous ending about another side of a familiar place."
+    },
+    {
+      "file": "ending-unfolded-v1.png",
+      "transparent_background": false,
+      "prompt": "Create a NEW full opaque scenic background for the 2D side-view game orime. Use supplied image only for muted violet-blue palette and the intimacy of a familiar room made strange, never its character or text. Landscape 1536x1024. A roofless, wall-less bedroom floor opening onto a flat pale misty horizon. Straight-on side theatre camera. An unmade bed is barely discernible at far left. At right a low writing table with a soaked open book, curled blank pages, one small candle and a leafy potted plant whose leaves remain above shallow water. There is no readable writing. A thin diagonal seam or crease across the floor is subtle, not a giant paper world. Quiet empty central walking space and level wooden floor occupying bottom 22%. Very restrained pre-dawn glow, silver-grey water reflections, indigo shadows. Low-fidelity dreamlike 1990s 3D game render, subdued coarse textures and haze, not glossy fantasy concept art. No person, no cat, no logo, no text, no UI, no particles baked into the image. Objects still feel ordinary and recognizable, their meaning remains unresolved."
+    },
+    {
+      "file": "ending-props-v1.png",
+      "transparent_background": true,
+      "prompt": "Create a transparent PNG GAME PROP SPRITE ATLAS for a quiet dreamlike 2D game. Canvas 1536x1024, exactly THREE equal vertical columns, one fully isolated object per column with ample clear transparent space separating them; no frame, no words, no labels. LEFT column: a small low old wooden bed with a rumpled blue-grey sheet and one ordinary pillow, side view. MIDDLE column: an open water-soaked book with curling pages, dark damp edges and no legible writing, slightly tilted side view. RIGHT column: a small plain iron bedside lantern with a very faint warm amber flame, no elaborate ornamental border and no big glow. All three sit on a shared invisible baseline near the bottom of their cells, fully visible and not clipped. Match dark muted blue-grey and dusty mauve bedroom palette of reference, softly painterly low-fidelity game textures with clear silhouettes at small sizes. No people, no cat imagery, no decorative gems, no UI, no backgrounds or ground plane. Real alpha transparency, no checkerboard painting. These are actual physical objects, not badges or framed icons."
+    }
+  ]
+}

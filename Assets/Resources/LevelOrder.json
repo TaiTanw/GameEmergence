@@ -8,15 +8,45 @@
     ],
     "endings": [
         {
-            "scene": "EndingExample",
+            "scene": "E01_StillRaining",
             "x": {
                 "lowerKind": 0,
+                "lower": 0.0,
+                "upperKind": 2,
+                "upper": 0.0
+            },
+            "y": {
+                "lowerKind": 0,
+                "lower": 0.0,
+                "upperKind": 0,
+                "upper": 0.0
+            }
+        },
+        {
+            "scene": "E02_OtherSide",
+            "x": {
+                "lowerKind": 1,
                 "lower": 0.0,
                 "upperKind": 0,
                 "upper": 0.0
             },
             "y": {
                 "lowerKind": 0,
+                "lower": 0.0,
+                "upperKind": 1,
+                "upper": 0.0
+            }
+        },
+        {
+            "scene": "E03_Unfolded",
+            "x": {
+                "lowerKind": 1,
+                "lower": 0.0,
+                "upperKind": 0,
+                "upper": 0.0
+            },
+            "y": {
+                "lowerKind": 2,
                 "lower": 0.0,
                 "upperKind": 0,
                 "upper": 0.0

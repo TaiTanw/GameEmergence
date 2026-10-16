@@ -35,5 +35,14 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/MyObjAssets/Scenes/Designed/L04_FoldedWells.unity
     guid: 3a4dcc25277a8a245ba1e7c6e6c9f61b
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/EndScenes/E01_StillRaining.unity
+    guid: 76cc7f3a953a016469845e2083959181
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/EndScenes/E02_OtherSide.unity
+    guid: f7f950c62f7352742bb3c91c7688bd15
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/EndScenes/E03_Unfolded.unity
+    guid: 4d23fdfbc380b1e45852b36fa37b1d22
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 6f260eee2256a634592d3ee81ff1af98, type: 2}
