@@ -1965,7 +1965,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
-      value: "A / D \u79FB\u52A8\uFF0C\u7A7A\u683C\u8DF3\u8DC3\u3002\n\u5148\u8D70\u5230\u53F3\u4FA7\uFF0C\u518D\u8DF3\u4E0A\u77EE\u53F0\u3002\n\u544A\u793A\u724C\u9760\u8FD1\u663E\u793A\uFF0C\u79BB\u5F00\u6536\u8D77\u3002"
+      value: "A / D \u79FB\u52A8\uFF0C\u7A7A\u683C\u8DF3\u8DC3\u3002\nShift\u75BE\u8DD1\n\u544A\u793A\u724C\u9760\u8FD1\u663E\u793A\uFF0C\u79BB\u5F00\u6536\u8D77\u3002"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
@@ -2664,7 +2664,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5064049767469773729, guid: ee267dee550c4b744931f3d62898d4e2, type: 3}
       propertyPath: m_Size.y
-      value: 1.5
+      value: 1.69
       objectReference: {fileID: 0}
     - target: {fileID: 5108625084151746799, guid: ee267dee550c4b744931f3d62898d4e2, type: 3}
       propertyPath: m_Name
@@ -2677,6 +2677,14 @@ PrefabInstance:
     - target: {fileID: 6032513072702052882, guid: ee267dee550c4b744931f3d62898d4e2, type: 3}
       propertyPath: m_LocalPosition.y
       value: -0.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 8093250366429171327, guid: ee267dee550c4b744931f3d62898d4e2, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.887542
+      objectReference: {fileID: 0}
+    - target: {fileID: 8093250366429171327, guid: ee267dee550c4b744931f3d62898d4e2, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.031
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
