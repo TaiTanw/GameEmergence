@@ -19,9 +19,45 @@ public static class MechanismPrefabBuilder
         GameObject electric = Surface("ElectrifiedLowFrictionGround", new Vector2(8f, .3f), new Color(.5f, .8f, 1f));
         BaseGround host = electric.AddComponent<BaseGround>();
         Set(host, "slowingEffect", .05f);
-        electric.AddComponent<FixedElectricHazard>();
+        electric.AddComponent<FixedContactHazard>();
         Save(electric, "ElectrifiedLowFrictionGround");
         AssetDatabase.SaveAssets();
+    }
+
+    [MenuItem("自定义工具/开发工具/环境/生成接触即死绿色水体预设")]
+    public static void BuildLethalWater()
+    {
+        if (Application.isPlaying) throw new InvalidOperationException("请退出播放后生成水体预设。");
+        GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(Folder + "WaterPool.prefab");
+        if (asset == null) throw new InvalidOperationException("缺少制作来源 SceneObj/WaterPool.prefab。");
+        GameObject item = UnityEngine.Object.Instantiate(asset);
+        try
+        {
+            item.name = "绿色水体";
+            WaterRegion host = item.GetComponent<WaterRegion>();
+            item.AddComponent<FixedContactHazard>();
+            var data = new SerializedObject(host);
+            SerializedProperty parameters = data.FindProperty("environmentParameters");
+            parameters.arraySize = 1;
+            // 实心列表预留可编辑的普通消退倍率；变地面后仍由玩家注入计算点降低。
+            parameters.GetArrayElementAtIndex(0).managedReferenceValue = new GroundSlowingParameter(1f);
+            data.ApplyModifiedPropertiesWithoutUndo();
+            item.GetComponent<SpriteRenderer>().color = new Color(.25f, .75f, .3f, host.GetEnvironmentOpacity(true));
+            Set(item.GetComponent<WaterSurfaceVisual>(), "surfaceColor", new Color(.65f, 1f, .35f, .75f));
+            if (!host.ValidateEnvironmentParameters(out string error)
+                || !item.GetComponent<FixedContactHazard>().ValidateConfiguration(out error)
+                || !item.GetComponent<WaterSurfaceVisual>().ValidateConfiguration(out error))
+                throw new InvalidOperationException(error);
+            PrefabUtility.SaveAsPrefabAsset(item, Folder + "绿色水体.prefab");
+            AssetDatabase.SaveAssets();
+        }
+        finally { UnityEngine.Object.DestroyImmediate(item); }
+    }
+
+    public static void BuildLethalWaterForBatch()
+    {
+        try { BuildLethalWater(); EditorApplication.Exit(0); }
+        catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
     static void BuildCart()
@@ -99,6 +135,7 @@ public static class MechanismPrefabBuilder
         if (value is UnityEngine.Object reference) property.objectReferenceValue = reference;
         else if (value is int number) property.intValue = number;
         else if (value is float scalar) property.floatValue = scalar;
+        else if (value is Color color) property.colorValue = color;
         else throw new ArgumentException(field);
         data.ApplyModifiedPropertiesWithoutUndo();
     }

@@ -13,12 +13,12 @@ public static class LevelBoxContext
     public static void Register(PhysicalBox box)
     {
         if (!boxes.Contains(box)) boxes.Add(box);
-        ElectricContact.Register(box, box.GetComponent<Collider2D>());
+        LethalContact.Register(box, box.GetComponent<Collider2D>());
     }
     public static void Unregister(PhysicalBox box)
     {
         boxes.Remove(box);
-        ElectricContact.Unregister(box);
+        LethalContact.Unregister(box);
     }
 
     /// <summary>面板的占用提示：读已登记箱子的实际矩形，暂停未模拟仍可查到；不决定转换许可。</summary>

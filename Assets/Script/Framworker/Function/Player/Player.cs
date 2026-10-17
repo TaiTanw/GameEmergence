@@ -131,7 +131,7 @@ public class Player : MonoBehaviour
     [SerializeField, Tooltip("选中外部箱的最大水平碰撞框间隙；选中后须接触才开始共同推拉，开发期参数")] private float interactContactGap = 0.5f;
     [SerializeField, Tooltip("选中后超过此水平碰撞框间隙即视为走远并解除；须大于选中间隙，开发期参数")] private float interactReleaseGap = 0.8f;
     [SerializeField, Tooltip("发现收纳箱以便取出的最大水平碰撞框间隙，开发期参数")] private float storedReachGap = 0.6f;
-    [SerializeField, Tooltip("与带电箱／固定带电实心表面的接触容差；触发器须实际重叠，开发期参数")] private float electrifiedContactTolerance = 0.03f;
+    [SerializeField, Tooltip("与带电箱／固定危险实心表面的接触容差；触发器须实际重叠，开发期参数")] private float electrifiedContactTolerance = 0.03f;
     private PlayerCapabilityContext capabilities;
     private IPlayerDeathReceiver deathReceiver;
     private PlayerDeathRequest? pendingDeath;
@@ -140,7 +140,7 @@ public class Player : MonoBehaviour
     private IPlayerFormRules formRules;
     private IPlayerFlightExecution flightExecution;
     private PlayerBoxSelection boxSelection;
-    private bool electrifiedDeathLatched;
+    private bool contactDeathLatched;
     private bool crushedDeathLatched;
     private readonly List<Collider2D> crushOverlaps = new List<Collider2D>();
     public PlayerDeathRequest? PendingDeath => pendingDeath;
@@ -225,7 +225,12 @@ public class Player : MonoBehaviour
         fsm.ResetMotionActions();
         playPDate.ClearPendingActions();
         fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
-        if (!flying) ResetDeathCycle();
+        if (!flying)
+        {
+            // 新行走周期重新受理当前危险区域；同周期持续接触仍只发一次请求。
+            contactDeathLatched = false;
+            ResetDeathCycle();
+        }
         return true;
     }
 
@@ -304,7 +309,7 @@ public class Player : MonoBehaviour
         // 地图落点对齐碰撞框中心；出生点和未启用地图的试验起点仍使用原根坐标。
         if (position.HasValue && alignBodyCenter) position = playPDate.GetPositionForBodyCenter(position.Value);
         playPDate.RefreshMotionState(position, releaseEnvironmentEffects);
-        electrifiedDeathLatched = crushedDeathLatched = false;
+        contactDeathLatched = crushedDeathLatched = false;
         ResetDeathCycle();
         // 刷新后按当前水/几何重选行为，但不扣资源、不补点按，也不迁移未指定的位置。
         fsm.Update(null, ResolveFourWayAbility(), false, false, 0f);
@@ -478,10 +483,9 @@ public class Player : MonoBehaviour
     {
         if (pendingDeath.HasValue || IsLevelClearing) return;
         ValidateBoxSelection();
-        // 实际逻辑：碰到带电方块走统一死亡入口，飞行免死由 TryRequestDeath 判断；同一段持续接触只成功请求一次，
-        // 离开后才重开，避免死亡处理完成后仍贴着方块时每个物理步重复死亡。
-        if (!ElectricContact.Touches(this, electrifiedContactTolerance)) electrifiedDeathLatched = false;
-        else if (!electrifiedDeathLatched && TryRequestDeath(PlayerDeathCause.Electrocuted)) electrifiedDeathLatched = true;
+        // 实际逻辑：所有接触即死来源共用请求和持续接触去重；飞行免死、阶段结果仍由原死亡入口决定。
+        if (!LethalContact.TryGetDeathCause(this, electrifiedContactTolerance, out PlayerDeathCause cause)) contactDeathLatched = false;
+        else if (!contactDeathLatched && TryRequestDeath(cause)) contactDeathLatched = true;
     }
 
     private void CheckMechanismCrush()

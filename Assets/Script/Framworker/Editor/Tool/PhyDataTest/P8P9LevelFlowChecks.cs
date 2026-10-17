@@ -528,17 +528,17 @@ public static class P8P9LevelFlowChecks
         int previousSpiritId = spiritId;
         var observer = new DeathObserver(escapeRules);
         body.BindDeathReceiver(observer);
-        GameObject electricObject = NewObject("P15 escape electric contact", body.GetComponent<CharacterPhysics>().BodyBounds.center);
+        GameObject electricObject = NewObject("P15 escape fixed contact", body.GetComponent<CharacterPhysics>().BodyBounds.center);
         electricObject.AddComponent<BoxCollider2D>().isTrigger = true;
-        electricObject.AddComponent<BaseGround>(); electricObject.AddComponent<FixedElectricHazard>();
+        electricObject.AddComponent<BaseGround>(); electricObject.AddComponent<FixedContactHazard>();
         Physics2D.SyncTransforms();
         typeof(Player).GetMethod("UpdateBoxRelations", Hidden).Invoke(body, null);
-        Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.Electrocuted,
-            "P15 真实固定带电触发器经统一电击请求触发完整失败重开");
+        Check(observer.Count == 1 && observer.Last.cause == PlayerDeathCause.ContactHazard,
+            "P15 真实固定危险触发器经统一死亡请求触发完整失败重开");
         escapeDeath = observer.Last;
         Check(!SceneChangeMgr.Instance.IsFailureRecovering && escapeRules.DeathPending && body.PendingDeath.HasValue
             && body.DeathStatus == PlayerDeathStatus.Pending && Rules() == escapeRules && Actor("spirit") == null,
-            "电击先等待实体死亡动画，不提前渐暗或重建探索");
+            "接触即死先等待实体死亡动画，不提前渐暗或重建探索");
         Near(box.DebugActualPosition, boxHome + Vector2.right * 15f, "死亡动画开始保持箱子现场");
         Check(!InputControlMgr.Instance.InputEnabled && body.Permissions.motionUpdates
             && !body.Permissions.movement && !body.Permissions.resourceUpdates, "死亡动画停操作与资源，保留被动运动");

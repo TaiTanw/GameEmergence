@@ -351,8 +351,8 @@ public sealed class EnvironmentEditView : MonoBehaviour
     {
         if (editor == null) return;
         objectText.text = draft == null ? "环境性质" : selected.name;
-        fixedFeatureText.text = selected != null && selected.GetComponent<FixedElectricHazard>() != null
-            ? FixedElectricHazard.ReadOnlyDescription : "";
+        fixedFeatureText.text = selected != null && selected.GetComponent<FixedContactHazard>() != null
+            ? FixedContactHazard.ReadOnlyDescription : "";
         hintText.text = message;
         selectionHint.GetComponentInChildren<Text>().text = message;
         if (draft != null)

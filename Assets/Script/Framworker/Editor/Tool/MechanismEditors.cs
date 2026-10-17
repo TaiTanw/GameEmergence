@@ -41,13 +41,14 @@ public sealed class MechanismPressurePlateEditor : Editor
     }
 }
 
-[CustomEditor(typeof(FixedElectricHazard))]
-public sealed class FixedElectricHazardEditor : Editor
+[CustomEditor(typeof(FixedContactHazard))]
+public sealed class FixedContactHazardEditor : Editor
 {
     public override void OnInspectorGUI()
     {
-        EditorGUILayout.HelpBox(FixedElectricHazard.ReadOnlyDescription + "。实心与触发器均有效，普通箱不导电。", MessageType.Info);
-        if (!((FixedElectricHazard)target).ValidateConfiguration(out string error)) EditorGUILayout.HelpBox(error, MessageType.Error);
+        var hazard = (FixedContactHazard)target;
+        EditorGUILayout.HelpBox(FixedContactHazard.ReadOnlyDescription + "。实心接触／触发器重叠均有效，普通箱不传播危险。", MessageType.Info);
+        if (!hazard.ValidateConfiguration(out string error)) EditorGUILayout.HelpBox(error, MessageType.Error);
     }
 }
 

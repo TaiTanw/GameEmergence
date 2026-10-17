@@ -578,7 +578,7 @@ public static class BoxInteractionChecks
         Invoke(player, "UpdateBoxRelations");
         Check(receiver.count == 1 && receiver.last == PlayerDeathCause.Electrocuted,
             $"侧面贴合带电方块请求电击死亡 [count={receiver.count}, cause={receiver.last}, pending={player.PendingDeath.HasValue}, " +
-            $"touch={ElectricContact.Touches(player, .03f)}]");
+            $"touch={LethalContact.Touches(player, .03f)}]");
         player.ResetDeathCycle();
         for (int i = 0; i < 5; i++) Invoke(player, "UpdateBoxRelations");
         Check(receiver.count == 1, "持续接触不在每个物理步重复请求死亡");

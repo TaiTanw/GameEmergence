@@ -187,7 +187,16 @@ public static class DeathAnimationFlowChecks
         box.RefreshMotionState(new Vector2(8010f, 8006f));
         Vector2 fallingBody = character.DebugActualPosition, fallingBox = box.DebugActualPosition;
         corpse.velocity = Vector2.down;
-        Check(body.TryRequestDeath(PlayerDeathCause.Abyss), "刷新后重开新的实体死亡播放");
+        GameObject waterAsset = AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + "绿色水体.prefab");
+        Check(waterAsset != null, "绿色水体预设可用于真实死亡演出检查");
+        GameObject contactWater = Object.Instantiate(waterAsset); fixtures.Add(contactWater);
+        contactWater.transform.position = character.BodyBounds.center;
+        Physics2D.SyncTransforms();
+        typeof(Player).GetMethod("UpdateBoxRelations", Hidden).Invoke(body, null);
+        Check(body.PendingDeath.HasValue && body.PendingDeath.Value.cause == PlayerDeathCause.ContactHazard,
+            "绿色水体实际重叠经共用入口重开实体死亡播放");
+        // 来源离场不取消已受理的死亡；后续继续核对完整动画与失败刷新。
+        contactWater.SetActive(false);
         PlayerDeathRequest escapeDeath = body.PendingDeath.Value;
         Check(escapeDeath.cycle > cancelledDeath.cycle && !body.TryRequestDeath(PlayerDeathCause.Electrocuted),
             "实体新周期递增，连续危险请求不重播");

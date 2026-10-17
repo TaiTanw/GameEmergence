@@ -40,6 +40,7 @@ public static class MechanismChecks
             CheckTargetAndRider();
             CheckCrush();
             CheckElectricity();
+            CheckLethalWater();
             CheckTrialAndConfiguration();
             Debug.Log($"P15 mechanisms: {passed.Count} checks passed.");
         }
@@ -60,6 +61,17 @@ public static class MechanismChecks
         catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
     }
 
+    public static void RunContactHazardForBatch()
+    {
+        try
+        {
+            Run();
+            PlayerDeathCycleChecks.Run();
+            DeathAnimationFlowChecks.RunForBatch();
+        }
+        catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+    }
+
     public static void RunRegressionForBatch()
     {
         try
@@ -77,7 +89,7 @@ public static class MechanismChecks
 
     static void CheckPrefabs()
     {
-        foreach (string name in new[] { "MechanismCart", "MechanismPlatform", "MechanismDoor", "PressurePlate", "ElectrifiedPressurePlate", "ElectrifiedLowFrictionGround" })
+        foreach (string name in new[] { "MechanismCart", "MechanismPlatform", "MechanismDoor", "PressurePlate", "ElectrifiedPressurePlate", "带电地面", "绿色水体" })
         {
             GameObject item = AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + name + ".prefab");
             Check(item != null && item.GetComponent<Collider2D>() != null, name + " 预设可直接加载且有明确几何");
@@ -90,7 +102,7 @@ public static class MechanismChecks
         Check(door.GetComponent<PlatformEffector2D>() == null && !door.GetComponent<Collider2D>().usedByEffector,
             "实心机关门不带平台效应器且四面阻挡");
         GameObject electricPlate = AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + "ElectrifiedPressurePlate.prefab");
-        Check(electricPlate.GetComponent<FixedElectricHazard>() == null, "带电压感的含义是只认带电箱，本身不自动电击");
+        Check(electricPlate.GetComponent<FixedContactHazard>() == null, "带电压感的含义是只认带电箱，本身不自动电击");
         GameObject cart = AssetDatabase.LoadAssetAtPath<GameObject>(MechanismPrefabBuilder.Folder + "MechanismCart.prefab");
         Check(cart.GetComponent<PhysicalBox>() == null && cart.GetComponent<MechanismCart>().ValidateConfiguration(out _),
             "小车不成为可收纳箱，方向／探针／碰撞排除配置有效");
@@ -262,14 +274,14 @@ public static class MechanismChecks
     static void CheckElectricity()
     {
         float x = Place();
-        BaseGround ground = Prefab<BaseGround>("ElectrifiedLowFrictionGround", new Vector2(x, 100f));
-        FixedElectricHazard hazard = ground.GetComponent<FixedElectricHazard>(); Invoke(hazard, "OnEnable");
+        BaseGround ground = Prefab<BaseGround>("带电地面", new Vector2(x, 100f));
+        FixedContactHazard hazard = ground.GetComponent<FixedContactHazard>(); Invoke(hazard, "OnEnable");
         Player player = PlayerAt(new Vector2(x, 102f));
         CharacterPhysics body = player.GetComponent<CharacterPhysics>();
         var receiver = new Receiver(); player.BindDeathReceiver(receiver);
         StandOn(body, x, ground.GetComponent<Collider2D>().bounds.max.y);
         Invoke(player, "UpdateBoxRelations"); Invoke(player, "UpdateBoxRelations");
-        Check(receiver.Count == 1 && receiver.Cause == PlayerDeathCause.Electrocuted, "固定实心顶面接触经统一死亡入口且持续接触去重");
+        Check(receiver.Count == 1 && receiver.Cause == PlayerDeathCause.ContactHazard, "固定实心顶面接触经统一死亡入口且持续接触去重");
         MoveCenter(body, new Vector2(x + 12f, 102f)); Invoke(player, "UpdateBoxRelations"); player.ResetDeathCycle();
         MoveCenter(body, new Vector2(x + ground.GetComponent<Collider2D>().bounds.extents.x + body.BodyBounds.extents.x + .01f, 100f));
         Invoke(player, "UpdateBoxRelations"); Check(receiver.Count == 2, "固定实心侧面接触电击");
@@ -280,7 +292,7 @@ public static class MechanismChecks
         PhysicalBox box = Prefab<PhysicalBox>("box", new Vector2(x, 102f));
         StandOn(box, x, ground.GetComponent<Collider2D>().bounds.max.y);
         StandOn(body, x, box.BodyBounds.max.y);
-        Check(!box.IsElectrified && !ElectricContact.Touches(player, .03f), "普通箱隔开危险面，不导电到箱顶玩家");
+        Check(!box.IsElectrified && !LethalContact.Touches(player, .03f), "普通箱隔开危险面，不导电到箱顶玩家");
         Set(box, "electrified", true);
         Invoke(player, "UpdateBoxRelations"); Check(receiver.Count == 4, "带电箱与环境共用相同电击入口");
         Set(box, "electrified", false); box.SetMotionParticipation(false);
@@ -289,7 +301,7 @@ public static class MechanismChecks
         var bag = new CognitionBackpack(20, 0f, 0f, new EnvironmentParameter[] { new TriggerEnvironmentParameter() });
         var draft = new EnvironmentEditDraft(ground, bag);
         Check(draft.TryUseItem(bag.Items[0].Id, false, -1, true, out _) && draft.TryCommit(new LevelCognition(100f), out _), "通过真实草稿确认把带电地面切成触发器");
-        Check(ground.IsTriggerEnvironment && ground.EnvironmentSlotCapacity == slots && ground.GetComponent<FixedElectricHazard>() == hazard,
+        Check(ground.IsTriggerEnvironment && ground.EnvironmentSlotCapacity == slots && ground.GetComponent<FixedContactHazard>() == hazard,
             "几何切换保留独立带电组件，不占能力槽");
         MoveCenter(body, ground.GetComponent<Collider2D>().bounds.center);
         Invoke(player, "UpdateBoxRelations"); Check(receiver.Count == 5, "触发器真实重叠同样电击");
@@ -297,19 +309,102 @@ public static class MechanismChecks
         // Box2D 形状含接触皮肤；选取真实 Distance 为正、又小于实心电击容差的位置。
         MoveCenter(body, new Vector2(ground.GetComponent<Collider2D>().bounds.max.x + body.BodyBounds.extents.x + .025f, 100f));
         ColliderDistance2D outside = ground.GetComponent<Collider2D>().Distance(body.GetComponent<Collider2D>());
-        Check(outside.distance > 0f && outside.distance < .03f && !ElectricContact.Touches(player, .03f),
+        Check(outside.distance > 0f && outside.distance < .03f && !LethalContact.Touches(player, .03f),
             "触发器外的近距离不借实心容差电击");
         draft = new EnvironmentEditDraft(ground, bag);
         Check(draft.TryExtractTrigger(out _) && draft.TryCommit(new LevelCognition(100f), out _), "抽走几何性质可切回实心");
         Check(!ground.IsTriggerEnvironment && hazard.ValidateConfiguration(out _) && bag.Items.Count == 1
             && bag.Items[0].Property.Kind == EnvironmentParameterKind.TriggerEnvironment, "背包只取得几何性质，固定电不进入抽取或计算");
         ground.RestoreEnvironmentDefaults();
-        Near(ground.SlowingEffect, .05f, .001f, "默认低摩擦样例保留可编辑消退倍率");
+        Check(ground.TryGetGroundSlowingMultiplier(out _), "已有带电地面保留可编辑消退倍率");
         GameObject area = New("P15 panel area", Vector2.zero); area.AddComponent<RectTransform>();
         GameObject panel = New("P15 panel", Vector2.zero); panel.AddComponent<RectTransform>(); area.transform.SetParent(panel.transform);
         EnvironmentEditLayout.Ensure(area.transform, panel.transform);
         Check(area.transform.Find("EnvironmentEditorContent/EnvironmentFixedFeatureText") != null,
             "环境面板只读固定特性行独立于可抽取槽列表");
+    }
+
+    static void CheckLethalWater()
+    {
+        float x = Place();
+        WaterRegion water = Prefab<WaterRegion>("绿色水体", new Vector2(x, 100f));
+        FixedContactHazard hazard = water.GetComponent<FixedContactHazard>(); Invoke(hazard, "OnEnable");
+        BoxCollider2D geometry = water.GetComponent<BoxCollider2D>();
+        Check(hazard.ValidateConfiguration(out _) && water.IsTriggerEnvironment && water.SwimmingEnabled
+            && water.GetComponent<WaterSurfaceVisual>().ValidateConfiguration(out _), "绿色致死水预设保留真实水域及水面表现");
+        Color green = water.GetComponent<SpriteRenderer>().color;
+        Check(green.g > green.r && green.g > green.b, "水体主体为绿色");
+        var surface = new SerializedObject(water.GetComponent<WaterSurfaceVisual>());
+        Color line = surface.FindProperty("surfaceColor").colorValue;
+        Check(line.g > line.r && line.g > line.b, "水面波纹沿绿色配置");
+
+        Player player = PlayerAt(new Vector2(x, 100f));
+        CharacterPhysics body = player.GetComponent<CharacterPhysics>();
+        var receiver = new Receiver(); player.BindDeathReceiver(receiver);
+        Invoke(player, "UpdateBoxRelations"); Invoke(player, "UpdateBoxRelations");
+        Check(receiver.Count == 1 && receiver.Cause == PlayerDeathCause.ContactHazard, "水域真实重叠立即死亡，不等待耗氧且持续接触去重");
+        MoveCenter(body, new Vector2(geometry.bounds.max.x + body.BodyBounds.extents.x + .025f, 100f));
+        player.ResetDeathCycle(); Invoke(player, "UpdateBoxRelations");
+        Check(receiver.Count == 1 && !LethalContact.Touches(player, .03f), "绿色水域外的近距离不借实心容差致死");
+
+        int capacity = water.EnvironmentSlotCapacity;
+        var bag = new CognitionBackpack(20, 0f, 0f, initialCalculations: new[] { .05f });
+        var draft = new EnvironmentEditDraft(water, bag);
+        Check(draft.TryExtractTrigger(out _) && draft.TryUseItem(bag.Items[0].Id, false, 0, false, out _)
+            && draft.TryCommit(new LevelCognition(100f), out _), "真实草稿把水转实心并用计算点降低消退倍率");
+        Check(!geometry.isTrigger && water.gameObject.layer == LayerMask.NameToLayer("Ground")
+            && !water.SwimmingEnabled && water.GetComponent<FixedContactHazard>() == hazard
+            && water.EnvironmentSlotCapacity == capacity, "水变地面停用水能力、保留固定危险且不占能力槽");
+        Near(water.GetComponent<SpriteRenderer>().color.a, water.GetEnvironmentOpacity(false), .001f, "实心读取原不透明度");
+        PhysicalBox box = Prefab<PhysicalBox>("box", new Vector2(x, geometry.bounds.max.y + 1f));
+        StandOn(box, x, geometry.bounds.max.y);
+        box.EnvironmentContext.RefreshEnvironment(geometry, null);
+        Near(box.DebugEnvironmentSlowingMultiplier, .05f, .001f, "箱底沿原支撑采样取得降低后的消退倍率");
+        StandOn(body, x, box.BodyBounds.max.y); Invoke(player, "UpdateBoxRelations");
+        Check(receiver.Count == 1 && !box.IsElectrified && !LethalContact.Touches(player, .03f), "普通箱隔开致死地面，不传播危险到箱顶");
+        box.GetComponent<Rigidbody2D>().velocity = Vector2.right * 4f;
+        Vector2 before = box.DebugActualPosition;
+        for (int tick = 0; tick < 15; tick++) Step(box);
+        Check(box.DebugActualPosition.x > before.x + .2f && box.IsSupported, "低消退实心水面上的普通箱沿原运动滑动且保持支撑");
+        StandOn(body, x, geometry.bounds.max.y); Invoke(player, "UpdateBoxRelations");
+        Check(receiver.Count == 2 && receiver.Cause == PlayerDeathCause.ContactHazard, "变地面后玩家直接踩面仍立即死亡");
+
+        MoveCenter(body, new Vector2(x + 20f, 100f)); Invoke(player, "UpdateBoxRelations"); player.ResetDeathCycle();
+        draft = new EnvironmentEditDraft(water, bag);
+        Check(bag.Items.Count == 1 && bag.Items[0].Property.Kind == EnvironmentParameterKind.TriggerEnvironment
+            && draft.TryUseItem(bag.Items[0].Id, false, -1, true, out _)
+            && draft.TryCommit(new LevelCognition(100f), out _), "背包只持几何性质，可沿原确认恢复水形态");
+        MoveCenter(body, geometry.bounds.center); Invoke(player, "UpdateBoxRelations");
+        Check(receiver.Count == 3 && water.SwimmingEnabled && hazard.isActiveAndEnabled, "恢复水形态仍接触即死");
+        water.RestoreEnvironmentDefaults();
+        Near(water.CopyEnvironmentSlots(false)[0].Value, 1f, .001f, "重刷新恢复默认地面消退倍率");
+        Check(geometry.isTrigger && hazard.isActiveAndEnabled && FixedContactHazard.ReadOnlyDescription.Contains("接触即死")
+            && !FixedContactHazard.ReadOnlyDescription.Contains("带电") && !FixedContactHazard.ReadOnlyDescription.Contains("毒"), "默认恢复保留危险，面板统一说明接触即死");
+        hazard.enabled = false; Invoke(hazard, "OnDisable");
+        Check(!LethalContact.Touches(player, .03f), "停用固定危险后水域不再致死");
+        hazard.enabled = true; Invoke(hazard, "OnEnable");
+        water.enabled = false;
+        Check(!LethalContact.Touches(player, .03f), "停用唯一环境宿主后不再构成危险源");
+        water.enabled = true;
+
+        Player spirit = PlayerAt(new Vector2(x + 20f, 100f), true);
+        var rules = new PlayerLifecycleRules(null, spirit, cognition: new LevelCognition(100f), simulationCognitionPerSecond: 0f);
+        Check(rules.BeginExploration(), "绿色水体阶段检查从真实漫游开始");
+        CharacterPhysics spiritBody = spirit.GetComponent<CharacterPhysics>();
+        MoveCenter(spiritBody, geometry.bounds.center); Invoke(spirit, "UpdateBoxRelations");
+        Check(spirit._ActionData.isFlying && !spirit.PendingDeath.HasValue && !rules.IsSimulation, "飞行进入致死水域免死");
+        Check(spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion), "水域内可沿原规则转模拟");
+        float cognition = rules.Cognition.Remaining;
+        Invoke(spirit, "UpdateBoxRelations");
+        Check(spirit._ActionData.isFlying && !rules.IsSimulation && !spirit.PendingDeath.HasValue
+            && rules.Cognition.Remaining < cognition, "模拟触水走统一死亡返回漫游并扣一次转换费用");
+        Check(spirit.RequestSpiritForm(false, PlayerFormChangeReason.ForcedRegion), "持续处于同一水域可重开行走周期");
+        cognition = rules.Cognition.Remaining;
+        Invoke(spirit, "UpdateBoxRelations"); Invoke(spirit, "UpdateBoxRelations");
+        Check(spirit._ActionData.isFlying && !rules.IsSimulation && !spirit.PendingDeath.HasValue,
+            "同一水域再次模拟仍立即遇险返回漫游");
+        Near(rules.Cognition.Remaining, cognition - 1f, .001f, "新模拟周期只结算一次遇险转换费");
+        PlayerLifecycleRules.SetWorldPaused(false);
     }
 
     static void CheckTrialAndConfiguration()
