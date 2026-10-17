@@ -276,6 +276,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
             // 安全：忽略无效、自身和本步刚放开的单向平台。
             if (other == null || other.attachedRigidbody == rb || IsDroppingThrough(other) || IgnoresCollider(other)) continue;
             Vector2 normal = contact.normal;
+            // 原生仍可能报告被效应器放行的侧面接触，它不提供墙或脚下事实。
+            if (other.usedByEffector && other.TryGetComponent(out PlatformEffector2D effector)
+                && effector.isActiveAndEnabled && effector.useOneWay && !IsSolidOneWayTop(other, normal)) continue;
             if (normal.y > 0.7f)
             {
                 nowGemetry.isGrounded = true;
@@ -342,7 +345,9 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     {
         if (collider == null || !collider.usedByEffector) return false;
         if (!collider.TryGetComponent(out PlatformEffector2D effector) || !effector.isActiveAndEnabled || !effector.useOneWay) return false;
-        return Vector2.Angle(effector.transform.up, normal) <= effector.surfaceArc * 0.5f;
+        // 水平侧面不承托，即使制作时的实心弧恰好包含90度边界。
+        return Vector2.Dot(effector.transform.up, normal) > 0.001f
+            && Vector2.Angle(effector.transform.up, normal) <= effector.surfaceArc * 0.5f;
     }
 
     protected void CollectRegionOverlapFacts()
@@ -809,10 +814,10 @@ public abstract class BasicEntity : MonoBehaviour, IForceAction, IEnvironmentRec
     bool PassesOneWay(RaycastHit2D hit, float currentBottom, Vector2 delta)
     {
         if (IsDroppingThrough(hit.collider)) return true;
-        if (!hit.collider.TryGetComponent(out PlatformEffector2D effector)
+        if (!hit.collider.usedByEffector || !hit.collider.TryGetComponent(out PlatformEffector2D effector)
             || !effector.isActiveAndEnabled || !effector.useOneWay) return false;
         // 实际逻辑：不在单向实心弧内则放行。
-        if (Vector2.Angle(effector.transform.up, hit.normal) > effector.surfaceArc * 0.5f) return true;
+        if (!IsSolidOneWayTop(hit.collider, hit.normal)) return true;
         return nowGemetry.groundCollider != hit.collider
             && (delta.y > 0f || currentBottom < hit.point.y - 0.01f);
     }

@@ -1,0 +1,74 @@
+
+CASE 180度单向平台侧面水平穿过
+after: grounded=True, bodyCenter=(5.661133,0.750153), bottom=0.014984, velocity=(7.000000,0.000000), ground=box check solid
+  shape body->surface: valid=True, overlap=False, distance=4.363789, normal=(1.000000,0.000002), pointA=(5.375000,0.675430), pointB=(1.010742,0.675423); reverseNormal=(-1.000000,-0.000002); surfaceTop=0.900002
+PASS 水平运动实际越过平台侧面 [x=5.661133]
+
+CASE 从下方起跳穿上并站稳
+landed: grounded=True, bodyCenter=(0.000000,2.900154), bottom=2.164986, velocity=(0.000000,0.000000), ground=platform check
+  shape body->surface: valid=True, overlap=True, distance=-0.005020, normal=(0.000000,-1.000000), pointA=(0.000000,2.154984), pointB=(0.000000,2.160004); reverseNormal=(0.000000,1.000000); surfaceTop=2.150002
+  footCast: distance=0.000000, fraction=0.000000, normal=(0.000000,1.000000), point=(0.000000,2.152786), centroid=(0.000000,2.175560); ignored=False
+PASS 真实跳跃从下方穿过整块平台
+PASS 跳后落在平台顶面
+
+CASE 顶面站立后按下穿越
+standing: grounded=True, bodyCenter=(0.000000,2.900154), bottom=2.164986, velocity=(0.000000,0.000000), ground=platform check
+  shape body->surface: valid=True, overlap=True, distance=-0.005020, normal=(0.000000,-1.000000), pointA=(0.000000,2.154984), pointB=(0.000000,2.160004); reverseNormal=(0.000000,1.000000); surfaceTop=2.150002
+  footCast: distance=0.000000, fraction=0.000000, normal=(0.000000,1.000000), point=(0.000000,2.152786), centroid=(0.000000,2.175560); ignored=False
+PASS 正常顶面持续支撑
+dropped: grounded=False, bodyCenter=(0.000000,-11.589780), bottom=-12.324950, velocity=(0.000000,-31.500010), ground=null
+  shape body->surface: valid=True, overlap=False, distance=12.684610, normal=(0.000000,-1.000000), pointA=(0.000000,-10.844610), pointB=(0.000000,1.839996); reverseNormal=(0.000000,1.000000); surfaceTop=2.150002
+PASS 按下后身体完全穿过平台且离地
+
+CASE 实体宽与探针宽之间的窄缝
+width=0.554688, probeWidth=0.560000, intendedGap=0.557344, actualGap=0.556641, down=False
+initial: grounded=False, bodyCenter=(0.000000,2.585167), bottom=1.849998, velocity=(0.000000,0.000000), ground=null
+  shape body->surface: valid=True, overlap=True, distance=-0.018555, normal=(-1.000000,0.000000), pointA=(-0.287109,1.915001), pointB=(-0.267578,1.915001); reverseNormal=(1.000000,0.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(1.000000,0.000000), point=(-0.279297,1.860573), centroid=(0.000000,1.860573); ignored=False
+  shape body->surface: valid=True, overlap=True, distance=-0.018555, normal=(1.000000,0.000000), pointA=(0.287109,1.915001), pointB=(0.267578,1.915001); reverseNormal=(-1.000000,0.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(-1.000000,0.000000), point=(0.279297,1.860573), centroid=(0.000000,1.860573); ignored=False
+PASS 身体已在平台顶面以下、两侧没有真实向上支撑时不认作落地
+after20: grounded=False, bodyCenter=(0.000000,-0.354820), bottom=-1.089989, velocity=(0.000000,-14.000000), ground=null
+  shape body->surface: valid=True, overlap=False, distance=0.399656, normal=(0.002327,-0.999997), pointA=(-0.277344,0.390350), pointB=(-0.278320,0.790001); reverseNormal=(-0.002327,0.999997); surfaceTop=2.000000
+  shape body->surface: valid=True, overlap=False, distance=0.399656, normal=(-0.002327,-0.999997), pointA=(0.277344,0.390350), pointB=(0.278320,0.790001); reverseNormal=(0.002327,0.999997); surfaceTop=2.000000
+PASS 窄缝内身体正常下落
+
+CASE 同一窄缝按下穿越
+width=0.554688, probeWidth=0.560000, intendedGap=0.557344, actualGap=0.556641, down=True
+initial: grounded=False, bodyCenter=(0.000000,2.585167), bottom=1.849998, velocity=(0.000000,0.000000), ground=null
+  shape body->surface: valid=True, overlap=True, distance=-0.018555, normal=(-1.000000,0.000000), pointA=(-0.287109,1.915001), pointB=(-0.267578,1.915001); reverseNormal=(1.000000,0.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(1.000000,0.000000), point=(-0.279297,1.860573), centroid=(0.000000,1.860573); ignored=False
+  shape body->surface: valid=True, overlap=True, distance=-0.018555, normal=(1.000000,0.000000), pointA=(0.287109,1.915001), pointB=(0.267578,1.915001); reverseNormal=(-1.000000,0.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(-1.000000,0.000000), point=(0.279297,1.860573), centroid=(0.000000,1.860573); ignored=False
+PASS 身体已在平台顶面以下、两侧没有真实向上支撑时不认作落地
+after20: grounded=False, bodyCenter=(0.000000,-0.354820), bottom=-1.089989, velocity=(0.000000,-14.000000), ground=null
+  shape body->surface: valid=True, overlap=False, distance=0.399656, normal=(0.002327,-0.999997), pointA=(-0.277344,0.390350), pointB=(-0.278320,0.790001); reverseNormal=(-0.002327,0.999997); surfaceTop=2.000000
+  shape body->surface: valid=True, overlap=False, distance=0.399656, normal=(-0.002327,-0.999997), pointA=(0.277344,0.390350), pointB=(0.278320,0.790001); reverseNormal=(0.002327,0.999997); surfaceTop=2.000000
+PASS 窄缝内身体正常下落
+
+CASE 错层平台侧沿
+width=0.554688, probeWidth=0.560000, intendedGap=0.557344, actualGap=0.556641, down=False
+initial: grounded=False, bodyCenter=(0.000000,2.585167), bottom=1.849998, velocity=(0.000000,0.000000), ground=null
+  shape body->surface: valid=True, overlap=True, distance=-0.018555, normal=(-1.000000,0.000000), pointA=(-0.287109,1.915001), pointB=(-0.267578,1.915001); reverseNormal=(1.000000,0.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(1.000000,0.000000), point=(-0.279297,1.860573), centroid=(0.000000,1.860573); ignored=False
+  shape body->surface: valid=True, overlap=True, distance=-0.018555, normal=(1.000000,0.000000), pointA=(0.287109,2.139999), pointB=(0.267578,2.139999); reverseNormal=(-1.000000,0.000000); surfaceTop=2.449997
+  footCast: distance=0.000000, fraction=0.000000, normal=(-1.000000,0.000000), point=(0.279297,1.860573), centroid=(0.000000,1.860573); ignored=False
+PASS 身体已在平台顶面以下、两侧没有真实向上支撑时不认作落地
+after20: grounded=False, bodyCenter=(0.000000,-0.354820), bottom=-1.089989, velocity=(0.000000,-14.000000), ground=null
+  shape body->surface: valid=True, overlap=False, distance=0.399656, normal=(0.002327,-0.999997), pointA=(-0.277344,0.390350), pointB=(-0.278320,0.790001); reverseNormal=(-0.002327,0.999997); surfaceTop=2.000000
+  shape body->surface: valid=True, overlap=False, distance=0.849652, normal=(-0.001123,-0.999999), pointA=(0.277344,0.390350), pointB=(0.278320,1.239998); reverseNormal=(0.001123,0.999999); surfaceTop=2.449997
+PASS 窄缝内身体正常下落
+
+CASE 接缝两侧确实支撑
+before: grounded=True, bodyCenter=(0.000000,2.740166), bottom=2.004997, velocity=(0.000000,0.000000), ground=platform check
+  shape body->surface: valid=True, overlap=True, distance=-0.015007, normal=(0.000000,-1.000000), pointA=(-0.156250,1.994995), pointB=(-0.156250,2.010010); reverseNormal=(0.000000,1.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(0.000000,1.000000), point=(-0.157227,1.997787), centroid=(0.000000,2.015572); ignored=False
+  shape body->surface: valid=True, overlap=True, distance=-0.015007, normal=(0.000000,-1.000000), pointA=(0.156250,1.994995), pointB=(0.156250,2.010010); reverseNormal=(0.000000,1.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(0.000000,1.000000), point=(0.157227,1.997787), centroid=(0.000000,2.015572); ignored=False
+standing: grounded=True, bodyCenter=(0.000000,2.750168), bottom=2.014999, velocity=(0.000000,0.000000), ground=platform check
+  shape body->surface: valid=True, overlap=True, distance=-0.005005, normal=(0.000000,-1.000000), pointA=(-0.156250,2.004997), pointB=(-0.156250,2.010002); reverseNormal=(0.000000,1.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(0.000000,1.000000), point=(-0.157227,2.002792), centroid=(0.000000,2.025574); ignored=False
+  shape body->surface: valid=True, overlap=True, distance=-0.005005, normal=(0.000000,-1.000000), pointA=(0.156250,2.004997), pointB=(0.156250,2.010002); reverseNormal=(0.000000,1.000000); surfaceTop=2.000000
+  footCast: distance=0.000000, fraction=0.000000, normal=(0.000000,1.000000), point=(0.157227,2.002792), centroid=(0.000000,2.025574); ignored=False
+PASS 跨小接缝时两侧顶面真实承托，不因过滤零距离命中而失去支撑
+SUMMARY failures=0, errors=0; fixedDeltaTime=0.02

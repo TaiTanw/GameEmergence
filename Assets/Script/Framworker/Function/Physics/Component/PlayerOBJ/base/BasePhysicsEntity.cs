@@ -79,14 +79,16 @@ public abstract class BasePhysicsEntity : BasicEntity
         nowGemetry.onLeftWall = false;
         nowGemetry.leftWallCollider = null;
         //夹角需小于25度，内积近似0.9
-        if (hit1.collider != null && Vector2.Dot(hit1.normal, Vector2.right) > 0.9f)
+        if (hit1.collider != null && Vector2.Dot(hit1.normal, Vector2.right) > 0.9f
+            && !PassesOneWaySide(hit1))
         {
             nowGemetry.onLeftWall = true;
             nowGemetry.leftWallCollider = hit1.collider;
         }
         nowGemetry.onRightWall = false;
         nowGemetry.rightWallCollider = null;
-        if (hit2.collider != null && Vector2.Dot(hit2.normal, Vector2.left) > 0.9f)
+        if (hit2.collider != null && Vector2.Dot(hit2.normal, Vector2.left) > 0.9f
+            && !PassesOneWaySide(hit2))
         {
             nowGemetry.onRightWall = true;
             nowGemetry.rightWallCollider = hit2.collider;
@@ -99,6 +101,14 @@ public abstract class BasePhysicsEntity : BasicEntity
     /// 职能：行为意图进入相位 1；不在这里改速度。
     /// </summary>
     protected virtual bool WantsDropThroughCurrentOneWay(Collider2D support, Vector2 normal) => false;
+
+    static bool PassesOneWaySide(RaycastHit2D hit)
+    {
+        // 单向体的侧面不提供墙事实，与实际可穿过的表面保持一致。
+        if (!hit.collider.usedByEffector || !hit.collider.TryGetComponent(out PlatformEffector2D effector)
+            || !effector.isActiveAndEnabled || !effector.useOneWay) return false;
+        return !IsSolidOneWayTop(hit.collider, hit.normal);
+    }
 
     void PrepareOneWayDrops(ContactFilter2D filter)
     {

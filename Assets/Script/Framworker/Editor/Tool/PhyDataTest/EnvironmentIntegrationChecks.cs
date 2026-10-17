@@ -230,7 +230,7 @@ public static class EnvironmentIntegrationChecks
         CharacterPhysics physics = player.GetComponent<CharacterPhysics>();
         Physics2D.SyncTransforms();
         Bounds bounds = player.GetComponent<BoxCollider2D>().bounds;
-        WaterWithEffects water = Prefab<WaterWithEffects>("WaterPoolWithEffects.prefab", new Vector3(bounds.center.x, bounds.max.y, 0f));
+        WaterWithEffects water = Prefab<WaterWithEffects>("水体.prefab", new Vector3(bounds.center.x, bounds.max.y, 0f));
         Physics2D.SyncTransforms();
         physics.ResampleEnvironment();
         Check(player.WaterFacts.submerged, $"刷新用例出生几何已完全淹没 [body={bounds}, water={water.GetComponent<Collider2D>().bounds}]");
@@ -295,8 +295,10 @@ public static class EnvironmentIntegrationChecks
     private static void CheckRisingWaterLimit()
     {
         const BindingFlags hidden = BindingFlags.Instance | BindingFlags.NonPublic;
-        WaterWithEffects water = Prefab<WaterWithEffects>("WaterPoolWithEffects.prefab", NextPosition());
+        WaterWithEffects water = Prefab<WaterWithEffects>("水体.prefab", NextPosition());
         typeof(WaterWithEffects).GetField("flowVelocity", hidden).SetValue(water, new Vector2(2f, 0f));
+        // 当前水预设的表现会提前读取参数；夹具改完制作值后重建一次缓存。
+        typeof(BasicPhysicalObject).GetField("parametersInitialized", hidden).SetValue(water, false);
         Physics2D.SyncTransforms();
         BoxCollider2D shape = water.GetComponent<BoxCollider2D>();
         Bounds original = shape.bounds;
@@ -779,7 +781,7 @@ public static class EnvironmentIntegrationChecks
             "台阶登记移速修饰且不登记持续速度");
 
         Vector3 wallPosition = NextPosition();
-        Wall wall = Prefab<Wall>("wall.prefab", wallPosition);
+        Wall wall = Prefab<Wall>("墙面.prefab", wallPosition);
         EnvironmentCheckBody onWall = Body(wallPosition + Vector3.up);
         onWall.RefreshSupport(wall.GetComponent<Collider2D>());
         Check(onWall.EnvironmentContext.DebugSourceCount == 0 && PhysicsEditorEntityObservation.GetSnapshot(onWall).movementModifierCount == 0
@@ -1203,6 +1205,7 @@ public static class EnvironmentIntegrationChecks
     private static T Prefab<T>(string name, Vector3 position) where T : Component
     {
         string folder = name == "player20.prefab" || name == "SpiritPlayer.prefab" ? "Player/" : "SceneObj/";
+        if (name == "F1.prefab" || name == "ICE.prefab") folder = "SceneObj/other/";
         GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/" + folder + name);
         if (asset == null) asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/default/" + name);
         if (asset == null) throw new InvalidOperationException("Missing fixture prefab: " + name);

@@ -1,0 +1,20 @@
+PASS only SurfaceArc 180 -> 170: Assets/MyObjAssets/Scenes/Designed/L00_Orientation.unity
+PASS only SurfaceArc 180 -> 170: Assets/MyObjAssets/Scenes/Designed/L01_PropertyLabyrinth.unity
+PASS only SurfaceArc 180 -> 170: Assets/MyObjAssets/Scenes/Designed/L04_FoldedWells.unity
+PASS only SurfaceArc 180 -> 170: Assets/MyObjAssets/Scenes/Designed/L03_ElectricTraverse.unity
+PASS only SurfaceArc 180 -> 170: Assets/MyObjAssets/Scenes/Designed/L02_SequentialGates.unity
+PASS only SurfaceArc 180 -> 170: Assets/MyObjAssets/gameObject/Pf/SceneObj/MechanismPlatform.prefab
+PASS only BoxCollider native material changed: Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab
+PASS only BoxCollider native material changed: Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab
+SHA256 MATCH Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs
+SHA256 MATCH Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs
+SHA256 MATCH Assets/Script/Framworker/Editor/Tool/PhyDataTest/BoxInteractionChecks.cs
+SHA256 MATCH Assets/Script/Framworker/Editor/Tool/PhyDataTest/EnvironmentIntegrationChecks.cs
+SHA256 MATCH Assets/MyObjAssets\Scenes\Designed\L00_Orientation.unity
+SHA256 MATCH Assets/MyObjAssets\Scenes\Designed\L01_PropertyLabyrinth.unity
+SHA256 MATCH Assets/MyObjAssets\Scenes\Designed\L04_FoldedWells.unity
+SHA256 MATCH Assets/MyObjAssets\Scenes\Designed\L03_ElectricTraverse.unity
+SHA256 MATCH Assets/MyObjAssets\Scenes\Designed\L02_SequentialGates.unity
+SHA256 MATCH Assets/MyObjAssets\gameObject\Pf\SceneObj\MechanismPlatform.prefab
+SHA256 MATCH Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab
+SHA256 MATCH Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab

@@ -1,0 +1,11 @@
+Addressables mode preserved: Use Existing Build (2)
+Old packed content backup: .utmp/V25V27/OriginalPackedContent
+New content built and original route tested in isolated project; no runtime algorithm edits in this follow-up.
+Verification:
+PASS catalog.json
+PASS settings.json
+PASS AddressablesLink\link.xml
+PASS StandaloneWindows64\ca05f79477407ee1a8b574ddd70c1728_unitybuiltinshaders_bee9878ed98aecb17ec2fc32ea08dd8a.bundle
+PASS StandaloneWindows64\gameobject_assets_all_cf09d1512377e688540fb5cdce68484a.bundle
+PASS StandaloneWindows64\music_assets_all_33a865f07a6fa4db563845599ba4a280.bundle
+PASS StandaloneWindows64\ui_assets_all_0e23383a4154290de554e33bfaf782dc.bundle

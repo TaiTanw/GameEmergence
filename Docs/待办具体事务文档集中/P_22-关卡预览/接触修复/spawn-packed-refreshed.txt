@@ -1,0 +1,134 @@
+PASS Actual L00 teaching scene entered at authored spawn
+SPAWN pos=(4.0000, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(0.00, 0.00) selected= friction=0
+ENTITY player20(Clone) bounds=Center: (4.00, 0.75, 0.00), Extents: (0.28, 0.74, 0.00) material=New Physics Material 2D (UnityEngine.PhysicsMaterial2D)
+ENTITY 普通滑箱 bounds=Center: (31.00, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) material=
+ENTITY 右行小车 bounds=Center: (29.00, 0.23, 0.00), Extents: (0.65, 0.21, 0.00) material=
+ENTITY 普通滑箱 bounds=Center: (21.00, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) material=
+WALK t=0.00 pos=(4.0000, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(0.00, 0.00) selected= friction=0
+WALK t=0.15 pos=(4.6800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=0.30 pos=(5.8000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=0.45 pos=(6.7800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=0.60 pos=(7.9000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=0.75 pos=(8.8800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=0.90 pos=(10.0000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.05 pos=(10.9800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.20 pos=(12.1000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.35 pos=(13.0800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.50 pos=(14.2000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.65 pos=(15.1800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.80 pos=(16.3000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=1.95 pos=(17.2800, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=2.10 pos=(18.4000, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=null commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=2.36 pos=(20.2200, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=2.51 pos=(21.3400, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=2.66 pos=(22.3200, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=2.81 pos=(23.4400, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=2.96 pos=(24.4200, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=3.12 pos=(25.5400, 1.1892) vel=(7.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=3.27 pos=(26.4530, 1.1892) vel=(6.0889, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=3.42 pos=(27.5123, 1.1892) vel=(6.6019, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=3.57 pos=(28.4357, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=3.72 pos=(29.4915, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=3.87 pos=(30.4154, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=4.02 pos=(31.4714, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=4.17 pos=(32.3953, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=4.32 pos=(33.4513, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=4.47 pos=(34.3753, 1.1892) vel=(6.6000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(7.00, 0.00) selected= friction=0
+WALK t=4.62 pos=(34.8730, 1.1892) vel=(-0.0903, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+WALK t=4.77 pos=(34.8566, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+WALK t=4.92 pos=(34.8381, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+WALK t=5.07 pos=(34.8304, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+WALK t=5.22 pos=(34.8268, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+PASS Continuous right movement reaches first obstruction without repositioning or interaction
+BLOCKED pos=(34.8246, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+CONTACT a=出生地 b=player20(Clone) normal=(0.00, 1.00) separation=-0.005000014 impulses=0,0
+CONTACT a=出生地 b=player20(Clone) normal=(0.00, 1.00) separation=-0.005000014 impulses=0,0
+CONTACT a=普通滑箱 b=player20(Clone) normal=(-1.00, 0.00) separation=-0.006504059 impulses=6.000001,0
+CONTACT a=普通滑箱 b=player20(Clone) normal=(-1.00, 0.00) separation=-0.006504059 impulses=0,0
+NEARBY player20(Clone) bounds=Center: (34.82, 0.75, 0.00), Extents: (0.28, 0.74, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (39.14, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+NEARBY 右行小车 bounds=Center: (37.58, 0.23, 0.00), Extents: (0.65, 0.21, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (36.02, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+JUMP t=0.000 pos=(34.8246, 1.1892) vel=(0.0000, 0.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=0 submitted=(6.00, 0.00) selected= friction=0
+JUMP t=0.050 pos=(34.8235, 1.7892) vel=(0.0000, 15.0000) ground=True:出生地 normal=(0.00, 1.00) top=False right=普通滑箱 commandY=15 submitted=(6.00, 15.00) selected= friction=0
+JUMP t=0.101 pos=(34.8227, 2.3472) vel=(0.0000, 13.6000) ground=False:null normal=(0.00, 0.00) top=False right=普通滑箱 commandY=13.6 submitted=(6.00, 13.60) selected= friction=0
+JUMP t=0.151 pos=(34.9421, 3.0792) vel=(6.0000, 11.5000) ground=False:null normal=(0.00, 0.00) top=False right=普通滑箱 commandY=11.5 submitted=(6.00, 11.50) selected= friction=0
+JUMP t=0.201 pos=(35.2221, 3.4972) vel=(7.0000, 10.1000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=10.1 submitted=(7.00, 10.10) selected= friction=0
+JUMP t=0.251 pos=(35.6421, 4.0192) vel=(7.0000, 8.0000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=8.000001 submitted=(7.00, 8.00) selected= friction=0
+JUMP t=0.301 pos=(35.9221, 4.2972) vel=(7.0000, 6.6000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=6.600001 submitted=(7.00, 6.60) selected= friction=0
+JUMP t=0.352 pos=(36.3421, 4.6092) vel=(7.0000, 4.5000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=4.500001 submitted=(7.00, 4.50) selected= friction=0
+NEARBY player20(Clone) bounds=Center: (36.62, 4.31, 0.00), Extents: (0.28, 0.74, 0.00) vel=(7.00, 3.10)
+NEARBY 普通滑箱 bounds=Center: (39.12, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+NEARBY 右行小车 bounds=Center: (37.55, 0.23, 0.00), Extents: (0.65, 0.21, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (35.99, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+JUMP t=0.418 pos=(36.7621, 4.7952) vel=(7.0000, 2.4000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=2.400001 submitted=(7.00, 2.40) selected= friction=0
+NEARBY player20(Clone) bounds=Center: (36.76, 4.36, 0.00), Extents: (0.28, 0.74, 0.00) vel=(7.00, 2.40)
+NEARBY 普通滑箱 bounds=Center: (39.12, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+NEARBY 右行小车 bounds=Center: (37.55, 0.23, 0.00), Extents: (0.65, 0.21, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (35.99, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+NEARBY player20(Clone) bounds=Center: (36.90, 4.39, 0.00), Extents: (0.28, 0.74, 0.00) vel=(7.00, 1.70)
+NEARBY 普通滑箱 bounds=Center: (39.12, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+NEARBY 右行小车 bounds=Center: (37.55, 0.23, 0.00), Extents: (0.65, 0.21, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (35.99, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+JUMP t=0.469 pos=(37.0421, 4.8492) vel=(7.0000, 1.0000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=1.000002 submitted=(7.00, 1.00) selected= friction=0
+JUMP t=0.519 pos=(37.4621, 4.8252) vel=(7.0000, -1.1000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-1.099998 submitted=(7.00, -1.10) selected= friction=0
+JUMP t=0.569 pos=(37.7421, 4.7392) vel=(7.0000, -2.5000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-2.499999 submitted=(7.00, -2.50) selected= friction=0
+JUMP t=0.619 pos=(38.1621, 4.5052) vel=(7.0000, -4.6000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-4.599998 submitted=(7.00, -4.60) selected= friction=0
+JUMP t=0.669 pos=(38.4421, 4.2792) vel=(7.0000, -6.0000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-5.999998 submitted=(7.00, -6.00) selected= friction=0
+JUMP t=0.719 pos=(38.8621, 3.8352) vel=(7.0000, -8.1000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-8.099998 submitted=(7.00, -8.10) selected= friction=0
+JUMP t=0.769 pos=(39.2820, 3.2652) vel=(7.0000, -10.2000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-10.2 submitted=(7.00, -10.20) selected= friction=0
+JUMP t=0.820 pos=(39.5620, 2.8152) vel=(7.0000, -11.6000) ground=False:null normal=(0.00, 0.00) top=False right=null commandY=-11.6 submitted=(7.00, -11.60) selected= friction=0
+JUMP t=0.870 pos=(39.7574, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+JUMP t=0.920 pos=(39.7574, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=0.971 pos=(39.7573, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.021 pos=(39.7573, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.071 pos=(39.7573, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.122 pos=(39.7573, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.172 pos=(39.7573, 2.7041) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.222 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.272 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.322 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.373 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.423 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.473 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.523 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.574 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.624 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.674 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.724 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.774 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.824 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.875 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.925 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=1.975 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.025 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.075 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.126 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.176 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.226 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.276 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.326 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.377 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.427 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP t=2.477 pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+JUMP RESULT rise=3.666 fell=True
+CONTACT a=普通滑箱 b=player20(Clone) normal=(0.00, 1.00) separation=-0.005001068 impulses=0,0
+CONTACT a=普通滑箱 b=player20(Clone) normal=(0.00, 1.00) separation=-0.005001068 impulses=0,0
+CONTACT a=教学止挡 b=player20(Clone) normal=(-1.00, 0.00) separation=-0.005004883 impulses=0.4495346,0
+CONTACT a=教学止挡 b=player20(Clone) normal=(-1.00, 0.00) separation=-0.005004883 impulses=0,0
+NEARBY player20(Clone) bounds=Center: (39.76, 2.27, 0.00), Extents: (0.28, 0.74, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (39.12, 0.76, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+NEARBY 右行小车 bounds=Center: (37.55, 0.23, 0.00), Extents: (0.65, 0.21, 0.00) vel=(0.00, 0.00)
+NEARBY 普通滑箱 bounds=Center: (35.99, 0.77, 0.00), Extents: (0.90, 0.75, 0.00) vel=(0.00, 0.00)
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.45, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+RELEASE pos=(39.7573, 2.7042) vel=(0.0000, 0.0000) ground=True:普通滑箱 normal=(0.00, 1.00) top=False right=教学止挡 commandY=0 submitted=(0.00, 0.00) selected= friction=0
+PASS Original spawn route blocked jump rises and falls while right stays held; rise=3.666
+RESULT PASS

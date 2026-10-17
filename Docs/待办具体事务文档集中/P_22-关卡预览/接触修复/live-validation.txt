@@ -1,0 +1,11 @@
+PASS Actual L00 teaching scene entered
+PASS L00 one-way surface arc is authored as 170 degrees
+PASS Player walks across actual L00 platform side without climbing or blocking
+PASS Actual L00 first box selected through interaction input
+PASS L00 two-box chain is blocked against actual teaching stop
+PASS Real controlled actor has zero native friction
+PASS L00 blocked push+jump rises and falls without releasing direction; rise=3.666
+PASS L00 actual actor stands across a two-platform seam
+PASS Down input releases both seam platforms in live stage
+PASS Live regression returns to menu cleanly
+RESULT PASS

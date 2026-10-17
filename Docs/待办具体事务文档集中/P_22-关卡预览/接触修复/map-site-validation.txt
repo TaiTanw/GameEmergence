@@ -1,0 +1,12 @@
+SCENE L01_PropertyLabyrinth
+Actual touching one-way seam 固定安置托台_C0_R00 / 普通绕行横口 at x=10, top=4.2: 9 down-input offsets, failures=0
+Actual touching one-way seam 普通绕行横口 / 固定安置托台_C1_R00 at x=22, top=4.2: 9 down-input offsets, failures=0
+SCENE L02_SequentialGates
+Actual touching one-way seam 门前通路 / 固定安置托台_C1_R00 at x=22, top=4.2: 9 down-input offsets, failures=0
+Actual touching one-way seam 门前通路 / 固定安置托台_C0_R00 at x=10, top=4.2: 9 down-input offsets, failures=0
+0.15 horizontal slot: wall intersection at intended body position=True; actor width=0.5553436. Not a full-width passage.
+SCENE L03_ElectricTraverse
+1.4 vertical clearance: full standing actor intersects fixed ceiling=True; actor height=1.470341. Requires layout review if intended as standing space.
+SCENE L04_FoldedWells
+Actual 0.65 slot: initialGrounded=False, drop=2.939999
+RESULT PASS for sampled sites; does not prove all probabilistic V26 cases resolved.

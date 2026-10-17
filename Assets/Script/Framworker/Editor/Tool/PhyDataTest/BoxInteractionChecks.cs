@@ -43,6 +43,8 @@ public static class BoxInteractionChecks
             CheckEnvironmentalMotion();
             CheckDescendingPlatform();
             CheckNativeChain();
+            CheckOneWayPlatformContacts();
+            CheckBlockedChainJump();
             CheckUnderBoxJump();
             CheckSelectedPushAndPull();
             CheckSelectedWallStops();
@@ -148,12 +150,14 @@ public static class BoxInteractionChecks
         TestWorld flow = World(80f);
         flow.ground.enabled = false;
         flow.player.SetMotionParticipation(false);
-        WaterWithEffects water = Instantiate("WaterPoolWithEffects.prefab").GetComponent<WaterWithEffects>();
+        WaterWithEffects water = Instantiate("水体.prefab").GetComponent<WaterWithEffects>();
         water.transform.position = flow.box.BodyBounds.center;
         water.transform.localScale = Vector3.one;
         water.GetComponent<BoxCollider2D>().size = new Vector2(30f, 30f);
         typeof(WaterWithEffects).GetField("flowVelocity", Hidden).SetValue(water, new Vector2(2f, 3f));
         typeof(WaterWithEffects).GetField("movementSpeedOffset", Hidden).SetValue(water, 0f);
+        // 当前水预设的表现会提前读取参数；夹具改完制作值后重建一次缓存。
+        typeof(BasicPhysicalObject).GetField("parametersInitialized", Hidden).SetValue(water, false);
         flow.box.gravity = 0f;
         Vector2 start = flow.box.DebugActualPosition;
         for (int i = 0; i < 50; i++) Step(flow);
@@ -258,6 +262,93 @@ public static class BoxInteractionChecks
             Check(w.box.DebugActualPosition == paused, count + " 箱链暂停箱体保持现场坐标");
             w.box.SetMotionParticipation(true);
             Check(w.box.GetComponent<Rigidbody2D>().simulated, count + " 箱链恢复箱体重新参加原生模拟");
+        }
+    }
+
+    private static Collider2D OneWaySurface(TestWorld w, Vector2 center, Vector2 size)
+    {
+        var source = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/MechanismPlatform.prefab")
+            .GetComponent<PlatformEffector2D>();
+        Collider2D surface = Solid(center, size, w.ground.gameObject.layer);
+        var effector = surface.gameObject.AddComponent<PlatformEffector2D>();
+        effector.useOneWay = source.useOneWay; effector.surfaceArc = source.surfaceArc;
+        effector.useSideFriction = source.useSideFriction; effector.useSideBounce = source.useSideBounce;
+        surface.usedByEffector = true;
+        Physics2D.SyncTransforms();
+        return surface;
+    }
+
+    /// <summary>复用正式平台配置：侧穿、真实接缝支撑与按下，以及不受效应器控制的实心体。</summary>
+    private static void CheckOneWayPlatformContacts()
+    {
+        foreach (float direction in new[] { -1f, 1f })
+        {
+            TestWorld side = World(80f); side.box.SetMotionParticipation(false);
+            float x = side.ground.bounds.center.x;
+            Collider2D platform = OneWaySurface(side, new Vector2(x, side.groundTop + .65f), new Vector2(2f, .5f));
+            PlaceOn(side.player, x - direction * 2f, side.groundTop); side.action.onMove = direction;
+            bool noSideWall = true;
+            for (int tick = 0; tick < 55; tick++)
+            {
+                Step(side);
+                noSideWall &= side.player.DebugLeftWallCollider != platform && side.player.DebugRightWallCollider != platform;
+            }
+            Check(direction * (side.player.BodyBounds.center.x - x) > 1.4f, "单向平台向 " + direction + " 侧实际穿过");
+            Check(noSideWall, "单向平台向 " + direction + " 侧不提供左右墙事实");
+        }
+
+        TestWorld seam = World(80f); seam.box.SetMotionParticipation(false);
+        float seamX = seam.ground.bounds.center.x, top = seam.groundTop + 2f;
+        seam.ground.enabled = false;
+        Collider2D left = OneWaySurface(seam, new Vector2(seamX - 1.015f, top - .15f), new Vector2(2f, .3f));
+        Collider2D right = OneWaySurface(seam, new Vector2(seamX + 1.015f, top - .15f), new Vector2(2f, .3f));
+        PlaceOn(seam.player, seamX, top);
+        for (int tick = 0; tick < 30; tick++) Step(seam);
+        Check(seam.player.DebugIsGrounded && Mathf.Abs(seam.player.BodyBounds.min.y - top) < .04f, "两片单向平台接缝保留真实支撑");
+        seam.action.verticalInput = -1f; bool ignoredTogether = false;
+        for (int tick = 0; tick < 45; tick++)
+        {
+            Step(seam);
+            Collider2D body = seam.player.GetComponent<Collider2D>();
+            ignoredTogether |= Physics2D.GetIgnoreCollision(body, left) && Physics2D.GetIgnoreCollision(body, right);
+        }
+        Check(ignoredTogether && seam.player.BodyBounds.max.y < left.bounds.min.y && !seam.player.DebugIsGrounded,
+            "接缝按下同时放开两片平台并完全落下");
+
+        TestWorld solid = World(80f); solid.box.SetMotionParticipation(false);
+        float solidX = solid.ground.bounds.center.x;
+        Collider2D wall = OneWaySurface(solid, new Vector2(solidX, solid.groundTop + 3f), new Vector2(.3f, 6f));
+        wall.usedByEffector = false; PlaceOn(solid.player, solidX - 2f, solid.groundTop); solid.action.onMove = 1f;
+        for (int tick = 0; tick < 50; tick++) Step(solid);
+        Check(solid.player.BodyBounds.max.x <= wall.bounds.min.x + .03f && solid.player.BodyBounds.center.x > solidX - 1f,
+            "挂有效应器但未勾usedByEffector的碰撞体仍是实心墙");
+    }
+
+    /// <summary>持续顶住抵墙箱链时，经真实玩家输入起跳，离开侧面后正常下降并站稳。</summary>
+    private static void CheckBlockedChainJump()
+    {
+        for (int count = 1; count <= 3; count++) foreach (bool selected in new[] { false, true })
+        {
+            TestWorld w = World(80f, true); var input = new PlayerInputData(); w.owner.ChangeInputAsset(input);
+            LevelBoxContext.Register(w.box);
+            for (int tick = 0; tick < 5; tick++) { w.owner.TickLogic(Time.fixedDeltaTime); Step(w); }
+            if (selected) Tap(w.owner, input);
+            PhysicalBox last = w.box;
+            for (int i = 1; i < count; i++)
+                last = ExtraBox(w, new Vector2(last.BodyBounds.max.x + w.box.BodyBounds.extents.x + .005f, w.box.BodyBounds.center.y));
+            Solid(new Vector2(last.BodyBounds.max.x + .1f, w.groundTop + 3f), new Vector2(.2f, 6f), w.wallLayer);
+            input.moveInput = 1f;
+            for (int tick = 0; tick < 40; tick++) { w.owner.TickLogic(Time.fixedDeltaTime); Step(w); }
+            float startY = w.player.DebugActualPosition.y, peak = startY; bool descended = false;
+            input.jumpPressed = true;
+            for (int tick = 0; tick < 90; tick++)
+            {
+                w.owner.TickLogic(Time.fixedDeltaTime); Step(w); peak = Mathf.Max(peak, w.player.DebugActualPosition.y);
+                descended |= w.player.GetPlanarVelocity().y < -.2f;
+            }
+            string label = count + " 箱抵墙" + (selected ? "选中" : "接触") + "推动起跳";
+            Check(peak - startY > 1.5f, label + "峰高正常 [rise=" + (peak - startY) + "]");
+            Check(descended && w.player.DebugIsGrounded && Mathf.Abs(w.player.GetPlanarVelocity().y) < .1f, label + "持续朝箱移动也正常下落站稳");
         }
     }
 
@@ -901,6 +992,7 @@ public static class BoxInteractionChecks
     private static GameObject Instantiate(string prefab)
     {
         string folder = prefab == "player20.prefab" || prefab == "SpiritPlayer.prefab" ? "Player/" : "SceneObj/";
+        if (prefab == "F1.prefab" || prefab == "ICE.prefab") folder = "SceneObj/other/";
         GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/" + folder + prefab);
         if (asset == null) asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/default/" + prefab);
         if (asset == null) throw new InvalidOperationException("Missing fixture prefab: " + prefab);
