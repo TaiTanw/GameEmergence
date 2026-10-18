@@ -52,6 +52,8 @@ public class MainCamera : MonoBehaviour
     /// <summary>加载面板提供表现权重；主镜头只消费，不决定加载或角色生命周期。</summary>
     internal void SetTransitionPixelation(float weight, float pixels)
     {
+        // 同一过场权重让受光平滑退回原色，旧灯卸载时前景实体不会骤变。
+        Shader.SetGlobalFloat("_SceneLightingTransition", Mathf.Clamp01(weight));
         TransitionPixelation effect = GetComponent<TransitionPixelation>();
         // 未使用过像素化的菜单进场不创建额外组件。
         if (effect == null && weight > 0f) effect = gameObject.AddComponent<TransitionPixelation>();

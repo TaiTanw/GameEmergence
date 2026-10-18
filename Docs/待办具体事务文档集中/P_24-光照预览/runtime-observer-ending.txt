@@ -1,0 +1,5 @@
+PASS L04_FoldedWells: packed actor, scene-light ownership and transition cleanup
+PASS E01_StillRaining: packed actor, scene-light ownership and transition cleanup
+PASS BeginScenes: packed actor, scene-light ownership and transition cleanup
+PASS E02_OtherSide: packed actor, scene-light ownership and transition cleanup
+PASS E03_Unfolded: packed actor, scene-light ownership and transition cleanup

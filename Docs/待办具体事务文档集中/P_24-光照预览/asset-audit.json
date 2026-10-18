@@ -1,0 +1,20 @@
+{
+  "original_records": 7971,
+  "files": [
+    "Assets\\MyObjAssets\\gameObject\\Pf\\Player\\player20.prefab: 17 originals retained; 0 new serialized records",
+    "Assets\\MyObjAssets\\gameObject\\Pf\\Player\\SpiritPlayer.prefab: 17 originals retained; 0 new serialized records",
+    "Assets\\MyObjAssets\\gameObject\\Pf\\Player\\Performance\\EndingActor.prefab: 9 originals retained; 0 new serialized records",
+    "Assets\\MyObjAssets\\gameObject\\Pf\\Player\\Performance\\EndingSpiritActor.prefab: 9 originals retained; 0 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\Designed\\L01_PropertyLabyrinth.unity: 1822 originals retained; 31 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\Designed\\L02_SequentialGates.unity: 2335 originals retained; 35 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\Designed\\L03_ElectricTraverse.unity: 2238 originals retained; 39 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\Designed\\L04_FoldedWells.unity: 1367 originals retained; 21 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\EndScenes\\E01_StillRaining.unity: 51 originals retained; 7 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\EndScenes\\E02_OtherSide.unity: 53 originals retained; 7 new serialized records",
+    "Assets\\MyObjAssets\\Scenes\\EndScenes\\E03_Unfolded.unity: 53 originals retained; 7 new serialized records"
+  ],
+  "unexpected_changes": [],
+  "duplicate_guids": [],
+  "missing_meta": [],
+  "missing_references": []
+}

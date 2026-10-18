@@ -1,0 +1,4 @@
+P6 run: original observer output retained before the ending run reused its temporary filename.
+PASS L00_Orientation: packed actor, scene-light ownership and transition cleanup
+PASS BeginScenes: packed actor, scene-light ownership and transition cleanup
+PASS L01_PropertyLabyrinth: packed actor, scene-light ownership and transition cleanup

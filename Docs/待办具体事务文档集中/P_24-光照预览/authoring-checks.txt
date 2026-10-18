@@ -1,0 +1,12 @@
+PASS 6181 preservation and authoring checks
+Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab: 1 sprite materials connected; original animator, physics, colors and fields preserved.
+Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab: 1 sprite materials connected; original animator, physics, colors and fields preserved.
+Assets/MyObjAssets/gameObject/Pf/Player/Performance/EndingActor.prefab: 1 sprite materials connected; original animator, physics, colors and fields preserved.
+Assets/MyObjAssets/gameObject/Pf/Player/Performance/EndingSpiritActor.prefab: 1 sprite materials connected; original animator, physics, colors and fields preserved.
+L01_PropertyLabyrinth: 514 lit sprites; 14 placed light prefabs; 1421 original components preserved except sprite material references.
+L02_SequentialGates: 635 lit sprites; 16 placed light prefabs; 1770 original components preserved except sprite material references.
+L03_ElectricTraverse: 635 lit sprites; 18 placed light prefabs; 1752 original components preserved except sprite material references.
+L04_FoldedWells: 382 lit sprites; 9 placed light prefabs; 1047 original components preserved except sprite material references.
+E01_StillRaining: 0 lit sprites; 2 placed light prefabs; 37 original components preserved except sprite material references.
+E02_OtherSide: 0 lit sprites; 2 placed light prefabs; 44 original components preserved except sprite material references.
+E03_Unfolded: 0 lit sprites; 2 placed light prefabs; 44 original components preserved except sprite material references.

@@ -1,0 +1,52 @@
+PASS E01_StillRaining: isolated test save reset
+PASS E01_StillRaining: actual exploration -> escape accepted
+PASS E01_StillRaining: actual last-level object accepted
+PASS E01_StillRaining: correct vector-selected scene
+PASS E01_StillRaining: final contribution committed once
+PASS E01_StillRaining: ordinary rules absent
+PASS E01_StillRaining: single world camera after scene handoff
+PASS E01_StillRaining: quiet intro, hidden lines, weather started after reveal
+PASS E01_StillRaining: left boundary is solid and safe
+PASS E01_StillRaining: dedicated actor jump works
+PASS E01_StillRaining: first nearby line and actual weather particles visible
+PASS E01_StillRaining: pause accepted
+PASS E01_StillRaining: pause freezes actor, phrase and weather
+PASS E01_StillRaining: resume restores weather and scene clock
+PASS E01_StillRaining: final scripted stop reached
+PASS E01_StillRaining: both phrases, final hold, fade and return to menu complete
+PASS E01_StillRaining: menu resumes same ending from start without duplicate accumulation
+PASS E02_OtherSide: isolated test save reset
+PASS E02_OtherSide: actual exploration -> escape accepted
+PASS E02_OtherSide: actual last-level object accepted
+PASS E02_OtherSide: correct vector-selected scene
+PASS E02_OtherSide: final contribution committed once
+PASS E02_OtherSide: ordinary rules absent
+PASS E02_OtherSide: single world camera after scene handoff
+PASS E02_OtherSide: quiet intro, hidden lines, weather started after reveal
+PASS E02_OtherSide: left boundary is solid and safe
+PASS E02_OtherSide: dedicated actor jump works
+PASS E02_OtherSide: first nearby line and actual weather particles visible
+PASS E02_OtherSide: pause accepted
+PASS E02_OtherSide: pause freezes actor, phrase and weather
+PASS E02_OtherSide: resume restores weather and scene clock
+PASS E02_OtherSide: final scripted stop reached
+PASS E02_OtherSide: both phrases, final hold, fade and return to menu complete
+PASS E02_OtherSide: menu resumes same ending from start without duplicate accumulation
+PASS E03_Unfolded: isolated test save reset
+PASS E03_Unfolded: actual exploration -> escape accepted
+PASS E03_Unfolded: actual last-level object accepted
+PASS E03_Unfolded: correct vector-selected scene
+PASS E03_Unfolded: final contribution committed once
+PASS E03_Unfolded: ordinary rules absent
+PASS E03_Unfolded: single world camera after scene handoff
+PASS E03_Unfolded: quiet intro, hidden lines, weather started after reveal
+PASS E03_Unfolded: left boundary is solid and safe
+PASS E03_Unfolded: dedicated actor jump works
+PASS E03_Unfolded: first nearby line and actual weather particles visible
+PASS E03_Unfolded: pause accepted
+PASS E03_Unfolded: pause freezes actor, phrase and weather
+PASS E03_Unfolded: resume restores weather and scene clock
+PASS E03_Unfolded: final scripted stop reached
+PASS E03_Unfolded: both phrases, final hold, fade and return to menu complete
+PASS E03_Unfolded: menu resumes same ending from start without duplicate accumulation
+RESULT: PASS
