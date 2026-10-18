@@ -9,6 +9,8 @@ public sealed class MechanismPressurePlate : MonoBehaviour
     public enum PressureKind { Ordinary, ElectrifiedBoxOnly }
     [SerializeField, Tooltip("普通：玩家、箱子、小车；带电：只认 PhysicalBox 的带电配置。")]
     PressureKind kind;
+    [SerializeField, Tooltip("仅箱体触发：开启后只接受 PhysicalBox，玩家和小车不能压住此机关；带电类型仍只接受带电箱。")]
+    bool boxesOnly;
     [SerializeField, Tooltip("明确拖入实现 IMechanismTarget 的组件；同关一个目标只允许一个压感控制。")]
     MonoBehaviour target;
     [SerializeField, Tooltip("脚底须落在薄触发区的上下边界内；此高度容差必须非负。身体侧擦／底部穿过不触发。")]
@@ -23,6 +25,7 @@ public sealed class MechanismPressurePlate : MonoBehaviour
     public int OccupantCount => occupants.Count;
     public MonoBehaviour TargetComponent => target;
     public PressureKind Kind => kind;
+    public bool BoxesOnly => boxesOnly;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetRegistry() => worldPaused = false;
@@ -112,7 +115,10 @@ public sealed class MechanismPressurePlate : MonoBehaviour
 
     bool Accepts(BasicEntity entity)
     {
+        // 带电类型仍只接受带电箱，箱体限制不放宽原规则。
         if (kind == PressureKind.ElectrifiedBoxOnly) return entity is PhysicalBox box && box.IsElectrified;
+        // 仅箱体模式排除玩家和小车，让箱子的位置决定压感时机。
+        if (boxesOnly) return entity is PhysicalBox;
         Player player = entity.GetComponent<Player>();
         if (player != null) return player.ResolveFourWayAbility() != FourWayMode.Flying && player.Permissions.motionUpdates;
         return entity is PhysicalBox || entity is MechanismCart;

@@ -1,0 +1,7 @@
+PASS 18595 checks, failures=0
+L00_Orientation: 0 cells; 6 signs
+L01_PropertyLabyrinth: 37 cells; 6 signs
+L02_SequentialGates: 45 cells; 3 signs
+L03_ElectricTraverse: 42 cells; 8 signs
+L04_FoldedWells: 33 cells; 4 signs
+L05_DepartureWorks: 2 cells; 3 signs

@@ -1,0 +1,3 @@
+PASS
+OutputPath=Library/com.unity.addressables/aa/Windows/settings.json
+Target=StandaloneWindows64

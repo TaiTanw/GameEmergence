@@ -30,6 +30,7 @@ public sealed class MechanismPressurePlateEditor : Editor
         using (new EditorGUI.DisabledScope(Application.isPlaying))
         {
             EditorGUILayout.PropertyField(serializedObject.FindProperty("kind"), new GUIContent("压感类型"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("boxesOnly"), new GUIContent("仅箱体触发"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("target"), new GUIContent("控制目标组件"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("topTolerance"), new GUIContent("脚底高度容差"));
         }
@@ -37,7 +38,7 @@ public sealed class MechanismPressurePlateEditor : Editor
         MechanismPressurePlate plate = (MechanismPressurePlate)target;
         if (!plate.ValidateConfiguration(out string error)) EditorGUILayout.HelpBox(error, MessageType.Error);
         EditorGUILayout.LabelField("有效压住对象", plate.OccupantCount.ToString());
-        EditorGUILayout.HelpBox("薄触发区须贴近实心地面，让脚底进入；压力板不提供承载或阻挡。普通压感认玩家、箱子、小车；带电压感只认带电箱，本身不是电击来源。每个目标只允许一个机关。", MessageType.Info);
+        EditorGUILayout.HelpBox("薄触发区须贴近实心地面，让脚底进入；压力板不提供承载或阻挡。普通压感默认认玩家、箱子、小车；开启“仅箱体触发”后只认箱子，玩家和小车不会压住它。带电压感始终只认带电箱，本身不是电击来源。每个目标只允许一个机关。", MessageType.Info);
     }
 }
 

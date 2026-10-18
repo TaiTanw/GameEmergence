@@ -44,5 +44,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/MyObjAssets/Scenes/EndScenes/E03_Unfolded.unity
     guid: 4d23fdfbc380b1e45852b36fa37b1d22
+  - enabled: 1
+    path: Assets/MyObjAssets/Scenes/Designed/L05_DepartureWorks.unity
+    guid: 302810558bf36e84e91507439968ab98
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 6f260eee2256a634592d3ee81ff1af98, type: 2}
