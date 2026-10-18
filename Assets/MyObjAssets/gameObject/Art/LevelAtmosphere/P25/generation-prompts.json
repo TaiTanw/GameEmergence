@@ -1,0 +1,68 @@
+{
+  "generator": "Built-in image_gen; transparent_background=true",
+  "date": "2026-10-18",
+  "style": "暗色工业废墟；保留原关卡蓝灰、暮紫和少量暖金。正侧视、无透视、清晰轮廓、旧金属与石材细节。",
+  "layout": {
+    "columns": 4,
+    "rows": 2,
+    "read_order": "left-to-right, top-to-bottom",
+    "size": [
+      1774,
+      887
+    ],
+    "x_boundaries": [
+      0,
+      443,
+      887,
+      1330,
+      1774
+    ],
+    "y_boundaries_from_top": [
+      0,
+      443,
+      887
+    ],
+    "alpha_bbox_threshold": 8,
+    "slicing": "先按每格读取，再按 alpha>8 的紧包围盒加1像素透明边切片。不要把整格留白当物体尺寸。"
+  },
+  "constraints": "真正RGBA透明背景；每格四边至少8%透明间距；无文字、编号、边框、网格、地面、投影底色或背景雾。",
+  "assets": [
+    {
+      "file": "interactive-atlas-v1.png",
+      "sprites": [
+        "P25_Box",
+        "P25_ElectricBox",
+        "P25_Cart",
+        "P25_PressurePlate",
+        "P25_Gate",
+        "P25_Signboard",
+        "P25_Platform",
+        "P25_Lamp"
+      ],
+      "prompt": "Create an original 2D orthographic side-view 4x2 transparent sprite atlas for a quiet melancholic abandoned industrial ruin. Eight isolated props in exact order: square wood/steel cargo crate; square electrified metal crate with cyan lightning emblem; low two-wheeled industrial motor trolley; very thin cyan-accent pressure plate; tall narrow sliding iron gate panel; complete upright blank notice sign; long horizontal steel platform cross-section with flat unbroken top; compact caged maintenance lamp. Slate blue-gray, dusk-purple shadows and tiny muted warm-gold accents, subtle realistic worn texture and crisp readable silhouettes. Keep every complete object inside its own cell, generous transparent gutters. No text, grid, floor, backdrop or cast shadows. Transparent alpha=0 outside objects.",
+      "layout_repairs": "两次内置image_gen布局修订：固定格位、缩小车/平台与竖门，保留设计；未使用程序改图。",
+      "alpha_zero_fraction": 0.7917,
+      "minimum_visible_alpha_margin_pixels": 46,
+      "source": "exec-55bda371-474c-4f59-be6d-bdc6d8fd7840.png"
+    },
+    {
+      "file": "decoration-atlas-v1.png",
+      "sprites": [
+        "P25_Railing",
+        "P25_Pipes",
+        "P25_Cabinet",
+        "P25_Cables",
+        "P25_Vines",
+        "P25_StoneNiche",
+        "P25_Warning",
+        "P25_Debris"
+      ],
+      "prompt": "Create an original 2D orthographic side-view 4x2 transparent decoration atlas in the same quiet melancholic industrial ruin style. Eight isolated props in exact order: broken wrought-iron railing; bent pipe/valve assembly; abandoned electrical cabinet without lightning symbol; suspended sagging utility cables; sparse winding desaturated vine leaves; weathered arched stone wall niche without statue; complete blank muted-amber warning triangle on short support; low irregular hose/canister/scrap debris that does not resemble a platform. Slate blue-gray and dusk-purple with small warm-gold accents, realistic worn surface detail, clear silhouettes. Center each prop and fit inside central 70% of its equal cell. No text, border, floor, backdrop or cast shadow; true transparent alpha=0 gaps.",
+      "layout_repairs": "一次内置image_gen布局修订：各物件约缩至原75%，保留设计与4x2顺序；未使用程序改图。",
+      "alpha_zero_fraction": 0.8434,
+      "minimum_visible_alpha_margin_pixels": 68,
+      "source": "exec-216a852d-b030-4202-830a-abe67f7cc52f.png"
+    }
+  ],
+  "validation": "逐格检测alpha>8包围盒，16格均通过至少36像素边距；两张尺寸、RGBA及全透明角点已检查；最终PNG为生成原件逐字节复制，未裁图、缩放或改色。"
+}
