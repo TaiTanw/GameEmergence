@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -41,6 +41,7 @@ public static class BoxInteractionChecks
             CheckHighSpeedSurfaces();
             CheckTopContactClears();
             CheckEnvironmentalMotion();
+            CheckBoxTopLanding();
             CheckDescendingPlatform();
             CheckNativeChain();
             CheckOneWayPlatformContacts();
@@ -182,6 +183,81 @@ public static class BoxInteractionChecks
         }
         Check(remaining[0] < 3.5f && remaining[1] < 3.5f && Mathf.Abs(remaining[0] - remaining[1]) < .03f,
             "自由箱冰面左右实际惯性对称制动 [" + remaining[0] + ", " + remaining[1] + "]");
+    }
+
+    /// <summary>落箱须真实碰到顶面；同一步对照无落箱世界，水平制动只能来自原有地面参数。</summary>
+    private static void CheckBoxTopLanding()
+    {
+        foreach (string prefab in new[] { "box.prefab", "Ebox.prefab" })
+        {
+            GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/gameObject/Pf/SceneObj/" + prefab);
+            PhysicsMaterial2D material = asset.GetComponent<BoxCollider2D>().sharedMaterial;
+            Check(material != null && material.friction == 0f && material.bounciness == 0f,
+                prefab + " 原生摩擦与弹性均为零，制动归原有运动参数");
+        }
+        foreach (int surface in new[] { 0, 1, 2 })
+        foreach (float direction in new[] { -1f, 1f })
+        foreach (bool fallingBox in new[] { false, true })
+        {
+            var reference = new float[20];
+            // 原生模拟推进整个世界；先记录无落箱序列，再运行落箱序列，避免两个对照互相多走一步。
+            foreach (bool drop in new[] { false, true })
+            {
+                TestWorld w = World(160f);
+                if (surface != 0)
+                {
+                    BaseGround host = surface == 2 ? (BaseGround)w.ground.gameObject.AddComponent<IceGround>()
+                        : w.ground.gameObject.AddComponent<BaseGround>();
+                    typeof(BaseGround).GetField("slowingEffect", Hidden).SetValue(host, .05f);
+                    typeof(BasicPhysicalObject).GetField("parametersInitialized", Hidden).SetValue(host, false);
+                    if (host is IceGround ice)
+                    {
+                        ice.Odex = 2f;
+                        typeof(IceGround).GetField("phySpeed", Hidden).SetValue(ice, Vector2.zero);
+                    }
+                }
+                for (int tick = 0; tick < 5; tick++) Step(w);
+                BasicEntity actor = w.player;
+                if (!drop) w.player.SetMotionParticipation(false);
+                else
+                {
+                    if (fallingBox)
+                    {
+                        w.player.SetMotionParticipation(false);
+                        actor = ExtraBox(w, new Vector2(w.box.BodyBounds.center.x,
+                            w.box.BodyBounds.max.y + w.box.BodyBounds.extents.y + .5f));
+                    }
+                    Vector2 center = new Vector2(w.box.BodyBounds.center.x,
+                        w.box.BodyBounds.max.y + actor.BodyBounds.extents.y + .5f);
+                    actor.RefreshMotionState(actor.DebugActualPosition + center - (Vector2)actor.BodyBounds.center);
+                    actor.GetComponent<Rigidbody2D>().velocity = new Vector2(0f, -12f);
+                }
+                w.box.GetComponent<Rigidbody2D>().velocity = new Vector2(direction * 4f, 0f);
+                Rigidbody2D actorBody = actor.GetComponent<Rigidbody2D>();
+                var contacts = new ContactPoint2D[16];
+                bool touched = false;
+                float maxDifference = 0f;
+                for (int tick = 0; tick < reference.Length; tick++)
+                {
+                    Step(w);
+                    float vx = w.box.GetPlanarVelocity().x;
+                    if (!drop) reference[tick] = vx;
+                    else maxDifference = Mathf.Max(maxDifference, Mathf.Abs(reference[tick] - vx));
+                    int count = w.box.GetComponent<Rigidbody2D>().GetContacts(contacts);
+                    for (int i = 0; i < count; i++)
+                        touched |= Mathf.Abs(contacts[i].normal.y) > .7f
+                            && (contacts[i].collider.attachedRigidbody == actorBody || contacts[i].otherCollider.attachedRigidbody == actorBody);
+                }
+                if (!drop) continue;
+                string label = (surface == 0 ? "普通地面" : surface == 1 ? "低阻力地面" : "ICE")
+                    + (direction > 0f ? "向右" : "向左") + (fallingBox ? "箱子落箱" : "玩家落箱");
+                Check(touched, label + "发生真实箱顶接触，不能仅凭脚下探针通过");
+                Check(maxDifference < .03f, label + "逐步水平速度与无落箱对照一致 [maxDiff=" + maxDifference + "]");
+                float speed = Mathf.Abs(w.box.GetPlanarVelocity().x);
+                Check(surface == 0 ? speed < .02f : speed > 3f && speed < 4f,
+                    label + "保留原有普通制动／低阻力滑行 [speed=" + speed + "]");
+            }
+        }
     }
 
     /// <summary>实际移动平台每步下降超过旧探针间隙时，站立角色仍保持支撑并同步下降。</summary>

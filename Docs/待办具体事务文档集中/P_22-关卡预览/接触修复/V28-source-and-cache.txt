@@ -1,0 +1,31 @@
+V28 verification, 2026-10-17
+Runtime fix: only root BoxCollider2D shared material assignment in box.prefab and Ebox.prefab. Existing zero friction/zero bounce material reused. No physics algorithm or scene layout modifications.
+Main/isolation source match:
+PASS Assets/MyObjAssets/gameObject/Pf/SceneObj/box.prefab
+PASS Assets/MyObjAssets/gameObject/Pf/SceneObj/Ebox.prefab
+PASS Assets/MyObjAssets/gameObject/Pf/Player/player20.prefab
+PASS Assets/MyObjAssets/gameObject/Pf/Player/SpiritPlayer.prefab
+PASS Assets/MyObjAssets/gameObject/New Physics Material 2D.physicsMaterial2D
+PASS Assets/Script/Framworker/Editor/Tool/PhyDataTest/BoxInteractionChecks.cs
+PASS Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasicEntity.cs
+PASS Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/base/BasePhysicsEntity.cs
+PASS Assets/Script/Framworker/Function/Physics/Component/PlayerOBJ/CharacterPhysics.cs
+PASS Assets/Script/Framworker/Function/Physics/Component/SceneObjects/PhysicalBox.cs
+PASS Assets/Script/Framworker/Function/Physics/Base/EntitySidePush.cs
+New packed content was built and tested in the isolated editor with Use Existing Build. Both Unity native regression and packed PlayMode runs exited 0.
+Copied bundles before catalog/settings; prior cache preserved in .utmp/V28/OriginalPackedContent. Main Play Mode setting not changed.
+Cache verification:
+PASS catalog.json
+PASS settings.json
+PASS AddressablesLink\link.xml
+PASS StandaloneWindows64\ca05f79477407ee1a8b574ddd70c1728_unitybuiltinshaders_bee9878ed98aecb17ec2fc32ea08dd8a.bundle
+PASS StandaloneWindows64\gameobject_assets_all_e6a777d9e77dbed85b736c0094f37bf8.bundle
+PASS StandaloneWindows64\music_assets_all_33a865f07a6fa4db563845599ba4a280.bundle
+PASS StandaloneWindows64\ui_assets_all_0e23383a4154290de554e33bfaf782dc.bundle
+PASS All local bundle IDs referenced by main catalog exist.
+Scene inheritance audit:
+PASS Assets/MyObjAssets/Scenes/Designed\L04_FoldedWells.unity box=0 Ebox=0 no physics material override
+PASS Assets/MyObjAssets/Scenes/Designed\L03_ElectricTraverse.unity box=3 Ebox=0 no physics material override
+PASS Assets/MyObjAssets/Scenes/Designed\L02_SequentialGates.unity box=1 Ebox=1 no physics material override
+PASS Assets/MyObjAssets/Scenes/Designed\L01_PropertyLabyrinth.unity box=0 Ebox=0 no physics material override
+PASS Assets/MyObjAssets/Scenes/Designed\L00_Orientation.unity box=2 Ebox=0 no physics material override

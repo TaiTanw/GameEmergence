@@ -1,0 +1,373 @@
+V28 diagnostic: 2026-10-17
+Scope: Current BasicEntity / EntitySidePush / PhysicalBox / CharacterPhysics / BoxInteractionChecks source SHA256 matched between main and isolated project. Player prefab has the same physics configuration; current main change only changes its SpriteRenderer lighting material. Tests use direct prefab assets, not packed Addressables.
+Intent: Box-top standing is excluded from side push. Ground coasting drag is explicit. No on-player-landing horizontal brake branch exists.
+Method: 9 paired native-physics cases: normal / ground drag multiplier 0.05 / IceGround multiplier 0.05, each with no player landing, a player falling from 0.5 above the box at vy=-12, or the same landing with zero native box friction. Initial box vx=4. Real box/player contact is required for each landing case. Per tick: before -> phase 3 -> phase 4 -> native simulation. No runtime source, scene or prefab was saved.
+Finding: Landing impulse is transmitted to box/floor normal contact, producing native floor friction. Example low-drag landing: command=3.96, pushed=3.96, native result=0; floor normalImpulse=13.34766, tangentImpulse=-3.96; player/box tangentImpulse=0. Only setting cloned box collider material to the existing zero-friction material removes this extra loss. Native-friction zero is a diagnostic counterfactual, not a submitted fix.
+Boundary: Synthetic paired contact reproduction, not a continuous user-level route or full selected-box/cart-chain acceptance. Normal gradual coasting deceleration remains intentional. Actual symptom has been isolated; remediation and wider regression are not performed in this read-only investigation. Unity diagnostic completed and exited 0.
+Read-only runtime diagnosis. Real prefabs; current six-phase solver; synthetic landing isolates contact from intentional coasting drag. No scene/assets saved.
+CASE normal drop=False zeroBox=False playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=
+tick=0 before=4.00000 command=3.60000 pushed=3.60000 actual=3.60000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.60000 command=3.20000 pushed=3.20000 actual=3.20000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=2 before=3.20000 command=2.80000 pushed=2.80000 actual=2.80000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=3 before=2.80000 command=2.40000 pushed=2.40000 actual=2.40000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=4 before=2.40000 command=2.00000 pushed=2.00000 actual=2.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=5 before=2.00000 command=1.60000 pushed=1.60000 actual=1.60000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=6 before=1.60000 command=1.20000 pushed=1.20000 actual=1.20000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=7 before=1.20000 command=0.80000 pushed=0.80000 actual=0.80000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=8 before=0.80000 command=0.40000 pushed=0.40000 actual=0.40000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=9 before=0.40000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=10 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=11 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=12 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=13 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=14 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=15 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=16 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=17 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=18 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=19 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+SUMMARY normal drop=False zeroBox=False largestNativeLoss=0 endBoxVx=0 landed=False
+CASE normal drop=True zeroBox=False playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=
+tick=0 before=4.00000 command=3.60000 pushed=3.60000 actual=3.60000 boxGround=box check solid pVel=(0.00, -12.70) pBottom=101.80100 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.60000 command=3.20000 pushed=3.20000 actual=0.00000 boxGround=box check solid pVel=(0.00, -0.05) pBottom=101.56900 boxTop=101.55490
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=13.34766/-3.20000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=13.34766/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=2 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56910 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=3 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56930 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=4 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56940 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=5 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=6 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+tick=7 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=8 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=9 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=10 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=11 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=12 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=13 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=14 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=15 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=16 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=17 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=18 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=19 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+SUMMARY normal drop=True zeroBox=False largestNativeLoss=3.2 endBoxVx=0 landed=True
+CASE normal drop=True zeroBox=True playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D)
+tick=0 before=4.00000 command=3.60000 pushed=3.60000 actual=3.60000 boxGround=box check solid pVel=(0.00, -12.70) pBottom=101.80100 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.60000 command=3.20000 pushed=3.20000 actual=3.20000 boxGround=box check solid pVel=(0.00, -0.05) pBottom=101.56900 boxTop=101.55490
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=13.34766/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=13.34766/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=2 before=3.20000 command=2.80000 pushed=2.80000 actual=2.80000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56910 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=3 before=2.80000 command=2.40000 pushed=2.40000 actual=2.40000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56930 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=4 before=2.40000 command=2.00000 pushed=2.00000 actual=2.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56940 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=5 before=2.00000 command=1.60000 pushed=1.60000 actual=1.60000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=6 before=1.60000 command=1.20000 pushed=1.20000 actual=1.20000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+tick=7 before=1.20000 command=0.80000 pushed=0.80000 actual=0.80000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=8 before=0.80000 command=0.40000 pushed=0.40000 actual=0.40000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=9 before=0.40000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=10 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=11 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=12 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=13 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=14 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=15 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=16 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=17 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=18 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=19 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+SUMMARY normal drop=True zeroBox=True largestNativeLoss=0 endBoxVx=0 landed=True
+CASE low-drag drop=False zeroBox=False playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=
+tick=0 before=4.00000 command=3.98000 pushed=3.98000 actual=3.98000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.98000 command=3.96000 pushed=3.96000 actual=3.96000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=2 before=3.96000 command=3.94000 pushed=3.94000 actual=3.94000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=3 before=3.94000 command=3.92000 pushed=3.92000 actual=3.92000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=4 before=3.92000 command=3.90000 pushed=3.90000 actual=3.90000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=5 before=3.90000 command=3.88000 pushed=3.88000 actual=3.88000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=6 before=3.88000 command=3.86000 pushed=3.86000 actual=3.86000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=7 before=3.86000 command=3.84000 pushed=3.84000 actual=3.84000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=8 before=3.84000 command=3.82000 pushed=3.82000 actual=3.82000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=9 before=3.82000 command=3.80000 pushed=3.80000 actual=3.80000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=10 before=3.80000 command=3.78000 pushed=3.78000 actual=3.78000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=11 before=3.78000 command=3.76000 pushed=3.76000 actual=3.76000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=12 before=3.76000 command=3.74000 pushed=3.74000 actual=3.74000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=13 before=3.74000 command=3.72000 pushed=3.72000 actual=3.72000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=14 before=3.72000 command=3.70000 pushed=3.70000 actual=3.70000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=15 before=3.70000 command=3.68000 pushed=3.68000 actual=3.68000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=16 before=3.68000 command=3.66000 pushed=3.66000 actual=3.66000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=17 before=3.66000 command=3.64000 pushed=3.64000 actual=3.64000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=18 before=3.64000 command=3.62000 pushed=3.62000 actual=3.62000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=19 before=3.62000 command=3.60000 pushed=3.60000 actual=3.60000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+SUMMARY low-drag drop=False zeroBox=False largestNativeLoss=0 endBoxVx=3.600001 landed=False
+CASE low-drag drop=True zeroBox=False playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=
+tick=0 before=4.00000 command=3.98000 pushed=3.98000 actual=3.98000 boxGround=box check solid pVel=(0.00, -12.70) pBottom=101.80100 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.98000 command=3.96000 pushed=3.96000 actual=0.00000 boxGround=box check solid pVel=(0.00, -0.05) pBottom=101.56900 boxTop=101.55490
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=13.34766/-3.96000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=13.34766/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=2 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56910 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=3 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56930 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=4 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56940 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=5 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=6 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+tick=7 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=8 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=9 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=10 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=11 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=12 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=13 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=14 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=15 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=16 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=17 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=18 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=19 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+SUMMARY low-drag drop=True zeroBox=False largestNativeLoss=3.96 endBoxVx=0 landed=True
+CASE low-drag drop=True zeroBox=True playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D)
+tick=0 before=4.00000 command=3.98000 pushed=3.98000 actual=3.98000 boxGround=box check solid pVel=(0.00, -12.70) pBottom=101.80100 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.98000 command=3.96000 pushed=3.96000 actual=3.96000 boxGround=box check solid pVel=(0.00, -0.05) pBottom=101.56900 boxTop=101.55490
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=13.34766/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=13.34766/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=2 before=3.96000 command=3.94000 pushed=3.94000 actual=3.94000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56910 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=3 before=3.94000 command=3.92000 pushed=3.92000 actual=3.92000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56930 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=4 before=3.92000 command=3.90000 pushed=3.90000 actual=3.90000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56940 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=5 before=3.90000 command=3.88000 pushed=3.88000 actual=3.88000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=6 before=3.88000 command=3.86000 pushed=3.86000 actual=3.86000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+tick=7 before=3.86000 command=3.84000 pushed=3.84000 actual=3.84000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=8 before=3.84000 command=3.82000 pushed=3.82000 actual=3.82000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=9 before=3.82000 command=3.80000 pushed=3.80000 actual=3.80000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=10 before=3.80000 command=3.78000 pushed=3.78000 actual=3.78000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=11 before=3.78000 command=3.76000 pushed=3.76000 actual=3.76000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=12 before=3.76000 command=3.74000 pushed=3.74000 actual=3.74000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=13 before=3.74000 command=3.72000 pushed=3.72000 actual=3.72000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=14 before=3.72000 command=3.70000 pushed=3.70000 actual=3.70000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55500
+tick=15 before=3.70000 command=3.68000 pushed=3.68000 actual=3.68000 boxGround=box check solid pVel=(0.00, -0.70) pBottom=101.55580 boxTop=101.55500
+tick=16 before=3.68000 command=3.66000 pushed=3.66000 actual=3.66000 boxGround=box check solid pVel=(0.00, -1.40) pBottom=101.52780 boxTop=101.55500
+tick=17 before=3.66000 command=3.64000 pushed=3.64000 actual=3.64000 boxGround=box check solid pVel=(0.00, -2.10) pBottom=101.48580 boxTop=101.55500
+tick=18 before=3.64000 command=3.62000 pushed=3.62000 actual=3.62000 boxGround=box check solid pVel=(0.00, -2.80) pBottom=101.42980 boxTop=101.55500
+tick=19 before=3.62000 command=3.60000 pushed=3.60000 actual=3.60000 boxGround=box check solid pVel=(0.00, -3.50) pBottom=101.35980 boxTop=101.55500
+SUMMARY low-drag drop=True zeroBox=True largestNativeLoss=0 endBoxVx=3.600001 landed=True
+CASE ice drop=False zeroBox=False playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=
+tick=0 before=4.00000 command=3.99800 pushed=3.99800 actual=3.99800 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.99800 command=3.99600 pushed=3.99600 actual=3.99600 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=2 before=3.99600 command=3.99400 pushed=3.99400 actual=3.99400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=3 before=3.99400 command=3.99200 pushed=3.99200 actual=3.99200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=4 before=3.99200 command=3.99000 pushed=3.99000 actual=3.99000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=5 before=3.99000 command=3.98800 pushed=3.98800 actual=3.98800 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=6 before=3.98800 command=3.98600 pushed=3.98600 actual=3.98600 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=7 before=3.98600 command=3.98400 pushed=3.98400 actual=3.98400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=8 before=3.98400 command=3.98200 pushed=3.98200 actual=3.98200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=9 before=3.98200 command=3.98000 pushed=3.98000 actual=3.98000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=10 before=3.98000 command=3.97800 pushed=3.97800 actual=3.97800 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=11 before=3.97800 command=3.97600 pushed=3.97600 actual=3.97600 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=12 before=3.97600 command=3.97400 pushed=3.97400 actual=3.97400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=13 before=3.97400 command=3.97200 pushed=3.97200 actual=3.97200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=14 before=3.97200 command=3.97000 pushed=3.97000 actual=3.97000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=15 before=3.97000 command=3.96800 pushed=3.96800 actual=3.96800 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=16 before=3.96800 command=3.96600 pushed=3.96600 actual=3.96600 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=17 before=3.96600 command=3.96400 pushed=3.96400 actual=3.96400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=18 before=3.96400 command=3.96200 pushed=3.96200 actual=3.96200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+tick=19 before=3.96200 command=3.96000 pushed=3.96000 actual=3.96000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=100.01500 boxTop=101.55500
+SUMMARY ice drop=False zeroBox=False largestNativeLoss=0 endBoxVx=3.959998 landed=False
+CASE ice drop=True zeroBox=False playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=
+tick=0 before=4.00000 command=3.99800 pushed=3.99800 actual=3.99800 boxGround=box check solid pVel=(0.00, -12.70) pBottom=101.80100 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.99800 command=3.99600 pushed=3.99600 actual=0.00000 boxGround=box check solid pVel=(0.00, -0.05) pBottom=101.56900 boxTop=101.55490
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=13.34766/-3.99600
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=13.34766/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=2 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56910 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=3 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56930 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=4 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56940 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=5 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=6 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+tick=7 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=8 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=9 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=10 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=11 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=12 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=13 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=14 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=15 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=16 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=17 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=18 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+tick=19 before=0.00000 command=0.00000 pushed=0.00000 actual=0.00000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56990 boxTop=101.55500
+SUMMARY ice drop=True zeroBox=False largestNativeLoss=3.996 endBoxVx=0 landed=True
+CASE ice drop=True zeroBox=True playerMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D) boxMaterial=New Physics Material 2D (UnityEngine.PhysicsMaterial2D)
+tick=0 before=4.00000 command=3.99800 pushed=3.99800 actual=3.99800 boxGround=box check solid pVel=(0.00, -12.70) pBottom=101.80100 boxTop=101.55500
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+tick=1 before=3.99800 command=3.99600 pushed=3.99600 actual=3.99600 boxGround=box check solid pVel=(0.00, -0.05) pBottom=101.56900 boxTop=101.55490
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=13.34766/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=13.34766/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=2 before=3.99600 command=3.99400 pushed=3.99400 actual=3.99400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56910 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=3 before=3.99400 command=3.99200 pushed=3.99200 actual=3.99200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56930 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=4 before=3.99200 command=3.99000 pushed=3.99000 actual=3.99000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56940 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=5 before=3.99000 command=3.98800 pushed=3.98800 actual=3.98800 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=box check solid/box(Clone) n=(0.00, 1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+  contact=player20(Clone)/box(Clone) n=(0.00, -1.00) impulses=0.00000/0.00000
+tick=6 before=3.98800 command=3.98600 pushed=3.98600 actual=3.98600 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56950 boxTop=101.55480
+tick=7 before=3.98600 command=3.98400 pushed=3.98400 actual=3.98400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=8 before=3.98400 command=3.98200 pushed=3.98200 actual=3.98200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56960 boxTop=101.55490
+tick=9 before=3.98200 command=3.98000 pushed=3.98000 actual=3.98000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=10 before=3.98000 command=3.97800 pushed=3.97800 actual=3.97800 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=11 before=3.97800 command=3.97600 pushed=3.97600 actual=3.97600 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56970 boxTop=101.55490
+tick=12 before=3.97600 command=3.97400 pushed=3.97400 actual=3.97400 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=13 before=3.97400 command=3.97200 pushed=3.97200 actual=3.97200 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55490
+tick=14 before=3.97200 command=3.97000 pushed=3.97000 actual=3.97000 boxGround=box check solid pVel=(0.00, 0.00) pBottom=101.56980 boxTop=101.55500
+tick=15 before=3.97000 command=3.96800 pushed=3.96800 actual=3.96800 boxGround=box check solid pVel=(0.00, -0.70) pBottom=101.55580 boxTop=101.55500
+tick=16 before=3.96800 command=3.96600 pushed=3.96600 actual=3.96600 boxGround=box check solid pVel=(0.00, -1.40) pBottom=101.52780 boxTop=101.55500
+tick=17 before=3.96600 command=3.96400 pushed=3.96400 actual=3.96400 boxGround=box check solid pVel=(0.00, -2.10) pBottom=101.48580 boxTop=101.55500
+tick=18 before=3.96400 command=3.96200 pushed=3.96200 actual=3.96200 boxGround=box check solid pVel=(0.00, -2.80) pBottom=101.42980 boxTop=101.55500
+tick=19 before=3.96200 command=3.96000 pushed=3.96000 actual=3.96000 boxGround=box check solid pVel=(0.00, -3.50) pBottom=101.35980 boxTop=101.55500
+SUMMARY ice drop=True zeroBox=True largestNativeLoss=0 endBoxVx=3.959998 landed=True

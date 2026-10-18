@@ -1,0 +1,5 @@
+PASS BoxInteractionChecks: landing + coasting + box chains + push/pull + electricity
+PASS EnvironmentIntegrationChecks: terrain, slope, platform and environment lifecycle
+PASS MechanismChecks: cart, pressure plate, electrified chain and lethal water
+PASS Actual scene ICE contact push
+RESULT PASS
