@@ -1,0 +1,67 @@
+[
+  {
+    "scene": "L01_PropertyLabyrinth",
+    "original_records": 1966,
+    "removed_original_records": 0,
+    "nonvisual_records_changed": 0,
+    "changed_types": {
+      "!u!1660057539": 1,
+      "!u!1": 1,
+      "!u!212": 1,
+      "!u!4": 1
+    },
+    "added_visual_records": 56
+  },
+  {
+    "scene": "L02_SequentialGates",
+    "original_records": 2596,
+    "removed_original_records": 0,
+    "nonvisual_records_changed": 0,
+    "changed_types": {
+      "!u!212": 1,
+      "!u!1660057539": 1,
+      "!u!4": 1,
+      "!u!1": 1
+    },
+    "added_visual_records": 68
+  },
+  {
+    "scene": "L03_ElectricTraverse",
+    "original_records": 2323,
+    "removed_original_records": 0,
+    "nonvisual_records_changed": 0,
+    "changed_types": {
+      "!u!1660057539": 1,
+      "!u!1": 1,
+      "!u!4": 1,
+      "!u!212": 1
+    },
+    "added_visual_records": 68
+  },
+  {
+    "scene": "L04_FoldedWells",
+    "original_records": 1482,
+    "removed_original_records": 0,
+    "nonvisual_records_changed": 0,
+    "changed_types": {
+      "!u!1660057539": 1,
+      "!u!4": 1,
+      "!u!212": 1,
+      "!u!1": 1
+    },
+    "added_visual_records": 80
+  },
+  {
+    "scene": "L05_DepartureWorks",
+    "original_records": 224,
+    "removed_original_records": 0,
+    "nonvisual_records_changed": 0,
+    "changed_types": {
+      "!u!1": 1,
+      "!u!1660057539": 1,
+      "!u!4": 1,
+      "!u!212": 1
+    },
+    "added_visual_records": 44
+  }
+]

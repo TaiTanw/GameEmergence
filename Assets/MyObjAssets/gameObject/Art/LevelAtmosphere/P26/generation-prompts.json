@@ -1,0 +1,60 @@
+{
+  "generator": "Built-in image_gen",
+  "additionalEntries": [
+    {
+      "key": "park_far",
+      "args": {
+        "prompt": "Use-case: precise-object-removal, 2D vertically scrolling game parallax layer separation. Image 1 is the EDIT TARGET, an existing portrait 2:3 game background. Create a CLEAN FAR-DEPTH PLATE of this SAME scene, preserving composition, subtle grainy painterly pixel-textured style, blue-grey and muted violet palette, existing distant architectural identity, restrained lighting, and the occupied top/bottom edges. The whole canvas must be opaque coherent painted scenery; naturally fill any removed object with the deeper environment behind it. No characters, UI, text, holes, transparency, new story objects, new style, or tilted perspective. This is a careful depth-layer edit, not a redesign. For the park, remove only the nearest framing bare tree trunks and branches along both outside edges, the closest large foreground urn and nearest ivy-covered low balustrade in the lower corners. Preserve the distant cypress trees, receding elevated arcades, gardens, distant dome and warm-grey twilight sky. Fill removed foreground objects with subdued distant garden arches and haze. Keep distant railings as architecture but avoid adding prominent nearest trunks, bulky front columns or new bright lamps.",
+        "referenced_image_paths": [
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/twilight-park-v1.png"
+        ],
+        "transparent_background": false
+      }
+    },
+    {
+      "key": "garage_far",
+      "args": {
+        "prompt": "Use-case: precise-object-removal, 2D vertically scrolling game parallax layer separation. Image 1 is the EDIT TARGET, an existing portrait 2:3 game background. Create a CLEAN FAR-DEPTH PLATE of this SAME scene, preserving composition, subtle grainy painterly pixel-textured style, blue-grey and muted violet palette, existing distant architectural identity, restrained lighting, and the occupied top/bottom edges. The whole canvas must be opaque coherent painted scenery; naturally fill any removed object with the deeper environment behind it. No characters, UI, text, holes, transparency, new story objects, new style, or tilted perspective. This is a careful depth-layer edit, not a redesign. For the parking garage, remove the largest closest columns flanking the left and right at every storey and the nearest foreground cars. Reconstruct continuous deeper parking bays, smaller far columns, rear parked car silhouettes and distant ceiling lights behind them. Preserve the multi-storey horizontal composition and subdued cold strip lights with a few warm fixtures. No large closest pillar or clear foreground car. Keep the quiet abandoned garage recognizable.",
+        "referenced_image_paths": [
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/underground-parking-v1.png"
+        ],
+        "transparent_background": false
+      }
+    },
+    {
+      "key": "hall_far",
+      "args": {
+        "prompt": "Use-case: precise-object-removal, 2D vertically scrolling game parallax layer separation. Image 1 is the EDIT TARGET, an existing portrait 2:3 game background. Create a CLEAN FAR-DEPTH PLATE of this SAME scene, preserving composition, subtle grainy painterly pixel-textured style, blue-grey and muted violet palette, existing distant architectural identity, restrained lighting, and the occupied top/bottom edges. The whole canvas must be opaque coherent painted scenery; naturally fill any removed object with the deeper environment behind it. No characters, UI, text, holes, transparency, new story objects, new style, or tilted perspective. This is a careful depth-layer edit, not a redesign. For the marble hall, remove only the nearest large fluted pilasters and balcony bases tightly framing the left and right outside edges. Reconstruct receding arch galleries and atmospheric violet depth behind them. Preserve the central distant columns and repeated elevated arches, purple-grey dusk, distant skyline and modest warm alcoves. Give a clearer separation between the far architectural void and later separately placed slim near pilasters. Keep all pixels opaque and avoid an empty plain gradient where architecture was removed.",
+        "referenced_image_paths": [
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/marble-hall-v1.png"
+        ],
+        "transparent_background": false
+      }
+    }
+  ],
+  "entries": [
+    {
+      "key": "service_far",
+      "args": {
+        "prompt": "Use-case: precise-object-removal / 2D game parallax background separation. Image 1 is the EDIT TARGET: the existing portrait dark industrial utility-building background. Create a sibling CLEAN FAR-DEPTH PLATE for this same game, preserving the portrait 2:3 composition, blue-grey / muted purple palette, worn painterly pixel-textured style, stacked architectural bays and deep corridors, atmospheric distance and small distant cool/warm lights. Remove the closest large vertical columns at the extreme left and right and the nearest copper pipe bundles, foreground cabinets and near balcony railings; reconstruct the deeper distant corridor walls, floor or dark recesses naturally behind those removed foreground objects. The entire canvas must remain an opaque coherent far-background image, with no holes. Keep enough subtle background structure at all heights for a vertically scrolling game. No characters, no UI, no text, no dramatic new lighting or objects, no camera tilt. This is a layer separation of the existing art, not a redesign. Keep the top and bottom filled, and prevent distinct horizontal seam bands.",
+        "referenced_image_paths": [
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/service-annex-v1.png"
+        ],
+        "transparent_background": false
+      }
+    },
+    {
+      "key": "depth_atlas",
+      "args": {
+        "prompt": "Use-case: stylized-concept, production 2D game environment sprite sheet. The four provided images are STYLE REFERENCES for four existing level themes (park, parking garage, industrial utility rooms, marble hall). Generate ONE TRANSPARENT atlas in a precise 2 columns x 2 rows grid, portrait canvas with total aspect 2:3. Each of the FOUR equal cells contains ONE isolated tall narrow environmental silhouette, centered with generous transparent gutter on all four sides, with no object crossing cell borders. Top-left: a slender bare park tree trunk with sparse fine branches and a small ivy cluster low on the trunk, matching muted blue-grey twilight stone park. Top-right: a weathered concrete garage column, narrow rusty side conduit and a short small horizontal metal bracket, matching the violet grey garage. Bottom-left: a vertical bundled copper/steel utility pipe with a modest hanging cable loop, matching the dark industrial service building. Bottom-right: a slender fluted broken marble pilaster with a little sparse ivy, matching the violet-grey marble hall. All four objects have a complete clean outer silhouette and transparent negative space around them. Dark subdued painterly pixel-textured game art, fine readable silhouette, very restrained warm accent. True clean alpha transparency, no opaque backdrop, no checkerboard, no ground plane, no cast shadow or fog, no halo, no glow, no text or labels. These are decorative depth layers behind or at the edge of gameplay, never meant to resemble boxes, switches or platforms. Keep each silhouette thin, about one-third of its cell width and three-quarters of its cell height.",
+        "referenced_image_paths": [
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/twilight-park-v1.png",
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/underground-parking-v1.png",
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/service-annex-v1.png",
+          "D:/UnityMyCSProject/UnityProject/GameEmergence/Assets/MyObjAssets/gameObject/Art/LevelAtmosphere/marble-hall-v1.png"
+        ],
+        "transparent_background": true
+      }
+    }
+  ]
+}

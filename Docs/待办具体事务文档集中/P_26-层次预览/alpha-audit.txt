@@ -1,0 +1,4 @@
+P26_Park clear alpha ratio=0.848 rect=(x:188.00, y:789.00, width:262.00, height:712.00)
+P26_Garage clear alpha ratio=0.789 rect=(x:662.00, y:802.00, width:176.00, height:655.00)
+P26_Service clear alpha ratio=0.851 rect=(x:249.00, y:52.00, width:135.00, height:679.00)
+P26_Hall clear alpha ratio=0.829 rect=(x:674.00, y:46.00, width:148.00, height:691.00)

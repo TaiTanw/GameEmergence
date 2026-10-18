@@ -1,0 +1,268 @@
+PASS: 266 checks
+PASS: L01_PropertyLabyrinth 仅有远景／中景两个视差组件
+PASS: L01_PropertyLabyrinth 正式回调识别启用的主镜头，忽略已关闭的场景镜头
+PASS: L01_PropertyLabyrinth 世界固定远景 制作配置有效
+PASS: L01_PropertyLabyrinth 透明中景 制作配置有效
+PASS: L01_PropertyLabyrinth 新装饰根不含碰撞、刚体、灯或玩法脚本
+PASS: L01_PropertyLabyrinth 两层背景均排在可交互对象后面
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_0_0 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_0_1 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_1_0 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_1_1 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_2_0 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_2_1 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_3_0 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 外墙近处轮廓_3_1 完整轮廓不跨入玩家活动范围
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (-4,-5)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (-4,0)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (-4,38)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (-4,76)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (-4,81)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (0,-5)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (0,0)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (0,38)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (0,76)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (0,81)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (40,-5)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (40,0)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (40,38)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (40,76)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (40,81)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (80,-5)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (80,0)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (80,38)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (80,76)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (80,81)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (84,-5)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (84,0)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (84,38)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (84,76)，含场外余量
+PASS: L01_PropertyLabyrinth 远景覆盖16:9镜头 (84,81)，含场外余量
+PASS: L01_PropertyLabyrinth 远距离漫游仍有完整底图覆盖 (-200.00, -200.00)
+PASS: L01_PropertyLabyrinth 远距离漫游仍有完整底图覆盖 (250.00, 300.00)
+PASS: L01_PropertyLabyrinth 返回制作基准后无漂移
+PASS: L01_PropertyLabyrinth 远近层具有不同视深且未锁在画面上
+PASS: L01_PropertyLabyrinth 镜头停住100帧不累计偏移
+PASS: L01_PropertyLabyrinth 关闭 世界固定远景 恢复制作位置
+PASS: L01_PropertyLabyrinth 重新启用不把旧偏移当起点
+PASS: L01_PropertyLabyrinth 关闭 透明中景 恢复制作位置
+PASS: L01_PropertyLabyrinth 重新启用不把旧偏移当起点
+PASS: L01_PropertyLabyrinth 静态前景不随镜头移动
+PASS: L01_PropertyLabyrinth 视差不改深度排序的Z
+PASS: L01_PropertyLabyrinth 视差不改深度排序的Z
+PASS: L01_PropertyLabyrinth 检查与渲染后原玩法组件和位置未变
+PASS: L02_SequentialGates 仅有远景／中景两个视差组件
+PASS: L02_SequentialGates 正式回调识别启用的主镜头，忽略已关闭的场景镜头
+PASS: L02_SequentialGates 世界固定远景 制作配置有效
+PASS: L02_SequentialGates 透明中景 制作配置有效
+PASS: L02_SequentialGates 新装饰根不含碰撞、刚体、灯或玩法脚本
+PASS: L02_SequentialGates 两层背景均排在可交互对象后面
+PASS: L02_SequentialGates 外墙近处轮廓_0_0 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_0_1 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_1_0 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_1_1 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_2_0 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_2_1 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_3_0 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_3_1 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_4_0 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 外墙近处轮廓_4_1 完整轮廓不跨入玩家活动范围
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (-4,-5)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (-4,0)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (-4,46)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (-4,92)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (-4,97)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (0,-5)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (0,0)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (0,46)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (0,92)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (0,97)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (40,-5)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (40,0)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (40,46)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (40,92)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (40,97)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (80,-5)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (80,0)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (80,46)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (80,92)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (80,97)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (84,-5)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (84,0)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (84,46)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (84,92)，含场外余量
+PASS: L02_SequentialGates 远景覆盖16:9镜头 (84,97)，含场外余量
+PASS: L02_SequentialGates 远距离漫游仍有完整底图覆盖 (-200.00, -200.00)
+PASS: L02_SequentialGates 远距离漫游仍有完整底图覆盖 (250.00, 300.00)
+PASS: L02_SequentialGates 返回制作基准后无漂移
+PASS: L02_SequentialGates 远近层具有不同视深且未锁在画面上
+PASS: L02_SequentialGates 镜头停住100帧不累计偏移
+PASS: L02_SequentialGates 关闭 世界固定远景 恢复制作位置
+PASS: L02_SequentialGates 重新启用不把旧偏移当起点
+PASS: L02_SequentialGates 关闭 透明中景 恢复制作位置
+PASS: L02_SequentialGates 重新启用不把旧偏移当起点
+PASS: L02_SequentialGates 静态前景不随镜头移动
+PASS: L02_SequentialGates 视差不改深度排序的Z
+PASS: L02_SequentialGates 视差不改深度排序的Z
+PASS: L02_SequentialGates 检查与渲染后原玩法组件和位置未变
+PASS: L03_ElectricTraverse 仅有远景／中景两个视差组件
+PASS: L03_ElectricTraverse 正式回调识别启用的主镜头，忽略已关闭的场景镜头
+PASS: L03_ElectricTraverse 世界固定远景 制作配置有效
+PASS: L03_ElectricTraverse 透明中景 制作配置有效
+PASS: L03_ElectricTraverse 新装饰根不含碰撞、刚体、灯或玩法脚本
+PASS: L03_ElectricTraverse 两层背景均排在可交互对象后面
+PASS: L03_ElectricTraverse 外墙近处轮廓_0_0 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_0_1 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_1_0 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_1_1 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_2_0 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_2_1 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_3_0 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_3_1 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_4_0 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 外墙近处轮廓_4_1 完整轮廓不跨入玩家活动范围
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (-4,-5)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (-4,0)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (-4,50)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (-4,100)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (-4,105)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (0,-5)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (0,0)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (0,50)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (0,100)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (0,105)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (40,-5)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (40,0)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (40,50)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (40,100)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (40,105)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (80,-5)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (80,0)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (80,50)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (80,100)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (80,105)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (84,-5)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (84,0)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (84,50)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (84,100)，含场外余量
+PASS: L03_ElectricTraverse 远景覆盖16:9镜头 (84,105)，含场外余量
+PASS: L03_ElectricTraverse 远距离漫游仍有完整底图覆盖 (-200.00, -200.00)
+PASS: L03_ElectricTraverse 远距离漫游仍有完整底图覆盖 (250.00, 300.00)
+PASS: L03_ElectricTraverse 返回制作基准后无漂移
+PASS: L03_ElectricTraverse 远近层具有不同视深且未锁在画面上
+PASS: L03_ElectricTraverse 镜头停住100帧不累计偏移
+PASS: L03_ElectricTraverse 关闭 世界固定远景 恢复制作位置
+PASS: L03_ElectricTraverse 重新启用不把旧偏移当起点
+PASS: L03_ElectricTraverse 关闭 透明中景 恢复制作位置
+PASS: L03_ElectricTraverse 重新启用不把旧偏移当起点
+PASS: L03_ElectricTraverse 静态前景不随镜头移动
+PASS: L03_ElectricTraverse 视差不改深度排序的Z
+PASS: L03_ElectricTraverse 视差不改深度排序的Z
+PASS: L03_ElectricTraverse 检查与渲染后原玩法组件和位置未变
+PASS: L04_FoldedWells 仅有远景／中景两个视差组件
+PASS: L04_FoldedWells 正式回调识别启用的主镜头，忽略已关闭的场景镜头
+PASS: L04_FoldedWells 世界固定远景 制作配置有效
+PASS: L04_FoldedWells 透明中景 制作配置有效
+PASS: L04_FoldedWells 新装饰根不含碰撞、刚体、灯或玩法脚本
+PASS: L04_FoldedWells 两层背景均排在可交互对象后面
+PASS: L04_FoldedWells 外墙近处轮廓_0_0 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_0_1 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_1_0 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_1_1 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_2_0 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_2_1 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_3_0 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_3_1 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_4_0 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_4_1 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_5_0 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 外墙近处轮廓_5_1 完整轮廓不跨入玩家活动范围
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (-4,-5)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (-4,0)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (-4,58)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (-4,116)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (-4,121)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (0,-5)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (0,0)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (0,58)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (0,116)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (0,121)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (40,-5)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (40,0)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (40,58)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (40,116)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (40,121)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (80,-5)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (80,0)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (80,58)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (80,116)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (80,121)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (84,-5)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (84,0)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (84,58)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (84,116)，含场外余量
+PASS: L04_FoldedWells 远景覆盖16:9镜头 (84,121)，含场外余量
+PASS: L04_FoldedWells 远距离漫游仍有完整底图覆盖 (-200.00, -200.00)
+PASS: L04_FoldedWells 远距离漫游仍有完整底图覆盖 (250.00, 300.00)
+PASS: L04_FoldedWells 返回制作基准后无漂移
+PASS: L04_FoldedWells 远近层具有不同视深且未锁在画面上
+PASS: L04_FoldedWells 镜头停住100帧不累计偏移
+PASS: L04_FoldedWells 关闭 世界固定远景 恢复制作位置
+PASS: L04_FoldedWells 重新启用不把旧偏移当起点
+PASS: L04_FoldedWells 关闭 透明中景 恢复制作位置
+PASS: L04_FoldedWells 重新启用不把旧偏移当起点
+PASS: L04_FoldedWells 静态前景不随镜头移动
+PASS: L04_FoldedWells 视差不改深度排序的Z
+PASS: L04_FoldedWells 视差不改深度排序的Z
+PASS: L04_FoldedWells 检查与渲染后原玩法组件和位置未变
+PASS: L05_DepartureWorks 仅有远景／中景两个视差组件
+PASS: L05_DepartureWorks 正式回调识别启用的主镜头，忽略已关闭的场景镜头
+PASS: L05_DepartureWorks P25_检修站远景 制作配置有效
+PASS: L05_DepartureWorks 透明中景 制作配置有效
+PASS: L05_DepartureWorks 新装饰根不含碰撞、刚体、灯或玩法脚本
+PASS: L05_DepartureWorks 两层背景均排在可交互对象后面
+PASS: L05_DepartureWorks 外墙近处轮廓_0_0 完整轮廓不跨入玩家活动范围
+PASS: L05_DepartureWorks 外墙近处轮廓_0_1 完整轮廓不跨入玩家活动范围
+PASS: L05_DepartureWorks 外墙近处轮廓_1_0 完整轮廓不跨入玩家活动范围
+PASS: L05_DepartureWorks 外墙近处轮廓_1_1 完整轮廓不跨入玩家活动范围
+PASS: L05_DepartureWorks 外墙近处轮廓_2_0 完整轮廓不跨入玩家活动范围
+PASS: L05_DepartureWorks 外墙近处轮廓_2_1 完整轮廓不跨入玩家活动范围
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (-4,-5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (-4,0)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (-4,22.5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (-4,45)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (-4,50)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (0,-5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (0,0)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (0,22.5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (0,45)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (0,50)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (40,-5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (40,0)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (40,22.5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (40,45)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (40,50)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (80,-5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (80,0)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (80,22.5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (80,45)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (80,50)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (84,-5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (84,0)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (84,22.5)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (84,45)，含场外余量
+PASS: L05_DepartureWorks 远景覆盖16:9镜头 (84,50)，含场外余量
+PASS: L05_DepartureWorks 远距离漫游仍有完整底图覆盖 (-200.00, -200.00)
+PASS: L05_DepartureWorks 远距离漫游仍有完整底图覆盖 (250.00, 300.00)
+PASS: L05_DepartureWorks 返回制作基准后无漂移
+PASS: L05_DepartureWorks 远近层具有不同视深且未锁在画面上
+PASS: L05_DepartureWorks 镜头停住100帧不累计偏移
+PASS: L05_DepartureWorks 关闭 P25_检修站远景 恢复制作位置
+PASS: L05_DepartureWorks 重新启用不把旧偏移当起点
+PASS: L05_DepartureWorks 关闭 透明中景 恢复制作位置
+PASS: L05_DepartureWorks 重新启用不把旧偏移当起点
+PASS: L05_DepartureWorks 静态前景不随镜头移动
+PASS: L05_DepartureWorks 视差不改深度排序的Z
+PASS: L05_DepartureWorks 视差不改深度排序的Z
+PASS: L05_DepartureWorks 检查与渲染后原玩法组件和位置未变
+边界：通过 Edit Mode 调用正式更新／启停入口并由原生相机渲染；未签收人类连续试玩或 Windows 实包观感与帧率。

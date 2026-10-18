@@ -1,0 +1,5 @@
+L01_PropertyLabyrinth: unchanged gameplay components=173, parallax layers=2, mid sprites=8
+L02_SequentialGates: unchanged gameplay components=257, parallax layers=2, mid sprites=10
+L03_ElectricTraverse: unchanged gameplay components=210, parallax layers=2, mid sprites=10
+L04_FoldedWells: unchanged gameplay components=129, parallax layers=2, mid sprites=12
+L05_DepartureWorks: unchanged gameplay components=64, parallax layers=2, mid sprites=6
