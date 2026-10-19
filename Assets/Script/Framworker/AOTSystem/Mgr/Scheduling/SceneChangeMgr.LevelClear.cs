@@ -11,7 +11,7 @@ public partial class SceneChangeMgr
     {
         SceneLevelSetup setup = SceneLevelSetup.Current;
         // 安全：同一次只能有一个终结结果，精神体和旧控制对象不能受理。
-        if (loading || refreshing || clearingLevel || escapeHandoff || GameMenuOpen
+        if (loading || refreshing || clearingLevel || escapeHandoff || GameMenuOpen || StoryActive
             || actor == null || actor != body || actor != InputControlMgr.Instance.Player
             || actor.Identity != PlayerIdentity.Body || actor.IsLevelClearing || actor.PendingDeath.HasValue
             || setup == null || levelRules == null || levelRules.DeathPending) return false;
@@ -66,6 +66,12 @@ public partial class SceneChangeMgr
                 if (status == PresentationLayer.LevelClearPlaybackStatus.Invalid) yield break;
                 if (status == PresentationLayer.LevelClearPlaybackStatus.Completed)
                 {
+                    string storyNode = NarrativeFlow.ClearNode(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+                    if (storyNode != null)
+                    {
+                        yield return NarrativeFlow.Instance.Play(storyNode);
+                        if (serial != loadSerial || !clearingLevel || actor == null) yield break;
+                    }
                     // 最后关只保留完整前段，随后角色也被全屏黑幕覆盖，不启动前景加载循环。
                     if (endingTarget != null) EnterEnding(endingTarget, next - 1, false);
                     // 加载循环和原场景加载同帧受理；只有真实完成事实能启动过场。

@@ -23,6 +23,11 @@ public sealed class MechanismPressurePlate : MonoBehaviour
     string lastError;
     public bool IsPressed { get; private set; }
     public int OccupantCount => occupants.Count;
+    // Same physics sample as IsPressed; a later transform read may already be off the plate.
+    public bool HasBoxOccupant
+    {
+        get { foreach (var occupant in occupants) if (occupant is PhysicalBox) return true; return false; }
+    }
     public MonoBehaviour TargetComponent => target;
     public PressureKind Kind => kind;
     public bool BoxesOnly => boxesOnly;

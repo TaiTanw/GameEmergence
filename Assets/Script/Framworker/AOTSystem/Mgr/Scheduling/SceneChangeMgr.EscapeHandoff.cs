@@ -84,6 +84,9 @@ public partial class SceneChangeMgr
         setup.RisingWater?.SetRisingAllowed(true);
         escapeHandoff = false;
         InputControlMgr.Instance.InputOpenOrClose(true);
+        NarrativeFlow.Existing?.ResetObservations();
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "L04_FoldedWells")
+            yield return NarrativeFlow.Instance.Play("D02");
     }
 
     void CancelEscapeHandoff()

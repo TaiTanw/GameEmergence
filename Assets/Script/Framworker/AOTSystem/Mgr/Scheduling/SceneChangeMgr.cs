@@ -15,6 +15,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     PlayerLifecycleRules levelRules;
     readonly PlayerEffectLedger effects = new PlayerEffectLedger();
     bool refreshing;
+    bool narrativeRetry;
     public bool IsFailureRecovering => refreshing;
     bool loading;
     public bool IsLoading => loading;
@@ -37,6 +38,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>人工阅读：固定 ESC → 本关菜单 → 原世界暂停入口；关闭后按当前模式恢复，不重置现场。</summary>
     public bool ToggleGameMenu()
     {
+        if (NarrativeFlow.BlocksMenu) return false;
         if (GameMenuOpen)
         {
             // 指南先返回菜单首页，保留原时间、世界许可和输入暂停。
@@ -84,6 +86,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>场景模式请求与区域规则调用同一入口；当前控制对象不变，失败留在原模式。</summary>
     public bool SetSimulation(bool simulation, PlayerFormChangeReason reason = PlayerFormChangeReason.Manual)
     {
+        if (StoryActive) return false;
         if (loading || refreshing || levelRules == null || spirit == null) return false;
         return spirit.RequestSpiritForm(!simulation, reason);
     }
@@ -110,6 +113,9 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         InputControlMgr.Instance.BindPlayer(null);
         ResetEscapePreparation();
         ListEscapeCostOffers();
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "L02_SequentialGates"
+            && !DataAndInitMgr.Instance.HasSeenNarrative("B02") && !DataAndInitMgr.Instance.HasSeenNarrative("B03"))
+            MonoPublicMgr.Instance.StartCoroutine(NarrativeFlow.Instance.Play(levelRules.Cognition.IsExhausted ? "B03" : "B02"));
         return true;
     }
 
@@ -195,6 +201,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         refreshing = false;
         Time.timeScale = GameMenuOpen ? 0f : 1f;
         InputControlMgr.Instance.InputOpenOrClose(true);
+        NarrativeFlow.Existing?.ResetObservations();
+        yield return NarrativeFlow.Instance.Play("R00");
     }
 
     IEnumerator FadeFailure(FailureRecoveryPanel panel, float from, float to, int serial)
@@ -240,6 +248,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         if (loading || refreshing || deadPlayer != body || SceneLevelSetup.Current == null || !SceneLevelSetup.Current.Teaching)
             return false;
         effects.ResetCurrentLevel();
+        narrativeRetry = true;
         DataAndInitMgr.Instance.DiscardCurrentLevelEndingVector();
         EnterLevel(LevelStageMgr.Instance.LevelIndex, DataAndInitMgr.Instance.LoadLevelOrder());
         // 异步重开尚未安置完成时不报告死亡已处理；新关组装会显式恢复死亡周期。
@@ -346,6 +355,8 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>还在关卡里就结束本局并载回开始场景。人已经在菜单时返回 false，让界面自己退一层。</summary>
     public bool ReturnToMenu()
     {
+        narrativeRetry = false;
+        NarrativeFlow.Existing?.Cancel();
         CancelLevelClear();
         CloseGameMenu();
         ReleaseEnding();
@@ -434,6 +445,7 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
             Debug.LogError($"关卡不能加载：{order.scenes[index]}，请重新生成关卡顺序并核对构建设置。");
             return;
         }
+        NarrativeFlow.Existing?.Cancel();
         // 通关完成才能把同次循环带入加载；其它换关主动作废旧等待。
         if (keepLevelClearPlayback) clearingLevel = false;
         else CancelLevelClear();
@@ -589,6 +601,12 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
         loading = false;
         UIMgr.Instance.HideOneUI<LoadingPanel>();
         InputControlMgr.Instance.InputOpenOrClose(true);
+        yield return NarrativeFlow.Instance.EnterScene();
+        if (serial == loadSerial && narrativeRetry)
+        {
+            narrativeRetry = false;
+            yield return NarrativeFlow.Instance.Play("R00");
+        }
     }
 
     /// <summary>人工阅读入口：场景配置 → 留下的实体 → 本关精神体 → 唯一输入目标；成功后才确认效果并保存进度。</summary>

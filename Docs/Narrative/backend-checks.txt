@@ -1,0 +1,87 @@
+PASS opening pauses time, world and input
+PASS menu cannot overlap dialogue
+PASS unread opening is not prematurely saved
+PASS paused actor does not move across frames
+PASS opening text fits its panel
+PASS next page does not finish early
+PASS return during reading cancels without marking seen
+PASS skip marks complete in player save
+PASS tutorial state restored
+PASS book is readable at safe tutorial spawn
+PASS book button opens optional text
+PASS book completion persists
+PASS optional book can be reread
+PASS continue does not replay read opening
+PASS tutorial death uses existing lifecycle
+PASS death retry restores control without repeating opening
+PASS real tutorial clear playback accepted
+PASS post-clear text precedes next scene load
+PASS tutorial advances to actual first level
+PASS cross-level save retains story flags
+PASS roaming restores paused world with active spirit input
+PASS simulation can start after story
+PASS simulation world runs
+PASS narrative pause stops simulation cognition spending
+PASS simulation pause restores original world state
+PASS clear progress succeeds in isolated test save
+PASS clear progress resets narrative flags
+PASS tutorial can clear without reading optional book
+PASS unread branch reaches first-level narrative without fabricated book knowledge
+PASS start escape in level 1
+PASS abilities hand off in level 1
+PASS real escape stage in level 1
+PASS create submerged pause fixture
+PASS fixture actor is actually submerged
+PASS rising water frozen by dialogue in level 1
+PASS submerged dialogue freezes oxygen drain
+PASS level clear accepted 1
+PASS clear text precedes transition 1
+PASS start escape in level 2
+PASS preparation cannot bypass active story
+PASS manual branch excludes exhaustion text
+PASS abilities hand off in level 2
+PASS real escape stage in level 2
+PASS rising water frozen by dialogue in level 2
+PASS level clear accepted 2
+PASS clear text precedes transition 2
+PASS start escape in level 3
+PASS abilities hand off in level 3
+PASS real escape stage in level 3
+PASS rising water frozen by dialogue in level 3
+PASS level clear accepted 3
+PASS clear text precedes transition 3
+PASS start escape in level 4
+PASS abilities hand off in level 4
+PASS real escape stage in level 4
+PASS rising water frozen by dialogue in level 4
+PASS level clear accepted 4
+PASS clear text precedes transition 4
+PASS start escape in level 5
+PASS abilities hand off in level 5
+PASS real escape stage in level 5
+PASS rising water frozen by dialogue in level 5
+PASS level clear accepted 5
+PASS clear text precedes transition 5
+PASS fifth level reaches current three-ending host
+PASS legacy bed ending does not override current ending
+PASS save ending replay E01_StillRaining
+PASS load actual ending E01_StillRaining
+PASS ending retains native text E01_StillRaining
+PASS ending pause E01_StillRaining
+PASS ending resume E01_StillRaining
+PASS save ending replay E02_OtherSide
+PASS load actual ending E02_OtherSide
+PASS ending retains native text E02_OtherSide
+PASS ending pause E02_OtherSide
+PASS ending resume E02_OtherSide
+PASS save ending replay E03_Unfolded
+PASS load actual ending E03_Unfolded
+PASS ending retains native text E03_Unfolded
+PASS ending pause E03_Unfolded
+PASS ending resume E03_Unfolded
+PASS reset isolated save for exhausted branch
+PASS prepare second-level branch fixture
+PASS enter simulation for exhaustion branch
+PASS consume remaining cognition in test fixture
+PASS exhaustion branch excludes manual text
+RESULT PASS

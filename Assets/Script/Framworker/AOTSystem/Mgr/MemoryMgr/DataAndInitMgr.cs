@@ -305,6 +305,23 @@ public class DataAndInitMgr
         public Vector3 confirmedEndingVector;
         public int destinationKind;
         public string endingScene;
+        public string[] narrativeSeen;
+    }
+
+    public bool HasSeenNarrative(string id)
+    {
+        return TryReadPlayerProgress(PlayerProgressDirectory, out PlayerProgressFile progress)
+            && progress.narrativeSeen != null && Array.IndexOf(progress.narrativeSeen, id) >= 0;
+    }
+
+    public bool MarkNarrativeSeen(string id)
+    {
+        if (string.IsNullOrEmpty(id) || !TryReadPlayerProgress(PlayerProgressDirectory, out PlayerProgressFile progress)) return false;
+        var seen = new List<string>(progress.narrativeSeen ?? new string[0]);
+        if (seen.Contains(id)) return true;
+        seen.Add(id);
+        progress.narrativeSeen = seen.ToArray();
+        return WritePlayerProgress(PlayerProgressDirectory, progress);
     }
 
     // PlayerEffectRecord 是只读运行记录，JSON 使用有限字段而不改变其运行时接口。
@@ -447,6 +464,7 @@ public class DataAndInitMgr
             return false;
         }
         PlayerEffectRecord[] effects = ledger.CaptureConfirmedEffects();
+        TryReadPlayerProgress(directory, out PlayerProgressFile prior);
         var progress = new PlayerProgressFile
         {
             version = PlayerProgressVersion,
@@ -455,7 +473,8 @@ public class DataAndInitMgr
             confirmedEffects = new PermanentEffectFile[effects.Length],
             confirmedEndingVector = vector,
             destinationKind = endingScene == null ? 0 : 1,
-            endingScene = endingScene
+            endingScene = endingScene,
+            narrativeSeen = prior?.narrativeSeen
         };
         for (int i = 0; i < effects.Length; i++)
             progress.confirmedEffects[i] = new PermanentEffectFile { kind = (int)effects[i].Kind, multiplier = effects[i].Multiplier };

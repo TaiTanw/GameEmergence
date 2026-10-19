@@ -1,0 +1,17 @@
+PASS 24 narrative nodes
+PASS unique node IDs
+PASS legacy ending nodes excluded
+PASS exact final narrative JSON embedded in player
+PASS narrative flow in built assembly
+PASS no development keyboard driver
+PASS bundle exists: StandaloneWindows64/a41a978c2be0201918fa4566b2b844a6_unitybuiltinshaders_9ec0d6577fab4d423e8631e1d118591e.bundle
+PASS bundle exists: StandaloneWindows64/defaultlocalgroup_scenes_all_4cd1e03ec6c471c13a30951f4af289ee.bundle
+PASS bundle exists: StandaloneWindows64/gameobject_assets_all_78d0a74647c36887f76272aa63d40e4b.bundle
+PASS bundle exists: StandaloneWindows64/music_assets_all_33a865f07a6fa4db563845599ba4a280.bundle
+PASS bundle exists: StandaloneWindows64/ui_assets_all_05179313d0a0b099345ae03a80fedf77.bundle
+PASS Windows executable exists
+PASS latest upstream unchanged: Assets/MyObjAssets/Scenes
+PASS latest upstream unchanged: Assets/MyObjAssets/UIPanel
+PASS latest upstream unchanged: Assets/Script/Task/Ending
+PASS latest upstream unchanged: Assets/Script/Framworker/UISystem/UIobject
+RESULT PASS
