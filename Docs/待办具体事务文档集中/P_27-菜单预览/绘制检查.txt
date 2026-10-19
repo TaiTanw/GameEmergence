@@ -1,0 +1,33 @@
+PASS 正式预设移除编号页签
+PASS 第一页沿用少花纹纸张
+PASS 二页白字 AbilityHintText
+PASS 二页白字 EmptyResultText
+PASS 二页白字 PositiveResultTitleText
+PASS 二页白字 PositiveResultValueText
+PASS 二页白字 NegativeResultTitleText
+PASS 二页白字 NegativeResultValueText
+PASS 二页白字 FinalValuesText
+PASS 迷雾材质编译且受当前显卡支持
+PASS 1920 零进度无残留
+PASS 1920 从中心扩大覆盖区域
+PASS 1920 早期中心有雾而外侧透明
+PASS 1920 最终外沿透明，不显露矩形边界
+PASS 1920 雾中央保持半透明
+PASS 1920 部分浓厚雾边达到不透明，最大alpha=1
+PASS 1920 边缘轮廓不规则，半径起伏=0.25
+PASS 1920 稳定显现后雾仍缓慢流动
+PASS 1920 CanvasGroup淡出无残留
+PASS 1920 RectMask2D局部裁切
+PASS 1920 Stencil Mask局部裁切
+PASS 960 零进度无残留
+PASS 960 从中心扩大覆盖区域
+PASS 960 早期中心有雾而外侧透明
+PASS 960 最终外沿透明，不显露矩形边界
+PASS 960 雾中央保持半透明
+PASS 960 部分浓厚雾边达到不透明，最大alpha=1
+PASS 960 边缘轮廓不规则，半径起伏=0.25
+PASS 960 稳定显现后雾仍缓慢流动
+PASS 960 CanvasGroup淡出无残留
+PASS 960 RectMask2D局部裁切
+PASS 960 Stencil Mask局部裁切
+PASS 所有预览共用同一雾材质，无运行时材质实例

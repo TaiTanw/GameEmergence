@@ -1,0 +1,4 @@
+PASS eight existing result labels converted, plus one independent result title
+PASS existing label RectTransforms unchanged
+PASS all first-page, cognition bar, backpack and other prefab records unchanged
+PASS manual timing preserved: fogExpandSeconds=1

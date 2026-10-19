@@ -1,0 +1,5 @@
+PASS StandaloneWindows64 Addressables build with dedicated Chinese SDF and GLOW_ON material
+PASS synchronized 8 files with matching SHA256
+PASS catalog has no validation-project absolute paths
+PASS formal level order restored: L00-L05 and original endings
+PASS main project scenes, groups and Play Mode configuration unchanged

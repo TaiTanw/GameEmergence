@@ -1,0 +1,31 @@
+PASS 独立SDF沿用原字体，支持后续中文动态补字
+PASS 当前字形预置在一张2048 Alpha8图集中，留14像素柔光边距
+PASS 预置字形随资源包保存
+PASS 当前菜单中文、数字和正负符号全部预置：
+PASS 局部共享SDF柔光材质及GLOW_ON编译通过
+PASS 第一页保持原生文字与纸样
+PASS 第二页独立白字与共享柔光 AbilityTitleText
+PASS 第二页独立白字与共享柔光 AbilityPage/AbilityHintText
+PASS 第二页独立白字与共享柔光 AbilityPage/EmptyResultText
+PASS 第二页独立白字与共享柔光 AbilityPage/PositiveResult/PositiveResultTitleText
+PASS 第二页独立白字与共享柔光 AbilityPage/PositiveResult/PositiveResultValueText
+PASS 第二页独立白字与共享柔光 AbilityPage/NegativeResult/NegativeResultTitleText
+PASS 第二页独立白字与共享柔光 AbilityPage/NegativeResult/NegativeResultValueText
+PASS 第二页独立白字与共享柔光 AbilityPage/FinalValuesText
+PASS 第二页独立白字与共享柔光 BeginEscapeButton/Label
+PASS 1920 中文长文与数字换行后不溢出
+PASS 1920 中文和正负数字符号生成实际字形网格
+PASS 1920 柔光增加字外覆盖面积=8719
+PASS 1920 柔光保留白字亮度：核心=3905，保持=3905
+PASS 1920 字面与柔光一起淡出，不提前泄露文字
+PASS 1920 RectMask2D裁切文字与外扩柔光
+PASS 1920 滚动后文字与柔光一起移动且不越过裁切边界
+PASS 1920 Stencil Mask裁切文字与柔光
+PASS 960 中文长文与数字换行后不溢出
+PASS 960 中文和正负数字符号生成实际字形网格
+PASS 960 柔光增加字外覆盖面积=1904
+PASS 960 柔光保留白字亮度：核心=127，保持=127
+PASS 960 字面与柔光一起淡出，不提前泄露文字
+PASS 960 RectMask2D裁切文字与外扩柔光
+PASS 960 滚动后文字与柔光一起移动且不越过裁切边界
+PASS 960 Stencil Mask裁切文字与柔光

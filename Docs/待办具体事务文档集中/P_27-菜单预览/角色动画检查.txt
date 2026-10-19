@@ -1,0 +1,555 @@
+Catgirl presentation animation checks — 2026-10-19 10:23:08
+Edit Mode; real player.controller; temporary preview scenes; no saved scene/settings changes.
+PASS: 真实 player.controller 已加载
+PASS: On 有真实 AnimationClip
+PASS: move 有真实 AnimationClip
+PASS: Sprint 有真实 AnimationClip
+PASS: Push 有真实 AnimationClip
+PASS: Pull 有真实 AnimationClip
+PASS: Jump_Up 有真实 AnimationClip
+PASS: Jump_Down 有真实 AnimationClip
+PASS: OnAir 有真实 AnimationClip
+PASS: OnAir_Down 有真实 AnimationClip
+PASS: Wall 有真实 AnimationClip
+PASS: SwimIdle 有真实 AnimationClip
+PASS: Swim 有真实 AnimationClip
+PASS: SurfaceSwimIdle 有真实 AnimationClip
+PASS: SurfaceSwim 有真实 AnimationClip
+PASS: Flight 有真实 AnimationClip
+PASS: 地面零输入且被环境带动仍待机
+PASS: On 使用 controller 中预期片段
+PASS: On 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 地面普通水平移动
+PASS: move 使用 controller 中预期片段
+PASS: move 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 有效疾跑倍率选择 Sprint
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 倍率归一立即退出 Sprint
+PASS: move 使用 controller 中预期片段
+PASS: move 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 零移动意图不能疾跑
+PASS: On 使用 controller 中预期片段
+PASS: On 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 水平意图死区内不能疾跑
+PASS: On 使用 controller 中预期片段
+PASS: On 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 只选中／尚在自动走近时，不提前播放推拉动画
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 逻辑推箱行为优先于疾跑倍率
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 推右侧箱子面朝右
+PASS: 向左后退拉右侧箱子
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 拉右侧箱子保持右朝向，不随后退输入翻转
+PASS: 向左推左侧箱子
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 推左侧箱子面朝左
+PASS: 向右后退拉左侧箱子
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 拉左侧箱子保持左朝向
+PASS: 停止推拉后回到待机
+PASS: On 使用 controller 中预期片段
+PASS: On 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 解除选中／普通接触推动使用行走
+PASS: move 使用 controller 中预期片段
+PASS: move 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 缺少有效箱子时不播放悬空推箱姿势
+PASS: move 使用 controller 中预期片段
+PASS: move 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 离地事实优先于推拉输出
+PASS: OnAir 使用 controller 中预期片段
+PASS: OnAir 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 游泳事实优先于推拉输出
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 空中存在疾跑倍率也只播放上升循环
+PASS: OnAir 使用 controller 中预期片段
+PASS: OnAir 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 贴墙存在疾跑倍率也只播放贴墙动画
+PASS: Wall 使用 controller 中预期片段
+PASS: Wall 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：游泳行为优先于池底几何着地和疾跑倍率
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：向右划水
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：向左划水
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 水底纯向上：移动动画
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：纯向下／下潜使用移动动画
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：被动水流／水面高度修正速度不触发主动划水
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：两轴均在输入死区时待机
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: swimming：离开池底仍由游泳事实选择动画
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：游泳行为优先于池底几何着地和疾跑倍率
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：向右划水
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：向左划水
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 水面向上已经由逻辑过滤为零：仍待机
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：纯向下／下潜使用移动动画
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：被动水流／水面高度修正速度不触发主动划水
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：两轴均在输入死区时待机
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: surfaceSwimming：离开池底仍由游泳事实选择动画
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: isOnGround：向右不翻转
+PASS: isOnGround：向左翻转
+PASS: isOnGround：纯向下保留左朝向
+PASS: isOnGround：纯向上／水面已过滤向上保留左朝向
+PASS: isOnGround：零输入保留朝向
+PASS: swimming：向右不翻转
+PASS: swimming：向左翻转
+PASS: swimming：纯向下保留左朝向
+PASS: swimming：纯向上／水面已过滤向上保留左朝向
+PASS: swimming：零输入保留朝向
+PASS: surfaceSwimming：向右不翻转
+PASS: surfaceSwimming：向左翻转
+PASS: surfaceSwimming：纯向下保留左朝向
+PASS: surfaceSwimming：纯向上／水面已过滤向上保留左朝向
+PASS: surfaceSwimming：零输入保留朝向
+PASS: 飞行优先于几何着地、四向意图和疾跑倍率
+PASS: Flight 使用 controller 中预期片段
+PASS: Flight 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 持续飞行逐帧推进，不反复重启
+PASS: 出水跳跃前处于水面待机
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 水面跃出事件即使池底仍着地也播放起跳，不误播游泳
+PASS: Jump_Up 使用 controller 中预期片段
+PASS: Jump_Up 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 跃出起手完成后仍优先为空中上升，不回池底或游泳
+PASS: OnAir 使用 controller 中预期片段
+PASS: OnAir 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 跃出下落按真实竖直速度选择下降循环
+PASS: OnAir_Down 使用 controller 中预期片段
+PASS: OnAir_Down 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 暂停前选中原动作 Flight
+PASS: Flight 使用 controller 中预期片段
+PASS: Flight 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原动作 Flight
+PASS: Flight 使用 controller 中预期片段
+PASS: Flight 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原朝向 Flight
+PASS: 恢复运动后重新消费真实下落事实 Flight
+PASS: OnAir_Down 使用 controller 中预期片段
+PASS: OnAir_Down 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 暂停前选中原动作 move
+PASS: move 使用 controller 中预期片段
+PASS: move 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原动作 move
+PASS: move 使用 controller 中预期片段
+PASS: move 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原朝向 move
+PASS: 恢复运动后重新消费真实下落事实 move
+PASS: OnAir_Down 使用 controller 中预期片段
+PASS: OnAir_Down 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 暂停前选中原动作 Swim
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原动作 Swim
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原朝向 Swim
+PASS: 恢复运动后重新消费真实下落事实 Swim
+PASS: OnAir_Down 使用 controller 中预期片段
+PASS: OnAir_Down 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 暂停前选中原动作 OnAir
+PASS: OnAir 使用 controller 中预期片段
+PASS: OnAir 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原动作 OnAir
+PASS: OnAir 使用 controller 中预期片段
+PASS: OnAir 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 运动停用后保留原朝向 OnAir
+PASS: 恢复运动后重新消费真实下落事实 OnAir
+PASS: OnAir_Down 使用 controller 中预期片段
+PASS: OnAir_Down 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 关联已批准动画对应的工程片段
+PASS: Sprint 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: Sprint 持续动画有时长并启用循环
+PASS: Sprint 帧引用完整：0.000
+PASS: Sprint 帧引用完整：0.080
+PASS: Sprint 帧引用完整：0.160
+PASS: Sprint 帧引用完整：0.240
+PASS: Sprint 帧引用完整：0.320
+PASS: Sprint 帧引用完整：0.400
+PASS: Sprint 帧引用完整：0.480
+PASS: Sprint 帧引用完整：0.560
+PASS: Sprint 帧引用完整：0.630
+PASS: Sprint 包含预期真实精灵帧（8）
+PASS: Sprint 正确进入并采样首帧
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 真正 Animator 采样帧 0：catgirl-sprint-8f-512_00
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 0
+PASS: Sprint 真正 Animator 采样帧 1：catgirl-sprint-8f-512_01
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 1
+PASS: Sprint 真正 Animator 采样帧 2：catgirl-sprint-8f-512_02
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 2
+PASS: Sprint 真正 Animator 采样帧 3：catgirl-sprint-8f-512_03
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 3
+PASS: Sprint 真正 Animator 采样帧 4：catgirl-sprint-8f-512_04
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 4
+PASS: Sprint 真正 Animator 采样帧 5：catgirl-sprint-8f-512_05
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 5
+PASS: Sprint 真正 Animator 采样帧 6：catgirl-sprint-8f-512_06
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 6
+PASS: Sprint 真正 Animator 采样帧 7：catgirl-sprint-8f-512_07
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 7
+PASS: Sprint 真正 Animator 采样帧 8：catgirl-sprint-8f-512_07
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Sprint 对应时间实际显示预期精灵 8
+PASS: Sprint 连续八次表现更新跨越循环，未逐帧重启
+PASS: Sprint 跨循环后状态及精灵采样仍一致
+PASS: Sprint 使用 controller 中预期片段
+PASS: Sprint 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 关联已批准动画对应的工程片段
+PASS: SwimIdle 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: SwimIdle 持续动画有时长并启用循环
+PASS: SwimIdle 帧引用完整：0.000
+PASS: SwimIdle 帧引用完整：0.240
+PASS: SwimIdle 帧引用完整：0.480
+PASS: SwimIdle 帧引用完整：0.720
+PASS: SwimIdle 帧引用完整：0.950
+PASS: SwimIdle 包含预期真实精灵帧（4）
+PASS: SwimIdle 正确进入并采样首帧
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 真正 Animator 采样帧 0：catgirl-underwater-idle-4f-512_00
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 对应时间实际显示预期精灵 0
+PASS: SwimIdle 真正 Animator 采样帧 1：catgirl-underwater-idle-4f-512_01
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 对应时间实际显示预期精灵 1
+PASS: SwimIdle 真正 Animator 采样帧 2：catgirl-underwater-idle-4f-512_02
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 对应时间实际显示预期精灵 2
+PASS: SwimIdle 真正 Animator 采样帧 3：catgirl-underwater-idle-4f-512_03
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 对应时间实际显示预期精灵 3
+PASS: SwimIdle 真正 Animator 采样帧 4：catgirl-underwater-idle-4f-512_03
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SwimIdle 对应时间实际显示预期精灵 4
+PASS: SwimIdle 连续八次表现更新跨越循环，未逐帧重启
+PASS: SwimIdle 跨循环后状态及精灵采样仍一致
+PASS: SwimIdle 使用 controller 中预期片段
+PASS: SwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 关联已批准动画对应的工程片段
+PASS: Swim 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: Swim 持续动画有时长并启用循环
+PASS: Swim 帧引用完整：0.000
+PASS: Swim 帧引用完整：0.160
+PASS: Swim 帧引用完整：0.320
+PASS: Swim 帧引用完整：0.480
+PASS: Swim 帧引用完整：0.640
+PASS: Swim 帧引用完整：0.800
+PASS: Swim 帧引用完整：0.950
+PASS: Swim 包含预期真实精灵帧（6）
+PASS: Swim 正确进入并采样首帧
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 真正 Animator 采样帧 0：catgirl-underwater-move-6f-512_00
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 0
+PASS: Swim 真正 Animator 采样帧 1：catgirl-underwater-move-6f-512_01
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 1
+PASS: Swim 真正 Animator 采样帧 2：catgirl-underwater-move-6f-512_02
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 2
+PASS: Swim 真正 Animator 采样帧 3：catgirl-underwater-move-6f-512_03
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 3
+PASS: Swim 真正 Animator 采样帧 4：catgirl-underwater-move-6f-512_04
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 4
+PASS: Swim 真正 Animator 采样帧 5：catgirl-underwater-move-6f-512_05
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 5
+PASS: Swim 真正 Animator 采样帧 6：catgirl-underwater-move-6f-512_05
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Swim 对应时间实际显示预期精灵 6
+PASS: Swim 连续八次表现更新跨越循环，未逐帧重启
+PASS: Swim 跨循环后状态及精灵采样仍一致
+PASS: Swim 使用 controller 中预期片段
+PASS: Swim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 关联已批准动画对应的工程片段
+PASS: SurfaceSwimIdle 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: SurfaceSwimIdle 持续动画有时长并启用循环
+PASS: SurfaceSwimIdle 帧引用完整：0.000
+PASS: SurfaceSwimIdle 帧引用完整：0.240
+PASS: SurfaceSwimIdle 帧引用完整：0.480
+PASS: SurfaceSwimIdle 帧引用完整：0.720
+PASS: SurfaceSwimIdle 帧引用完整：0.950
+PASS: SurfaceSwimIdle 包含预期真实精灵帧（4）
+PASS: SurfaceSwimIdle 正确进入并采样首帧
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 真正 Animator 采样帧 0：catgirl-surface-idle-4f-512_00
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 对应时间实际显示预期精灵 0
+PASS: SurfaceSwimIdle 真正 Animator 采样帧 1：catgirl-surface-idle-4f-512_01
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 对应时间实际显示预期精灵 1
+PASS: SurfaceSwimIdle 真正 Animator 采样帧 2：catgirl-surface-idle-4f-512_02
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 对应时间实际显示预期精灵 2
+PASS: SurfaceSwimIdle 真正 Animator 采样帧 3：catgirl-surface-idle-4f-512_03
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 对应时间实际显示预期精灵 3
+PASS: SurfaceSwimIdle 真正 Animator 采样帧 4：catgirl-surface-idle-4f-512_03
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwimIdle 对应时间实际显示预期精灵 4
+PASS: SurfaceSwimIdle 连续八次表现更新跨越循环，未逐帧重启
+PASS: SurfaceSwimIdle 跨循环后状态及精灵采样仍一致
+PASS: SurfaceSwimIdle 使用 controller 中预期片段
+PASS: SurfaceSwimIdle 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 关联已批准动画对应的工程片段
+PASS: SurfaceSwim 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: SurfaceSwim 持续动画有时长并启用循环
+PASS: SurfaceSwim 帧引用完整：0.000
+PASS: SurfaceSwim 帧引用完整：0.160
+PASS: SurfaceSwim 帧引用完整：0.320
+PASS: SurfaceSwim 帧引用完整：0.480
+PASS: SurfaceSwim 帧引用完整：0.640
+PASS: SurfaceSwim 帧引用完整：0.800
+PASS: SurfaceSwim 帧引用完整：0.950
+PASS: SurfaceSwim 包含预期真实精灵帧（6）
+PASS: SurfaceSwim 正确进入并采样首帧
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 真正 Animator 采样帧 0：catgirl-surface-move-6f-512_00
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 0
+PASS: SurfaceSwim 真正 Animator 采样帧 1：catgirl-surface-move-6f-512_01
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 1
+PASS: SurfaceSwim 真正 Animator 采样帧 2：catgirl-surface-move-6f-512_02
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 2
+PASS: SurfaceSwim 真正 Animator 采样帧 3：catgirl-surface-move-6f-512_03
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 3
+PASS: SurfaceSwim 真正 Animator 采样帧 4：catgirl-surface-move-6f-512_04
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 4
+PASS: SurfaceSwim 真正 Animator 采样帧 5：catgirl-surface-move-6f-512_05
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 5
+PASS: SurfaceSwim 真正 Animator 采样帧 6：catgirl-surface-move-6f-512_05
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: SurfaceSwim 对应时间实际显示预期精灵 6
+PASS: SurfaceSwim 连续八次表现更新跨越循环，未逐帧重启
+PASS: SurfaceSwim 跨循环后状态及精灵采样仍一致
+PASS: SurfaceSwim 使用 controller 中预期片段
+PASS: SurfaceSwim 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 关联已批准动画对应的工程片段
+PASS: Push 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: Push 持续动画有时长并启用循环
+PASS: Push 帧引用完整：0.000
+PASS: Push 帧引用完整：0.160
+PASS: Push 帧引用完整：0.320
+PASS: Push 帧引用完整：0.480
+PASS: Push 帧引用完整：0.640
+PASS: Push 帧引用完整：0.800
+PASS: Push 帧引用完整：0.950
+PASS: Push 包含预期真实精灵帧（6）
+PASS: Push 正确进入并采样首帧
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 真正 Animator 采样帧 0：catgirl-push-6f-512_00
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 0
+PASS: Push 真正 Animator 采样帧 1：catgirl-push-6f-512_01
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 1
+PASS: Push 真正 Animator 采样帧 2：catgirl-push-6f-512_02
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 2
+PASS: Push 真正 Animator 采样帧 3：catgirl-push-6f-512_03
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 3
+PASS: Push 真正 Animator 采样帧 4：catgirl-push-6f-512_04
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 4
+PASS: Push 真正 Animator 采样帧 5：catgirl-push-6f-512_05
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 5
+PASS: Push 真正 Animator 采样帧 6：catgirl-push-6f-512_05
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Push 对应时间实际显示预期精灵 6
+PASS: Push 连续八次表现更新跨越循环，未逐帧重启
+PASS: Push 跨循环后状态及精灵采样仍一致
+PASS: Push 使用 controller 中预期片段
+PASS: Push 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 关联已批准动画对应的工程片段
+PASS: Pull 只采样精灵，不额外改写位置、缩放或其它属性
+PASS: Pull 持续动画有时长并启用循环
+PASS: Pull 帧引用完整：0.000
+PASS: Pull 帧引用完整：0.160
+PASS: Pull 帧引用完整：0.320
+PASS: Pull 帧引用完整：0.480
+PASS: Pull 帧引用完整：0.640
+PASS: Pull 帧引用完整：0.800
+PASS: Pull 帧引用完整：0.950
+PASS: Pull 包含预期真实精灵帧（6）
+PASS: Pull 正确进入并采样首帧
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 真正 Animator 采样帧 0：catgirl-pull-6f-512_00
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 0
+PASS: Pull 真正 Animator 采样帧 1：catgirl-pull-6f-512_01
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 1
+PASS: Pull 真正 Animator 采样帧 2：catgirl-pull-6f-512_02
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 2
+PASS: Pull 真正 Animator 采样帧 3：catgirl-pull-6f-512_03
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 3
+PASS: Pull 真正 Animator 采样帧 4：catgirl-pull-6f-512_04
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 4
+PASS: Pull 真正 Animator 采样帧 5：catgirl-pull-6f-512_05
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 5
+PASS: Pull 真正 Animator 采样帧 6：catgirl-pull-6f-512_05
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: Pull 对应时间实际显示预期精灵 6
+PASS: Pull 连续八次表现更新跨越循环，未逐帧重启
+PASS: Pull 跨循环后状态及精灵采样仍一致
+PASS: Pull 使用 controller 中预期片段
+PASS: Pull 的真实 SpriteRenderer 与片段时间采样一致
+PASS: 可读入脚底核对的原始 PNG
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 1 帧脚底不穿过待机地面基线
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 2 帧脚底不穿过待机地面基线
+PASS: 疾跑支撑帧 2 与待机脚底基线对齐
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 3 帧脚底不穿过待机地面基线
+PASS: 疾跑支撑帧 3 与待机脚底基线对齐
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 4 帧脚底不穿过待机地面基线
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 5 帧脚底不穿过待机地面基线
+PASS: 疾跑腾空帧保留短暂离地，不强行把每帧脚贴地
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 6 帧脚底不穿过待机地面基线
+PASS: 疾跑支撑帧 6 与待机脚底基线对齐
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 7 帧脚底不穿过待机地面基线
+PASS: 疾跑支撑帧 7 与待机脚底基线对齐
+PASS: 可读入脚底核对的原始 PNG
+PASS: 疾跑第 8 帧脚底不穿过待机地面基线
+PASS: 可读入脚底核对的原始 PNG
+PASS: Push 第 1 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Push 第 2 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Push 第 3 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Push 第 4 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Push 第 5 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Push 第 6 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Pull 第 1 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Pull 第 2 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Pull 第 3 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Pull 第 4 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Pull 第 5 帧使用待机脚底与尺度基准
+PASS: 可读入脚底核对的原始 PNG
+PASS: Pull 第 6 帧使用待机脚底与尺度基准
+PASS: 临时验收没有 Unity 错误日志：
+RESULT: PASS

@@ -1,0 +1,5 @@
+PASS StandaloneWindows64 Addressables build
+PASS synchronized 8 files, matching SHA256
+PASS catalog has no validation-project absolute paths
+PASS formal L00-L05 level order and original endings preserved
+PASS P6.6 isolated fixture reads current first level instead of stale TeskScenes1

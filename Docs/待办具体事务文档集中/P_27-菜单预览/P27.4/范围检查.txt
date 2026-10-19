@@ -1,0 +1,6 @@
+PASS L00: only notice text changed; geometry, actors, triggers, layout and camera preserved
+PASS L01: only notice text changed; geometry, actors, triggers, layout and camera preserved
+PASS menu: only 3 existing RectTransforms changed (root children, menu size and return button position)
+PASS original return button only changes navigation to None, matching fixed ESC/Enter handling
+PASS existing menu background, title, return button appearance, hint and input blocker preserved
+PASS guide uses existing paper/font/button assets; no rebind panel or new gameplay data

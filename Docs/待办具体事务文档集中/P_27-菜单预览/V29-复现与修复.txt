@@ -1,0 +1,4 @@
+PASS old presentation code reproduced the issue in the actual first preparation page
+Observed failure: 一级菜单保留进入准备前的飞行动作与位置
+PASS fixed code preserved original Flight state and position through both pages and pause return
+PASS fixed code entered original Death playback only after confirmation and UI fade-out

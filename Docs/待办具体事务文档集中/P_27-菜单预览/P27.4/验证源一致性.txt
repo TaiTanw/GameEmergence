@@ -1,0 +1,6 @@
+PASS identical tested source: Assets/MyObjAssets/UIPanel/GameplayPanel.prefab
+PASS identical tested source: Assets/MyObjAssets/UIPanel/GameMenuPanel.prefab
+PASS identical tested source: Assets/Resources/LevelOrder.json
+PASS identical tested source: Assets/Script/Framworker/UISystem/UIobject/GameMenuPanel.cs
+PASS identical tested source: Assets/Script/Framworker/AOTSystem/Mgr/Scheduling/SceneChangeMgr.cs
+PASS regression-only fixture remains isolated
