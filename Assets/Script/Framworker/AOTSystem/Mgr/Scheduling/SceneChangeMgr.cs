@@ -37,7 +37,14 @@ public partial class SceneChangeMgr : BaseMgr<SceneChangeMgr>, IPlayerRunRefresh
     /// <summary>人工阅读：固定 ESC → 本关菜单 → 原世界暂停入口；关闭后按当前模式恢复，不重置现场。</summary>
     public bool ToggleGameMenu()
     {
-        if (GameMenuOpen) { CloseGameMenu(); return true; }
+        if (GameMenuOpen)
+        {
+            // 指南先返回菜单首页，保留原时间、世界许可和输入暂停。
+            var menu = UIMgr.Instance.GetUILayer(E_UILayer.Top).GetComponentInChildren<GameMenuPanel>();
+            if (menu != null && menu.ReturnFromGuide()) return true;
+            CloseGameMenu();
+            return true;
+        }
         if (IsEnding && !loading)
         {
             GameMenuOpen = true; timeScaleBeforeMenu = Time.timeScale;

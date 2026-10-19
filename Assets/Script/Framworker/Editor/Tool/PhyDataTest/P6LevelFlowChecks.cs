@@ -294,11 +294,12 @@ public static class P6LevelFlowChecks
                 case 8:
                     if (menu == null || !menu.gameObject.activeInHierarchy) return;
                     Check(menu.transform.parent == UIMgr.Instance.GetUILayer(E_UILayer.Top)
-                        && menu.GetComponentsInChildren<Button>(true).Length == 1,
-                        "真实游戏菜单位于 Top 层且只有一个按钮");
+                        && menu.GetComponentsInChildren<Button>(true).Length == 3,
+                        "真实游戏菜单位于 Top 层，首页两按钮与指南返回按钮完整");
                     Check(Object.FindObjectsOfType<GameMenuPanel>(true).Length == 1,
                         "首次加载中快速开关后缓存复用同一个菜单实例");
                     GameMenuInputChecks.Capture("game-menu.png");
+                    GameMenuInputChecks.CheckOperationGuide(menu, passed);
                     menu.FindUIObj<Button>("ReturnToMenuButton").onClick.Invoke();
                     Check(!SceneChangeMgr.Instance.GameMenuOpen && !menu.gameObject.activeSelf
                         && !panel.gameObject.activeSelf && Time.timeScale == 1f,

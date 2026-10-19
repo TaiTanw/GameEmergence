@@ -6,6 +6,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.UI;
 
 /// <summary>关卡流程中的真实 ESC 输入和暂停恢复检查；复用形态检查的隔离键盘。</summary>
 public static class GameMenuInputChecks
@@ -54,6 +55,71 @@ public static class GameMenuInputChecks
         InputSystem.Update();
         typeof(InputControlMgr).GetMethod("Update", Hidden).Invoke(input, null);
         InputSystem.Update();
+    }
+
+    public static void CheckOperationGuide(GameMenuPanel menu, List<string> passed)
+    {
+        InputControlMgr input = InputControlMgr.Instance;
+        var asset = DataAndInitMgr.Instance.asset;
+        string overrides = asset.SaveBindingOverridesAsJson();
+        float cognition = LevelStageMgr.Instance.CognitionRemaining;
+        var player = input.Player;
+        Vector3 position = player.transform.position;
+        InputSettings.UpdateMode updateMode = InputSystem.settings.updateMode;
+        object inputSystem = typeof(InputSystem).GetField("s_Manager", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
+        PropertyInfo editUpdates = inputSystem.GetType().GetProperty("runPlayerUpdatesInEditMode");
+        bool previousEditUpdates = (bool)editUpdates.GetValue(inputSystem);
+        Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+        Transform guide = menu.transform.Find("OperationGuideCard");
+        Text keys = guide.Find("GuideBindingsText").GetComponent<Text>();
+        try
+        {
+            editUpdates.SetValue(inputSystem, true);
+            InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsManually;
+            asset.FindAction("Jump").ApplyBindingOverride(0, "<Keyboard>/j");
+            asset.FindAction("Move").ApplyBindingOverride(1, "<Keyboard>/leftArrow");
+            asset.FindAction("Vertical").ApplyBindingOverride(2, "<Keyboard>/upArrow");
+            asset.FindAction("Sprint").ApplyBindingOverride(0, "");
+            string currentOverrides = asset.SaveBindingOverridesAsJson();
+            menu.FindUIObj<Button>("OperationGuideButton").onClick.Invoke();
+            Check(guide.gameObject.activeInHierarchy && !menu.transform.Find("MenuCard").gameObject.activeSelf,
+                "操作指南独立显示，菜单首页隐藏", passed);
+            Check(keys.text.Contains("跳跃　J") && keys.text.Contains("向左　Left Arrow")
+                && keys.text.Contains("向上／上浮　Up Arrow") && keys.text.Contains("疾跑（按住）　未绑定"),
+                "指南读取按钮、水平／竖直复合覆盖和空绑定，不显示写死默认键", passed);
+            Check(!input.IsRebinding && asset.SaveBindingOverridesAsJson() == currentOverrides
+                && menu.GetComponentsInChildren<InputChangePanel>(true).Length == 0,
+                "阅读指南不启动改键，不写回绑定", passed);
+            Check(SceneChangeMgr.Instance.GameMenuOpen && Time.timeScale == 0 && !input.InputEnabled
+                && WorldPaused(typeof(BasicEntity)) && WorldPaused(typeof(Taijie)),
+                "指南沿用原菜单的时间、输入与世界暂停", passed);
+            string fixedText = guide.Find("GuideFixedText").GetComponent<Text>().text;
+            Check(fixedText.Contains("长按回车") && fixedText.Contains("松开回车") && fixedText.Contains("ESC")
+                && !fixedText.Contains("秒") && !fixedText.Contains("余额"), "指南说明简短且不暴露长按时长设计", passed);
+            Capture("p274-guide.png");
+            Send(keyboard, input); Send(keyboard, input, Key.Escape);
+            Check(SceneChangeMgr.Instance.GameMenuOpen && !guide.gameObject.activeSelf
+                && Time.timeScale == 0 && !input.InputEnabled, "指南内真实 ESC 只退一级，继续保持暂停", passed);
+            Send(keyboard, input); Send(keyboard, input, Key.Escape);
+            Check(!SceneChangeMgr.Instance.GameMenuOpen && input.InputEnabled,
+                "首页再次真实 ESC 才恢复游戏", passed);
+            Check(input.Player == player && player.transform.position == position
+                && LevelStageMgr.Instance.CognitionRemaining == cognition,
+                "指南往返保留角色、现场和唯一认知余额", passed);
+            Send(keyboard, input); Send(keyboard, input, Key.Escape);
+            Check(!guide.gameObject.activeSelf && menu.transform.Find("MenuCard").gameObject.activeSelf,
+                "重新打开菜单回到首页", passed);
+            menu.FindUIObj<Button>("OperationGuideButton").onClick.Invoke();
+            menu.FindUIObj<Button>("GuideBackButton").onClick.Invoke();
+            Check(SceneChangeMgr.Instance.GameMenuOpen && !guide.gameObject.activeSelf && Time.timeScale == 0,
+                "指南返回按钮同样只退一层", passed);
+        }
+        finally
+        {
+            asset.LoadBindingOverridesFromJson(overrides);
+            editUpdates.SetValue(inputSystem, previousEditUpdates);
+            InputSystem.RemoveDevice(keyboard); InputSystem.settings.updateMode = updateMode;
+        }
     }
 
     static bool WorldPaused(Type type) => (bool)type.GetField("worldPaused", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
