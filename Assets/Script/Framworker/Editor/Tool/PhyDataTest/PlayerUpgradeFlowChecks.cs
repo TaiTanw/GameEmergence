@@ -195,7 +195,7 @@ public static class PlayerUpgradeFlowChecks
         Check(host.NextEscapeStep(), "正负都未触发仍正常进入二级页"); yield return null; RefreshView();
         Check(host.EscapeAutomaticReady && !host.PlayerEffects.PositiveAbility.HasValue && !host.PlayerEffects.NegativeAbility.HasValue
             && EscapeRoot().Find("Choices/AbilityPage/EmptyResultText").gameObject.activeInHierarchy
-            && EscapeRoot().Find("Choices/AbilityPage/EmptyResultText").GetComponent<Text>().text == "当前无任何效果生效",
+            && EscapeRoot().Find("Choices/AbilityPage/EmptyResultText").GetComponent<TMPro.TMP_Text>().text == "当前无任何效果生效",
             "无命中明确显示当前无任何效果生效");
         while (!BeginButton().interactable) yield return null;
         Capture("p20-no-effects.png");

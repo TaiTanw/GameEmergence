@@ -1,11 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>两页只展示规则结果；静态文案和布局留在预设，不在运行时补建或排版。</summary>
 public sealed class EscapeChoiceView : MonoBehaviour
 {
     GameObject costPage, abilityPage, emptyResult, positiveRow, negativeRow, lockedNote;
-    Text budget, summary, positiveText, negativeText, finalValues;
+    Text budget, summary;
+    TMP_Text positiveText, negativeText, finalValues;
+    GameObject abilityTitle;
     Button next, begin;
     Button[] purchases;
     Text[] levels, states;
@@ -32,6 +35,7 @@ public sealed class EscapeChoiceView : MonoBehaviour
         costPage = card.Find("CostPage").gameObject;
         abilityPage = card.Find("AbilityPage").gameObject;
         budget = card.Find("EscapeBudgetText").GetComponent<Text>();
+        abilityTitle = card.Find("AbilityTitleText").gameObject;
         summary = costPage.transform.Find("Content/EscapeCostText").GetComponent<Text>();
         lockedNote = costPage.transform.Find("Content/LockedPurchaseText").gameObject;
         next = card.Find("NextEscapeButton").GetComponent<Button>();
@@ -39,9 +43,9 @@ public sealed class EscapeChoiceView : MonoBehaviour
         emptyResult = abilityPage.transform.Find("EmptyResultText").gameObject;
         positiveRow = abilityPage.transform.Find("PositiveResult").gameObject;
         negativeRow = abilityPage.transform.Find("NegativeResult").gameObject;
-        positiveText = positiveRow.transform.Find("PositiveResultValueText").GetComponent<Text>();
-        negativeText = negativeRow.transform.Find("NegativeResultValueText").GetComponent<Text>();
-        finalValues = abilityPage.transform.Find("FinalValuesText").GetComponent<Text>();
+        positiveText = positiveRow.transform.Find("PositiveResultValueText").GetComponent<TMP_Text>();
+        negativeText = negativeRow.transform.Find("NegativeResultValueText").GetComponent<TMP_Text>();
+        finalValues = abilityPage.transform.Find("FinalValuesText").GetComponent<TMP_Text>();
         purchases = new Button[3]; levels = new Text[3]; states = new Text[3];
         string[] names = { "MapCostRow", "BackpackCostRow", "FormCostRow" };
         for (int i = 0; i < purchases.Length; i++)
@@ -113,13 +117,14 @@ public sealed class EscapeChoiceView : MonoBehaviour
             pageTime = exitTime = 0f; closing = false;
             paper.enabled = !showingAbilities;
             fog.gameObject.SetActive(showingAbilities);
+            budget.gameObject.SetActive(!showingAbilities);
+            abilityTitle.SetActive(showingAbilities);
             Present();
         }
         bool active = host.EscapeSelectionPending && !host.IsEscapeHandoff && !host.GameMenuOpen
             && Time.timeScale > 0f && PageRevealed && !closing;
         float remaining = LevelStageMgr.Instance.CognitionRemaining;
-        SetText(budget, showingAbilities ? "本场体能效果" : $"剩余认知 {remaining:0.##}");
-        budget.color = showingAbilities ? Color.white : new Color(.18f, .14f, .20f);
+        SetText(budget, $"剩余认知 {remaining:0.##}");
         SetText(summary, host.EscapeCostSummary());
         costPage.SetActive(!showingAbilities);
         abilityPage.SetActive(showingAbilities);
@@ -152,5 +157,7 @@ public sealed class EscapeChoiceView : MonoBehaviour
     }
 
     static void SetText(Text target, string value)
+    { if (target.text != value) target.text = value; }
+    static void SetText(TMP_Text target, string value)
     { if (target.text != value) target.text = value; }
 }

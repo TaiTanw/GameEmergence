@@ -126,6 +126,7 @@ public static class EscapePreparationLayout
         {
             Navigation navigation = control.navigation; navigation.mode = Navigation.Mode.None; control.navigation = navigation;
         }
+        P27AbilityTextStyle.Apply(overlay);
     }
     static void Place(RectTransform rect, Vector2 position, Vector2 size)
     { rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1); rect.anchoredPosition = position; rect.sizeDelta = size; }

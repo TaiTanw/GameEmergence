@@ -21,7 +21,7 @@ public static class P27EscapeMenuChecks
         var source = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/MyObjAssets/UIPanel/GameplayPanel.prefab").transform.Find("EscapeChoiceArea");
         Check(source.Find("Choices/Tabs") == null, "正式预设移除编号页签");
         Check(source.Find("Choices").GetComponent<Image>().sprite == GameUIAssets.Shared.environmentPanel, "第一页沿用少花纹纸张");
-        foreach (Text text in source.Find("Choices/AbilityPage").GetComponentsInChildren<Text>(true))
+        foreach (TMPro.TMP_Text text in source.Find("Choices/AbilityPage").GetComponentsInChildren<TMPro.TMP_Text>(true))
             Check(text.color == Color.white, "二页白字 " + text.name);
         Material material = source.Find("AbilityFog").GetComponent<EscapeFogGraphic>().material;
         Check(material != null && material.shader.isSupported && !ShaderUtil.ShaderHasError(material.shader), "迷雾材质编译且受当前显卡支持");
@@ -70,10 +70,10 @@ public static class P27EscapeMenuChecks
             card.Find("CostPage").gameObject.SetActive(false); card.Find("NextEscapeButton").gameObject.SetActive(false);
             card.Find("AbilityPage").gameObject.SetActive(true); card.Find("BeginEscapeButton").gameObject.SetActive(true);
             card.Find("AbilityPage/EmptyResultText").gameObject.SetActive(false);
-            card.Find("AbilityPage/PositiveResult/PositiveResultValueText").GetComponent<Text>().text = "移动速度 ×1.2";
-            card.Find("AbilityPage/NegativeResult/NegativeResultValueText").GetComponent<Text>().text = "起跳强度 ×0.9";
-            card.Find("AbilityPage/FinalValuesText").GetComponent<Text>().text = "移动速度 6 · 游泳速度 4\n起跳初速度 9 · 额外空中跳 1 次";
-            budget.text = "本场体能效果"; budget.color = Color.white;
+            card.Find("AbilityPage/PositiveResult/PositiveResultValueText").GetComponent<TMPro.TMP_Text>().text = "移动速度 ×1.2";
+            card.Find("AbilityPage/NegativeResult/NegativeResultValueText").GetComponent<TMPro.TMP_Text>().text = "起跳强度 ×0.9";
+            card.Find("AbilityPage/FinalValuesText").GetComponent<TMPro.TMP_Text>().text = "移动速度 6 · 游泳速度 4\n起跳初速度 9 · 额外空中跳 1 次";
+            budget.gameObject.SetActive(false); card.Find("AbilityTitleText").gameObject.SetActive(true);
             root.GetComponent<Image>().color = new Color(.015f, .025f, .04f, .32f);
             fog.gameObject.SetActive(true);
             float[] reveal = { .38f, 1f, 1f }; float[] alpha = { 0f, 0f, 1f };

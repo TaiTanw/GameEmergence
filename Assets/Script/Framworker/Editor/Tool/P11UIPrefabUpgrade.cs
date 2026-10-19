@@ -42,7 +42,11 @@ public static class P11UIPrefabUpgrade
             Edit(Path.GetFileNameWithoutExtension(path), root => {
                 foreach (Text text in root.GetComponentsInChildren<Text>(true)) text.font = assets.font;
                 foreach (TMPro.TMP_Text text in root.GetComponentsInChildren<TMPro.TMP_Text>(true))
+                {
+                    Transform escape = root.transform.Find("EscapeChoiceArea");
+                    if (escape != null && text.transform.IsChildOf(escape)) continue;
                     text.font = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>("Assets/MyObjAssets/PlayDataA/FZYTK SDF.asset");
+                }
             });
         AssetDatabase.SaveAssets();
         Debug.Log("P11 UI prefabs updated; texture size/compression settings preserved.");
