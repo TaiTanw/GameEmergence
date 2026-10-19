@@ -363,8 +363,8 @@ public static class P8P9LevelFlowChecks
         box.RefreshMotionState(boxHome + Vector2.right * 9f);
         RefreshPanel();
         Check(panel.transform.Find("StartEscapeButton") == null
-            && panel.transform.Find("EndExplorationNote").gameObject.activeInHierarchy && host.CanStartEscape,
-            "真实探索界面提供不可点击便签并移除开始逃生按钮");
+            && panel.transform.Find("EndExplorationNote") == null && host.CanStartEscape,
+            "真实探索界面移除常驻结束便签及开始逃生按钮，保留回车入口");
         P11UIInputChecks.EndExploration(panel, passed);
         Check(host.EscapeSelectionPending && explorationRules.EscapeSelectionPending
             && InputControlMgr.Instance.Player == null && !spirit.Permissions.motionUpdates

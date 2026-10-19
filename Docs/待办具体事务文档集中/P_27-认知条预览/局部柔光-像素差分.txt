@@ -1,0 +1,2 @@
+1920: changed full=13956, half=7040, empty=0, brightness difference=0
+960: changed full=3472, half=1768, empty=0, brightness difference=0

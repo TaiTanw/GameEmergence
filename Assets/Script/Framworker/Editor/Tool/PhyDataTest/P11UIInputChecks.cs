@@ -32,11 +32,12 @@ public static class P11UIInputChecks
             native.actions.devices = new InputDevice[] { keyboard };
             InputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsManually;
             Send(keyboard); Tick(input, 0);
+            CheckCognitionDurations(panel, input, keyboard, passed);
             Send(keyboard, Key.Enter); Tick(input, .5f); Refresh(panel);
             Check(input.EscapeHoldProgress > .2f && !SceneChangeMgr.Instance.EscapeSelectionPending
-                && panel.FindUIObj<Image>("EndExplorationFill").rectTransform.rect.width < ((RectTransform)panel.transform.Find("CognitionArea")).rect.width * .8f,
-                "真实回车短按缩短白条，不提前进入准备", passed);
-            GameMenuInputChecks.Capture("p11-centered-hold.png");
+                && panel.GetComponentInChildren<CognitionBarGraphic>().ConfirmationFraction < .8f,
+                "真实回车短按缩短黑色刻度，不提前进入准备", passed);
+            GameMenuInputChecks.Capture("p27-integrated-hold.png");
             Send(keyboard); Tick(input, .2f);
             Check(input.EscapeHoldProgress == 0f, "未到零时松手，0.2 秒内回满白条", passed);
             Send(keyboard, Key.Enter); Tick(input, .7f);
@@ -50,8 +51,12 @@ public static class P11UIInputChecks
             Check(input.HasPlayerBindingConflict(out string message) && message.Contains("回车"),
                 "回车绑定到交互时提示专用键冲突", passed);
             Send(keyboard, Key.Enter); Tick(input, 5f);
+            Refresh(panel);
             Check(input.EscapeHoldProgress == 0f && !SceneChangeMgr.Instance.EscapeSelectionPending,
                 "回车与交互重绑冲突时禁用结束长按", passed);
+            Check(panel.FindUIObj<Text>("RefreshMessageText").text.Contains("主菜单")
+                && panel.GetComponentInChildren<CognitionBarGraphic>().ConfirmationFraction == 0f,
+                "移除便签后键位冲突仍显示改键指引，并隐藏可确认刻度", passed);
             Restore(action, original); Send(keyboard); Tick(input, 0);
             Check(!input.HasPlayerBindingConflict(out message), "冲突用例恢复原始玩家绑定", passed);
             input.StartRebind("Interact", 0, null);
@@ -63,15 +68,35 @@ public static class P11UIInputChecks
                 "ESC 取消改键不误开菜单，也不触发结束探索", passed);
             Check(input.InputEnabled && !input.HasPlayerBindingConflict(out message),
                 "取消改键后动作图恢复且无冲突: " + message, passed);
-            Send(keyboard, Key.Enter); Tick(input, 1.9f);
+            GameObject typing = new GameObject("P27TypingFixture", typeof(RectTransform), typeof(InputField));
+            var events = UnityEngine.EventSystems.EventSystem.current;
+            GameObject previousSelection = events.currentSelectedGameObject;
+            try
+            {
+                events.SetSelectedGameObject(typing);
+                Send(keyboard, Key.Enter); Tick(input, 5f);
+                Check(input.EscapeHoldProgress == 0f && !SceneChangeMgr.Instance.EscapeSelectionPending,
+                    "文本输入期间回车不贡献结束确认", passed);
+                events.SetSelectedGameObject(previousSelection); Tick(input, 5f);
+                Check(input.EscapeHoldProgress == 0f && !SceneChangeMgr.Instance.EscapeSelectionPending,
+                    "离开文本输入后仍按回车须先松手", passed);
+            }
+            finally { events.SetSelectedGameObject(previousSelection); UnityEngine.Object.DestroyImmediate(typing); }
+            Send(keyboard); Tick(input, 0);
+            float balance = LevelStageMgr.Instance.CognitionRemaining;
+            float seconds = Mathf.Max(.2f, 2f * balance / SceneLevelSetup.Current.InitialCognition);
+            Send(keyboard, Key.NumpadEnter); Tick(input, seconds - .01f);
             Check(!SceneChangeMgr.Instance.EscapeSelectionPending && input.EscapeHoldProgress > .9f,
-                "长按不足 2 秒仍留在探索: progress=" + input.EscapeHoldProgress, passed);
-            Tick(input, .11f);
+                "数字回车不足当前余额目标时长仍留在探索: seconds=" + seconds, passed);
+            Tick(input, .02f);
             Check(SceneChangeMgr.Instance.EscapeSelectionPending && input.Player == null,
-                "回车满 2 秒通过原入口进入准备并撤销控制: progress=" + input.EscapeHoldProgress
+                "数字回车达到余额目标时长通过原入口进入准备并撤销控制: progress=" + input.EscapeHoldProgress
                     + ", canEnd=" + SceneChangeMgr.Instance.CanStartEscape + ", enabled=" + input.InputEnabled, passed);
+            Check(LevelStageMgr.Instance.CognitionRemaining == balance, "完成长按不扣实际认知", passed);
+            int version = SceneChangeMgr.Instance.EscapePreparationVersion;
             Tick(input, 5f);
-            Check(input.EscapeHoldProgress == 0f, "进入准备后白条计时清零，不重复请求", passed);
+            Check(input.EscapeHoldProgress == 0f && SceneChangeMgr.Instance.EscapePreparationVersion == version,
+                "进入准备后白条计时清零，持续按住不重复请求", passed);
         }
         finally
         {
@@ -82,6 +107,51 @@ public static class P11UIInputChecks
             InputSystem.settings.updateMode = mode;
             editUpdates.SetValue(inputSystem, previousEditUpdates);
         }
+    }
+    static void CheckCognitionDurations(GameplayPanel panel, InputControlMgr input, Keyboard keyboard, List<string> passed)
+    {
+        // 边界夹具仅在隔离测试场景暂设余额，退出后恢复同一记录；不增加正式写入口。
+        var rules = (PlayerLifecycleRules)typeof(SceneChangeMgr).GetField("levelRules", Hidden).GetValue(SceneChangeMgr.Instance);
+        LevelCognition cognition = rules.Cognition;
+        PropertyInfo remaining = typeof(LevelCognition).GetProperty("Remaining");
+        float saved = cognition.Remaining, capacity = SceneLevelSetup.Current.InitialCognition;
+        try
+        {
+            float[] fractions = { 1f, .5f, .1f, .01f };
+            float[] seconds = { 2f, 1f, .2f, .2f };
+            for (int i = 0; i < fractions.Length; i++)
+            {
+                float balance = capacity * fractions[i];
+                remaining.SetValue(cognition, balance);
+                Send(keyboard, Key.Enter); Tick(input, seconds[i] - .01f); Refresh(panel);
+                Check(!SceneChangeMgr.Instance.EscapeSelectionPending && Mathf.Abs(input.EscapeHoldProgress - (1f - .01f / seconds[i])) < .001f,
+                    "余额比例 " + fractions[i] + " 的目标确认时长为 " + seconds[i] + " 秒", passed);
+                CognitionBarGraphic bar = panel.GetComponentInChildren<CognitionBarGraphic>();
+                Check(Mathf.Abs(bar.CognitionFraction - fractions[i]) < .001f
+                    && bar.ConfirmationFraction <= bar.CognitionFraction && !bar.raycastTarget,
+                    "余额比例 " + fractions[i] + " 的刻度位于真实认知条内部且不抢占鼠标", passed);
+                Check(cognition.Remaining == balance, "长按中余额不变：" + fractions[i], passed);
+                Send(keyboard); Tick(input, .2f);
+                Check(input.EscapeHoldProgress == 0f && cognition.Remaining == balance,
+                    "松手回填不返还或扣除认知：" + fractions[i], passed);
+            }
+            remaining.SetValue(cognition, capacity);
+            Send(keyboard, Key.Enter); Tick(input, .5f);
+            remaining.SetValue(cognition, capacity * .5f);
+            Tick(input, .5f); Refresh(panel);
+            Check(Mathf.Abs(input.EscapeHoldProgress - .5f) < .001f,
+                "同次长按中认知降低，仍沿按下时锁定的两秒目标推进", passed);
+            CognitionBarGraphic current = panel.GetComponentInChildren<CognitionBarGraphic>();
+            Check(Mathf.Abs(current.CognitionFraction - .5f) < .001f && Mathf.Abs(current.ConfirmationFraction - .25f) < .001f,
+                "锁定确认时长时黑色刻度仍随实时认知缩短", passed);
+            GameMenuInputChecks.Capture("p27-half-cognition-hold.png");
+            Send(keyboard); Tick(input, .2f);
+            Send(keyboard, Key.Enter); Tick(input, .5f);
+            Check(Mathf.Abs(input.EscapeHoldProgress - .5f) < .001f,
+                "重新按下按新的半条余额计算一秒目标", passed);
+            Send(keyboard); Tick(input, .2f);
+        }
+        finally { remaining.SetValue(cognition, saved); }
     }
     static void Restore(InputAction action, InputBinding original)
     { if (original.overridePath == null) action.RemoveBindingOverride(0); else action.ApplyBindingOverride(0, original); }

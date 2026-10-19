@@ -6,11 +6,12 @@ public class GameplayPanel : BasePanel
     [UnityEngine.SerializeField, UnityEngine.Min(0f)] float fullResourceHideDelay = 1f;
     [UnityEngine.SerializeField, UnityEngine.Min(0f), UnityEngine.Tooltip("资源条与角色显示边缘的间距，按画布布局像素计算。")]
     float resourceBarGap = 18f;
-    Text cognitionText, refreshMessageText, endExplorationText;
-    UnityEngine.GameObject actionArea, environmentEditArea, escapeChoiceArea, mapArea, cognitionArea, endExplorationNote;
+    Text cognitionText, refreshMessageText;
+    UnityEngine.GameObject actionArea, environmentEditArea, escapeChoiceArea, mapArea, cognitionArea;
     Button resetTrialButton;
     UnityEngine.RectTransform messageArea, staminaBar, oxygenBar, panelRect;
-    Image cognitionFill, endExplorationFill, staminaFill, oxygenFill;
+    Image staminaFill, oxygenFill;
+    CognitionBarGraphic cognitionBar;
     UnityEngine.GameObject backpackArea, openBackpackButton;
     UnityEngine.Canvas canvas;
     Player displayedPlayer;
@@ -20,13 +21,10 @@ public class GameplayPanel : BasePanel
     protected override void OtherInit()
     {
         cognitionText = FindUIObj<Text>("CognitionText");
-        cognitionFill = FindUIObj<Image>("CognitionFill");
-        endExplorationFill = FindUIObj<Image>("EndExplorationFill");
-        endExplorationText = FindUIObj<Text>("EndExplorationText");
+        cognitionBar = transform.Find("CognitionArea/CognitionTrack").GetComponent<CognitionBarGraphic>();
         staminaFill = FindUIObj<Image>("StaminaFill");
         oxygenFill = FindUIObj<Image>("OxygenFill");
         cognitionArea = transform.Find("CognitionArea").gameObject;
-        endExplorationNote = transform.Find("EndExplorationNote").gameObject;
         staminaBar = transform.Find("StaminaBar") as UnityEngine.RectTransform;
         oxygenBar = transform.Find("OxygenBar") as UnityEngine.RectTransform;
         panelRect = (UnityEngine.RectTransform)transform;
@@ -59,6 +57,9 @@ public class GameplayPanel : BasePanel
         InputControlMgr input = InputControlMgr.Instance;
         Player player = input.Player;
         string message = host.GameplayMessage;
+        // 旧绑定占用回车时保留可见指引，普通探索不再显示常驻结束便签。
+        if (host.CanStartEscape && input.EscapeKeyConflict && string.IsNullOrEmpty(message))
+            message = "回车与玩家按键冲突，请返回主菜单，在设置中改用其它键。";
         refreshMessageText.text = message;
         messageArea.gameObject.SetActive(!string.IsNullOrEmpty(message));
         bool resetAllowed = host.CanResetTrial, editAllowed = host.CanEditEnvironment;
@@ -85,14 +86,11 @@ public class GameplayPanel : BasePanel
         if (hasCognition)
         {
             float remaining = LevelStageMgr.Instance.CognitionRemaining;
-            SetCenteredFill(cognitionFill, remaining / setup.InitialCognition);
+            // 显示只读余额和长按贡献；外轮廓与中间空心菱形始终固定。
+            cognitionBar.SetDisplay(remaining / setup.InitialCognition, 1f - input.EscapeHoldProgress,
+                host.CanStartEscape && !input.EscapeKeyConflict);
             cognitionText.text = $"{UnityEngine.Mathf.Floor(remaining):0} / {setup.InitialCognition:0.##}";
         }
-        bool canEnd = host.CanStartEscape;
-        endExplorationNote.SetActive(canEnd);
-        endExplorationFill.gameObject.SetActive(hasCognition && canEnd);
-        SetCenteredFill(endExplorationFill, 1f - input.EscapeHoldProgress);
-        endExplorationText.text = input.EscapeKeyConflict ? "回车与玩家按键冲突\n请在设置中改开" : "长按回车\n结束探索";
         // 换人时清显示计时，不把精神体的旧条留给实体。
         if (displayedPlayer != player)
         {
@@ -108,15 +106,6 @@ public class GameplayPanel : BasePanel
         UpdateResource(staminaBar, staminaFill, resources.stamina, resources.staminaMax, ref staminaFullSince);
         UpdateResource(oxygenBar, oxygenFill, resources.oxygen, resources.oxygenMax, ref oxygenFullSince);
         PlaceResourceBars(player, input.GameCamera);
-    }
-
-    // 两条横条保持中心不动，两端按剩余比例同时向中间收缩。
-    static void SetCenteredFill(Image fill, float fraction)
-    {
-        float inset = (1f - UnityEngine.Mathf.Clamp01(fraction)) * .5f;
-        UnityEngine.RectTransform rect = fill.rectTransform;
-        rect.anchorMin = new UnityEngine.Vector2(inset, rect.anchorMin.y);
-        rect.anchorMax = new UnityEngine.Vector2(1f - inset, rect.anchorMax.y);
     }
 
     void UpdateResource(UnityEngine.RectTransform bar, Image fill, float current, float maximum, ref float fullSince)

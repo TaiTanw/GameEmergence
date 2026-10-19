@@ -129,7 +129,7 @@ public static class P11UIFlowChecks
                     UIMgr.Instance.GetOnePanel<GameplayPanel>(panel => gameplay = panel);
                     if (gameplay == null || !gameplay.gameObject.activeInHierarchy || InputControlMgr.Instance.Player == null || Time.timeScale <= 0f) return;
                     Check(SceneLevelSetup.Current.Teaching && LevelStageMgr.Instance.LevelIndex == 0, "开始入口实际进入已保存教学关");
-                    Check(!gameplay.transform.Find("CognitionArea").gameObject.activeSelf && !gameplay.transform.Find("EndExplorationNote").gameObject.activeSelf,
+                    Check(!gameplay.transform.Find("CognitionArea").gameObject.activeSelf && gameplay.transform.Find("EndExplorationNote") == null,
                         "教学不显示认知条、长按白条和结束探索便签");
                     Check(!gameplay.transform.Find("StaminaBar").gameObject.activeSelf && !gameplay.transform.Find("OxygenBar").gameObject.activeSelf,
                         "角色初始满资源时两条竖条均隐藏");

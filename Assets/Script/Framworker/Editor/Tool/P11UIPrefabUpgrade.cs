@@ -98,24 +98,15 @@ public static class P11UIPrefabUpgrade
     {
         Transform panel = root.transform;
         foreach (string name in new[] { "ResourceArea", "StageArea", "MenuHintArea", "StartEscapeButton", "CognitionArea", "EndExplorationNote", "StaminaBar", "OxygenBar" }) Remove(panel, name);
-        RectTransform cognition = Rect(panel, "CognitionArea", new Vector2(.5f, 1f), new Vector2(0, -12), new Vector2(1728, 74));
-        cognition.anchorMin = new Vector2(.05f, 1f); cognition.anchorMax = new Vector2(.95f, 1f); cognition.sizeDelta = new Vector2(0, 74);
+        RectTransform cognition = Rect(panel, "CognitionArea", new Vector2(.5f, 1f), new Vector2(0, -12), new Vector2(1728, 80));
+        cognition.anchorMin = new Vector2(.05f, 1f); cognition.anchorMax = new Vector2(.95f, 1f); cognition.sizeDelta = new Vector2(0, 80);
         Text value = Label(cognition, "CognitionText", "100 / 100", 26, Color.white);
         value.rectTransform.anchorMin = new Vector2(0, 1); value.rectTransform.anchorMax = Vector2.one;
         value.rectTransform.pivot = new Vector2(.5f, 1); value.rectTransform.anchoredPosition = Vector2.zero; value.rectTransform.sizeDelta = new Vector2(0, 32);
-        RectTransform track = Rect(cognition, "CognitionTrack", new Vector2(.5f, 1), new Vector2(0, -38), new Vector2(0, 14));
+        RectTransform track = Rect(cognition, "CognitionTrack", new Vector2(.5f, 1), new Vector2(0, -26), new Vector2(0, 40));
         track.anchorMin = new Vector2(0, 1); track.anchorMax = Vector2.one;
-        Image background = track.gameObject.AddComponent<Image>(); background.color = new Color(.08f, .065f, .11f, .85f); background.raycastTarget = false;
-        Fill(track, "CognitionFill", new Color(1f, .55f, .12f), false);
-        RectTransform hold = Rect(cognition, "EndExplorationFill", new Vector2(.5f, 1), new Vector2(0, -59), new Vector2(0, 4));
-        hold.anchorMin = new Vector2(0, 1); hold.anchorMax = Vector2.one;
-        Image white = hold.gameObject.AddComponent<Image>(); white.color = Color.white; white.raycastTarget = false;
-        white.sprite = GameUIAssets.Shared.bar;
-        white.type = Image.Type.Simple;
-        RectTransform note = Rect(panel, "EndExplorationNote", new Vector2(0, 1), new Vector2(18, -88), new Vector2(300, 96));
-        Paper(note, GameUIAssets.Shared.note);
-        Text hint = Label(note, "EndExplorationText", "长按回车\n结束探索", 26, Ink);
-        hint.rectTransform.offsetMin = new Vector2(28, 12); hint.rectTransform.offsetMax = new Vector2(-28, -12);
+        var cognitionGraphic = track.gameObject.AddComponent<CognitionBarGraphic>(); cognitionGraphic.raycastTarget = false;
+        cognitionGraphic.material = AssetDatabase.LoadAssetAtPath<Material>(Art + "CognitionBarGlow.mat");
         ResourceBar(panel, "StaminaBar", "StaminaFill", new Color(.91f, .75f, .31f));
         ResourceBar(panel, "OxygenBar", "OxygenFill", new Color(.43f, .81f, .93f));
         foreach (Selectable control in root.GetComponentsInChildren<Selectable>(true))

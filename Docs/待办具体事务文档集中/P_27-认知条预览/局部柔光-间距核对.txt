@@ -1,0 +1,4 @@
+PASS shared UI material=CognitionBarGlow; radius=6; intensity=0.75
+PASS conservative button clearance after outline+glow=2.999969 layout pixels
+PASS 960x540 clearance=1.499985 physical pixels
+PASS Shader has no compilation errors

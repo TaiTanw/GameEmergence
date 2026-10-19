@@ -28,6 +28,7 @@ public partial class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
     public bool IsRebinding => rebindOperation != null;
     public Camera GameCamera => mainCamera != null ? mainCamera.GetComponent<Camera>() : null;
     float escapeHoldProgress;
+    float escapeHoldDuration;
     bool escapeHoldNeedsRelease;
     public float EscapeHoldProgress => escapeHoldProgress;
     public bool EscapeKeyConflict => EscapeKeyIsBound(out _);
@@ -464,6 +465,7 @@ public partial class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         if (endingActor != null) { endingActor.ClearInput(); endingActor = null; ClearEndingInputEdges(); }
         if (this.player == player) return;
         escapeHoldProgress = 0f;
+        escapeHoldDuration = 0f;
         escapeHoldNeedsRelease = Keyboard.current != null && (Keyboard.current.enterKey.isPressed || Keyboard.current.numpadEnterKey.isPressed);
         // 实际逻辑：先解除已经在控制的角色。传入的新角色还没接上，不能对它清输入。
         if (this.player != null && this.player != player)
@@ -581,22 +583,35 @@ public partial class InputControlMgr : BaseAutoMonoMgr<InputControlMgr>
         if (!SceneChangeMgr.Instance.CanStartEscape || !InputEnabled || IsRebinding || typing || EscapeKeyConflict)
         {
             escapeHoldProgress = 0f;
+            escapeHoldDuration = 0f;
             escapeHoldNeedsRelease = held;
             return;
         }
         if (!held)
         {
             escapeHoldNeedsRelease = false;
+            escapeHoldDuration = 0f;
             escapeHoldProgress = Mathf.MoveTowards(escapeHoldProgress, 0f, elapsed / Mathf.Max(.01f, GameUIAssets.Shared.escapeRefillSeconds));
             return;
         }
         if (escapeHoldNeedsRelease) return;
-        escapeHoldProgress = Mathf.MoveTowards(escapeHoldProgress, 1f, elapsed / Mathf.Max(.1f, GameUIAssets.Shared.escapeHoldSeconds));
+        // 安全：有效容量尚未就绪时不开始长按，也不除以零。
+        SceneLevelSetup setup = SceneLevelSetup.Current;
+        if (setup == null || setup.Teaching || setup.InitialCognition <= 0f) return;
+        // 每次按下锁定确认时长；这里只读真实余额，不消费认知。
+        if (escapeHoldDuration <= 0f)
+        {
+            float fraction = Mathf.Clamp01(LevelStageMgr.Instance.CognitionRemaining / setup.InitialCognition);
+            escapeHoldDuration = Mathf.Max(GameUIAssets.Shared.escapeMinimumHoldSeconds,
+                GameUIAssets.Shared.escapeHoldSeconds * fraction);
+        }
+        escapeHoldProgress = Mathf.MoveTowards(escapeHoldProgress, 1f, elapsed / Mathf.Max(.01f, escapeHoldDuration));
         // 到零只请求原准备入口；不结算认知，也不改变主流程。
         if (escapeHoldProgress >= 1f)
         {
             SceneChangeMgr.Instance.StartEscape();
             escapeHoldProgress = 0f;
+            escapeHoldDuration = 0f;
             escapeHoldNeedsRelease = true;
         }
     }
