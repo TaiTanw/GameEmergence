@@ -79,9 +79,9 @@ public class GameplayPanel : BasePanel
         actionArea.SetActive(resetAllowed || editAllowed);
         SceneLevelSetup setup = SceneLevelSetup.Current;
         bool hasCognition = setup != null && !setup.Teaching && setup.InitialCognition > 0f;
-        // 准备购买仍显示余额；确认交接及正式逃生隐藏整组顶部条，失败回探索再恢复。
+        // 购买页仍显示余额；进入能力结果页即隐藏整组顶部条，失败回探索再恢复。
         cognitionArea.SetActive(hasCognition && LevelStageMgr.Instance.Stage == PlayerGameplayStage.Exploration
-            && !host.IsEscapeHandoff);
+            && !host.EscapeAutomaticReady && !host.IsEscapeHandoff);
         // 安全：没有本关认知时不画占位条，也不除以零。
         if (hasCognition)
         {
