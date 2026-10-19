@@ -11125,7 +11125,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
-      value: "\u5148\u770B\u8DEF\uFF0C\u518D\u51B3\u5B9A\u8981\u6539\u54EA\u4E00\u5757\u73AF\u5883\u3002\n\u8BA4\u77E5\u82B1\u5F97\u8D8A\u5C11\uFF0C\u9003\u751F\u65F6\u8D8A\u5BB9\u6613\u5F97\u5230\u597D\u80FD\u529B\u3002\n\u84DD\u6846\u80FD\u4FEE\u6539\uFF0C\u666E\u901A\u6258\u53F0\u662F\u5B89\u5168\u843D\u811A\u70B9\u3002\n\u9AD8\u5904\u9700\u8981\u8FDE\u8DF3\uFF1B\u80FD\u529B\u53D8\u5F31\u65F6\u4E5F\u6709\u53EF\u8D70\u7684\u8DEF\u3002"
+      value: "\u53EA\u6709\u63A2\u7D22\u9636\u6BB5\u53EF\u70B9\u4EAE\u5730\u56FE\u683C\u5B50\uFF0C\u957F\u6309\u56DE\u8F66\u7ED3\u675F\u63A2\u7D22\uFF0C\u5269\u4F59\u8BA4\u77E5\u4F1A\u8F6C\u5316\u4E3A\u80FD\u529B\uFF0C\u70B9\u4EAE\u5730\u56FE\u683C\u5B50\uFF0C\u4FEE\u6539\u73AF\u5883\u7B49\u4F1A\u6D88\u8017\u8BA4\u77E5"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
@@ -26711,11 +26711,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2
+      value: 7.15
       objectReference: {fileID: 0}
     - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2
+      value: 4.21
       objectReference: {fileID: 0}
     - target: {fileID: 5993481353495940218, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_LocalPosition.z

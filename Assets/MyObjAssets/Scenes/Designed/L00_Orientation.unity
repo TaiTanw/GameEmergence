@@ -148,7 +148,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
-      value: "\u9760\u8FD1\u5C0F\u8F66\u6309 E \u5F00\u5173\uFF0C\u5B83\u4F1A\u6CBF\u56FA\u5B9A\u65B9\u5411\u8D70\u3002\n\u5C0F\u8F66\u80FD\u63A8\u7BB1\u5B50\uFF0C\u666E\u901A\u538B\u677F\u80FD\u63A7\u5236\u540C\u53F7\u7684\u95E8\u3002\n\u538B\u4F4F\u65F6\u95E8\u6253\u5F00\uFF0C\u677F\u4E0A\u7A7A\u4E86\uFF0C\u95E8\u5C31\u6162\u6162\u5173\u4E0A\u3002\n\u5148\u770B\u6E05\u8F66\u3001\u7BB1\u3001\u677F\u548C\u95E8\uFF0C\u518D\u5F00\u8F66\u8DDF\u4E0A\u3002"
+      value: "\u9760\u8FD1\u5C0F\u8F66\u6309 E \u5F00\u5173\uFF0C\u5B83\u4F1A\u6CBF\u56FA\u5B9A\u65B9\u5411\u8D70\u3002\n\u5C0F\u8F66\u80FD\u63A8\u7BB1\u5B50\uFF0C\u666E\u901A\u538B\u677F\u80FD\u63A7\u5236\u540C\u53F7\u7684\u95E8\u3002"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
@@ -502,7 +502,7 @@ PrefabInstance:
       propertyPath: m_Text
       value: "\u9760\u8FD1\u666E\u901A\u7BB1\u6309 E \u9009\u4E2D\uFF0C\u518D\u7528
         A / D \u63A8\u62C9\u3002\n\u518D\u6B21\u70B9\u6309 E \u89E3\u9664\u9009\u4E2D\uFF0C\u8DF3\u8DC3\u4E5F\u4F1A\u677E\u624B\u3002\n\u9009\u4E2D\u540E\u957F\u6309
-        E \u53EF\u4EE5\u6536\u7EB3\u7BB1\u5B50\u3002\n\u9000\u5F00\u539F\u4F4D\u7F6E\uFF0C\u518D\u9760\u8FD1\u6309
+        E \u53EF\u4EE5\u6536\u7EB3\u7BB1\u5B50\u3002\u88AB\u6536\u7EB3\u7BB1\u5B50\u4E0D\u53C2\u4E0E\u78B0\u649E\n\u9000\u5F00\u539F\u4F4D\u7F6E\uFF0C\u518D\u9760\u8FD1\u6309
         E \u53D6\u51FA\u3002"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
@@ -929,7 +929,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
-      value: "\u6C34\u91CC\u7528 W / A / S / D \u6E38\u52A8\u3002\n\u6574\u4E2A\u5934\u90E8\u8FDB\u5165\u6C34\u4E2D\uFF0C\u4F1A\u6162\u6162\u6D88\u8017\u6C27\u6C14\u3002\n\u8BA9\u5934\u9732\u51FA\u6C34\u9762\uFF0C\u5C31\u80FD\u6062\u590D\u6C27\u6C14\u3002\n\u8FD9\u91CC\u4E0D\u4F1A\u6DA8\u6C34\uFF0C\u53EF\u4EE5\u6162\u6162\u7EC3\u4E60\u3002"
+      value: "\u6C34\u91CC\u7528 W / A / S / D \u6E38\u52A8\u3002\n\u6C34\u5185\u4F1A\u6D88\u8017\u6C27\u6C14"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
@@ -1463,11 +1463,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 640002640002640002, guid: c7e1d9a24b6f4c0e8d5a3170b2e94f61, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 60
+      value: 59.91
       objectReference: {fileID: 0}
     - target: {fileID: 640002640002640002, guid: c7e1d9a24b6f4c0e8d5a3170b2e94f61, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.65
+      value: 2.26
       objectReference: {fileID: 0}
     - target: {fileID: 640002640002640002, guid: c7e1d9a24b6f4c0e8d5a3170b2e94f61, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1501,6 +1501,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 640003640003640003, guid: c7e1d9a24b6f4c0e8d5a3170b2e94f61, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: -1313850250, guid: da0c36fed5b99e746b557e3dce655027, type: 3}
     - target: {fileID: 640003640003640003, guid: c7e1d9a24b6f4c0e8d5a3170b2e94f61, type: 3}
       propertyPath: m_SortingOrder
       value: 10
@@ -2077,7 +2081,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
-      value: "\u9760\u8fd1\u5e8a\u3001\u4e66\u6216\u706f\uff0c\u6309 E \u79bb\u5f00\u8fd9\u4e00\u5173\u3002\n\u4e0b\u4e00\u5173\u5148\u7528\u7cbe\u795e\u4f53\u770b\u8def\u3001\u4fee\u6539\u73af\u5883\u3002\n\u51c6\u5907\u597d\u540e\uff0c\u957f\u6309\u56de\u8f66\u7ed3\u675f\u63a2\u7d22\u3002\n\u4e2d\u9014\u677e\u5f00\u5373\u53ef\u53d6\u6d88\uff1b\u786e\u8ba4\u540e\u7528\u672c\u4f53\u9003\u751f\u3002\n\u6309 ESC\uff0c\u5728\u201c\u64cd\u4f5c\u6307\u5357\u201d\u91cc\u67e5\u770b\u5f53\u524d\u6309\u952e\u3002"
+      value: "\u4E0E\u7279\u6B8A\u7269\u54C1\u4EA4\u4E92\u8FDB\u5165\u4E0B\u4E00\u5173"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
@@ -2359,7 +2363,7 @@ PrefabInstance:
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
       value: "A / D \u79FB\u52A8\uFF0C\u7A7A\u683C\u8DF3\u8DC3\u3002\n\u7A7A\u4E2D\u8FD8\u80FD\u518D\u8DF3\u4E00\u6B21\uFF1BShift
-        \u75BE\u8DD1\u3002\n\u5148\u8BD5\u8BD5\u53F3\u4FA7\u7684\u77EE\u53F0\uFF0C\u518D\u53BB\u770B\u4E0B\u4E00\u5757\u724C\u3002"
+        \u75BE\u8DD1\u3002\n\u544A\u793A\u724C\u9760\u8FD1\u65F6\u663E\u793A\u5185\u5BB9"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
@@ -3390,8 +3394,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_Text
-      value: "\u5148\u628A\u7BB1\u5B50\u6446\u5728\u8E0F\u677F\u524D\uFF0C\u518D\u6309
-        E \u5F00\u8F66\u3002\n\u7BB1\u5B50\u538B\u4F4F\u8E0F\u677F\u65F6\uFF0C\u95E8\u624D\u4F1A\u6253\u5F00\u3002\n\u5148\u770B\u4E00\u904D\u95E8\u7684\u53D8\u5316\uFF0C\u518D\u5F80\u524D\u8D70\u3002"
+      value: "\u7BB1\u5B50\u538B\u4F4F\u8E0F\u677F\u65F6\uFF0C\u95E8\u624D\u4F1A\u6253\u5F00\u3002\n\u82E5\u73A9\u5BB6\u88AB\u673A\u5173\u6324\u538B\u5219\u89E6\u53D1\u6B7B\u4EA1\n"
       objectReference: {fileID: 0}
     - target: {fileID: 3046005730986026772, guid: af5fa58e9cfd27a4cb64560fef34a33e, type: 3}
       propertyPath: m_FontData.m_FontSize
