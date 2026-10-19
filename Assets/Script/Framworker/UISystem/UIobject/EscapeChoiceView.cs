@@ -6,22 +6,34 @@ public sealed class EscapeChoiceView : MonoBehaviour
 {
     GameObject costPage, abilityPage, emptyResult, positiveRow, negativeRow, lockedNote;
     Text budget, summary, positiveText, negativeText, finalValues;
-    Button costTab, abilityTab, next, begin;
+    Button next, begin;
     Button[] purchases;
     Text[] levels, states;
     int displayedVersion = -1;
     bool showingAbilities;
+    [Header("菜单显现（真实秒数）"), Min(.01f)] public float paperFadeSeconds = .18f;
+    [Min(.01f)] public float fogExpandSeconds = .45f;
+    [Min(.01f)] public float textFadeSeconds = .3f;
+    [Min(.01f)] public float exitFadeSeconds = .16f;
+    CanvasGroup contents;
+    Image paper, backdrop;
+    EscapeFogGraphic fog;
+    float pageTime, flowTime, exitTime;
+    bool pageInitialized, presentedAbilities, closing;
+    bool PageRevealed => pageTime >= (showingAbilities ? fogExpandSeconds + textFadeSeconds : paperFadeSeconds);
 
     void Awake()
     {
         Transform card = transform.Find("Choices");
+        contents = card.GetComponent<CanvasGroup>();
+        paper = card.GetComponent<Image>();
+        backdrop = GetComponent<Image>();
+        fog = transform.Find("AbilityFog").GetComponent<EscapeFogGraphic>();
         costPage = card.Find("CostPage").gameObject;
         abilityPage = card.Find("AbilityPage").gameObject;
         budget = card.Find("EscapeBudgetText").GetComponent<Text>();
         summary = costPage.transform.Find("Content/EscapeCostText").GetComponent<Text>();
         lockedNote = costPage.transform.Find("Content/LockedPurchaseText").gameObject;
-        costTab = card.Find("Tabs/CostTabButton").GetComponent<Button>();
-        abilityTab = card.Find("Tabs/AbilityTabButton").GetComponent<Button>();
         next = card.Find("NextEscapeButton").GetComponent<Button>();
         begin = card.Find("BeginEscapeButton").GetComponent<Button>();
         emptyResult = abilityPage.transform.Find("EmptyResultText").gameObject;
@@ -39,16 +51,53 @@ public sealed class EscapeChoiceView : MonoBehaviour
             purchases[i] = row.Find(names[i] + "PurchaseButton").GetComponent<Button>();
             levels[i] = row.Find(names[i] + "ValuesText").GetComponent<Text>();
             states[i] = row.Find(names[i] + "StateText").GetComponent<Text>();
-            purchases[i].onClick.AddListener(() => SceneChangeMgr.Instance.PurchaseEscapeAbility(index));
+            purchases[i].onClick.AddListener(() => {
+                // 淡入期间即使收到程序化点击，也不提交购买。
+                if (purchases[index].interactable) SceneChangeMgr.Instance.PurchaseEscapeAbility(index);
+            });
         }
-        costTab.onClick.AddListener(() => { showingAbilities = false; Refresh(); });
-        abilityTab.onClick.AddListener(() => { if (SceneChangeMgr.Instance.EscapeAutomaticReady) { showingAbilities = true; Refresh(); } });
-        next.onClick.AddListener(() => { if (SceneChangeMgr.Instance.NextEscapeStep()) { showingAbilities = true; Refresh(); } });
-        begin.onClick.AddListener(() => SceneChangeMgr.Instance.BeginEscapeFromAbilities());
+        next.onClick.AddListener(() => {
+            // 下一步仍由原规则一次性锁存结果，表现层不抽取能力。
+            if (next.interactable && SceneChangeMgr.Instance.NextEscapeStep()) { showingAbilities = true; Refresh(); }
+        });
+        begin.onClick.AddListener(() => {
+            // 只允许完整显字后确认，淡出完成再交给原消散流程。
+            if (begin.interactable) { closing = true; exitTime = 0f; Refresh(); }
+        });
     }
 
-    void OnEnable() { if (budget != null) Refresh(); }
-    void Update() => Refresh();
+    void OnEnable() { if (budget != null) { Refresh(); Present(); } }
+    void OnDisable() { closing = false; exitTime = 0f; }
+    void Update()
+    {
+        Refresh();
+        pageTime += Time.unscaledDeltaTime;
+        flowTime += Time.unscaledDeltaTime;
+        if (closing) exitTime += Time.unscaledDeltaTime;
+        Present();
+        // 暂停不冻结 UI 动画；交接仍要等原规则允许，关闭菜单后才消费这次确认。
+        SceneChangeMgr host = SceneChangeMgr.Instance;
+        if (closing && exitTime >= exitFadeSeconds && !host.GameMenuOpen && Time.timeScale > 0f)
+        {
+            closing = false;
+            host.BeginEscapeFromAbilities();
+        }
+    }
+
+    void Present()
+    {
+        float fade = 1f - Mathf.Clamp01(exitTime / Mathf.Max(.01f, exitFadeSeconds));
+        float textProgress = showingAbilities
+            ? (pageTime - fogExpandSeconds) / Mathf.Max(.01f, textFadeSeconds)
+            : pageTime / Mathf.Max(.01f, paperFadeSeconds);
+        contents.alpha = Mathf.SmoothStep(0f, 1f, textProgress) * fade;
+        contents.interactable = PageRevealed && !closing;
+        // 整屏底层持续拦截射线，透明显现时也不能点到场景或背后的界面。
+        contents.blocksRaycasts = true;
+        backdrop.color = new Color(.015f, .025f, .04f, (showingAbilities ? .32f : .72f) * fade);
+        fog.color = new Color(1f, 1f, 1f, fade);
+        fog.SetPresentation(Mathf.SmoothStep(0f, 1f, pageTime / Mathf.Max(.01f, fogExpandSeconds)), flowTime);
+    }
 
     void Refresh()
     {
@@ -56,16 +105,25 @@ public sealed class EscapeChoiceView : MonoBehaviour
         if (SceneLevelSetup.Current == null) return;
         bool ready = host.EscapeAutomaticReady;
         if (displayedVersion != host.EscapePreparationVersion)
-        { displayedVersion = host.EscapePreparationVersion; showingAbilities = ready; }
-        bool active = host.EscapeSelectionPending && !host.IsEscapeHandoff && !host.GameMenuOpen && Time.timeScale > 0f;
+        { displayedVersion = host.EscapePreparationVersion; showingAbilities = ready; pageInitialized = false; }
+        // 只在换页或新一轮准备时重播显现；刷新文案与暂停返回不重新计时。
+        if (!pageInitialized || presentedAbilities != showingAbilities)
+        {
+            pageInitialized = true; presentedAbilities = showingAbilities;
+            pageTime = exitTime = 0f; closing = false;
+            paper.enabled = !showingAbilities;
+            fog.gameObject.SetActive(showingAbilities);
+            Present();
+        }
+        bool active = host.EscapeSelectionPending && !host.IsEscapeHandoff && !host.GameMenuOpen
+            && Time.timeScale > 0f && PageRevealed && !closing;
         float remaining = LevelStageMgr.Instance.CognitionRemaining;
-        SetText(budget, $"剩余认知 {remaining:0.##}");
+        SetText(budget, showingAbilities ? "本场体能效果" : $"剩余认知 {remaining:0.##}");
+        budget.color = showingAbilities ? Color.white : new Color(.18f, .14f, .20f);
         SetText(summary, host.EscapeCostSummary());
         costPage.SetActive(!showingAbilities);
         abilityPage.SetActive(showingAbilities);
         lockedNote.SetActive(ready);
-        abilityTab.interactable = active && ready;
-        costTab.interactable = active;
         next.gameObject.SetActive(!showingAbilities && !ready);
         begin.gameObject.SetActive(showingAbilities && ready);
         next.interactable = begin.interactable = active;

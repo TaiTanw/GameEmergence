@@ -102,9 +102,19 @@ public static class PlayerUpgradeFlowChecks
             new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, true, 2f),
             new PlayerAbilityOffer(PlayerAbilityKind.MovementSpeed, false, .5f) };
         ReduceTo(rules.Cognition, setup.InitialCognition * .375f + 2f);
+        Animator spiritAnimator = spirit.GetComponentInChildren<PresentationLayer>().GetComponent<Animator>();
+        while (!spiritAnimator.GetCurrentAnimatorStateInfo(0).IsName("Base Layer.Flight")) yield return null;
+        int preparationAnimation = spiritAnimator.GetCurrentAnimatorStateInfo(0).fullPathHash;
+        Vector3 preparationPosition = spirit.transform.position;
+        Capture("p27-before-preparation.png");
         Check(host.StartEscape() && host.EscapeSelectionPending && !host.IsEscapeHandoff,
             "主动结束先进入一级菜单，尚未开始消散");
         while (EscapeRoot() == null || !EscapeRoot().gameObject.activeInHierarchy) yield return null;
+        Check(EscapeRoot().Find("Choices/Tabs") == null && !EscapeRoot().Find("AbilityFog").gameObject.activeSelf,
+            "一级保留纸样，无编号页签且不显示迷雾");
+        while (!NextButton().interactable) yield return null;
+        Check(spiritAnimator.GetCurrentAnimatorStateInfo(0).fullPathHash == preparationAnimation
+            && spirit.transform.position == preparationPosition, "一级菜单保留进入准备前的飞行动作与位置");
         RefreshView(); CheckLayout();
         Check(host.EscapeOffers.Count == 3 && host.EscapeOffers[0].Kind == PlayerUpgradeKind.MapCost
             && host.EscapeOffers[1].Kind == PlayerUpgradeKind.BackpackCost && host.EscapeOffers[2].Kind == PlayerUpgradeKind.FormCost,
@@ -124,6 +134,19 @@ public static class PlayerUpgradeFlowChecks
         Capture("p20-cost-page.png");
         SeedResult(true, true);
         Click(NextButton()); RefreshView();
+        CanvasGroup reveal = EscapeRoot().Find("Choices").GetComponent<CanvasGroup>();
+        Check(reveal.alpha == 0f && !reveal.interactable && !BeginButton().interactable,
+            "二级先铺雾，文字透明且确认按钮锁住");
+        Check(!EscapeRoot().Find("Choices").GetComponent<Image>().enabled
+            && EscapeRoot().Find("AbilityFog").gameObject.activeSelf && EscapeRoot().GetComponent<Image>().raycastTarget,
+            "二级关闭纸底并开启雾面，整屏底层继续阻挡穿透");
+        BeginButton().onClick.Invoke();
+        Check(!host.IsEscapeHandoff && host.EscapeSelectionPending, "显字前程序化点击同样不能提前交接");
+        float fogHalfTime = Time.unscaledTime + EscapeRoot().GetComponent<EscapeChoiceView>().fogExpandSeconds * .5f;
+        while (Time.unscaledTime < fogHalfTime) yield return null;
+        Check(reveal.alpha == 0f && !BeginButton().interactable, "中心扩散中仍未显字");
+        Check(spiritAnimator.GetCurrentAnimatorStateInfo(0).fullPathHash == preparationAnimation
+            && spirit.transform.position == preparationPosition, "二级迷雾展开时精神体仍保持原样");
         Check(host.EscapeAutomaticReady && host.EscapeSelectionPending && !host.IsEscapeHandoff,
             "下一步锁存购买后余额结果并展示二级菜单");
         Check(host.PlayerEffects.PositiveAbility.HasValue && host.PlayerEffects.NegativeAbility.HasValue,
@@ -133,16 +156,27 @@ public static class PlayerUpgradeFlowChecks
             && EscapeRoot().Find("Choices/AbilityPage/NegativeResult").gameObject.activeSelf, "同属性正负均显示生效");
         Near(body.GetComponent<CharacterPhysics>().EffectiveMovementSpeed, body.GetComponent<CharacterPhysics>().speed,
             "先乘正面二再乘负面零点五，合成后不回写基础值");
-        Capture("p20-both-effects.png");
         int lockedVersion = host.EscapePreparationVersion;
         Check(host.ToggleGameMenu() && !host.NextEscapeStep() && !host.PurchaseEscapeAbility(2), "暂停期间不能更改结算");
+        while (reveal.alpha < 1f) yield return null;
+        Check(Time.timeScale == 0f && reveal.alpha == 1f && !BeginButton().interactable,
+            "暂停时按真实时间完成显字，但确认按钮保持禁用");
         Check(host.ToggleGameMenu() && host.EscapePreparationVersion == lockedVersion, "关闭菜单保留同次结果");
-        Click(EscapeRoot().Find("Choices/Tabs/CostTabButton").GetComponent<Button>()); RefreshView();
+        // 菜单显隐由原UI队列处理；下一次人工点击在返回后的帧验证。
+        yield return null;
+        RefreshView();
+        while (!BeginButton().interactable) { yield return null; RefreshView(); }
+        Check(spiritAnimator.GetCurrentAnimatorStateInfo(0).fullPathHash == preparationAnimation
+            && spirit.transform.position == preparationPosition, "二级显字完成及暂停返回仍保留原动作与位置");
         Check(!ChoiceButton(2).interactable && StateText(2).text == "购买已关闭" && !host.PurchaseEscapeAbility(2),
-            "返回一级页只读，禁止购买改变已抽取概率");
+            "没有回页页签，原购买入口仍封闭，不改变已抽取概率");
         Check(!host.NextEscapeStep(), "已确定结果不可再抽");
-        Click(EscapeRoot().Find("Choices/Tabs/AbilityTabButton").GetComponent<Button>());
+        Check(reveal.alpha == 1f && host.EscapePreparationVersion == lockedVersion, "暂停返回不重播迷雾或重新抽取");
+        Capture("p20-both-effects.png");
         Click(BeginButton());
+        Check(!host.IsEscapeHandoff && !BeginButton().interactable, "确认后先淡出并阻止重复点击");
+        while (!host.IsEscapeHandoff) yield return null;
+        Check(spiritAnimator.GetCurrentAnimatorStateInfo(0).IsName("Base Layer.Death"), "正式确认后才由原动作切入消散动画");
         Check(host.IsEscapeHandoff && !host.BeginEscapeFromAbilities(), "开始逃生沿原消散且不能重复确认");
         while (host.IsEscapeHandoff || Actor("spirit") != null) yield return null;
         Check(rules.Stage == PlayerGameplayStage.Escape && InputControlMgr.Instance.Player == body && !WorldPaused(),
@@ -163,6 +197,7 @@ public static class PlayerUpgradeFlowChecks
             && EscapeRoot().Find("Choices/AbilityPage/EmptyResultText").gameObject.activeInHierarchy
             && EscapeRoot().Find("Choices/AbilityPage/EmptyResultText").GetComponent<Text>().text == "当前无任何效果生效",
             "无命中明确显示当前无任何效果生效");
+        while (!BeginButton().interactable) yield return null;
         Capture("p20-no-effects.png");
         Check(host.BeginEscapeFromAbilities(), "无命中也必须由二级页开始逃生");
         while (host.IsEscapeHandoff) yield return null;
@@ -273,7 +308,8 @@ public static class PlayerUpgradeFlowChecks
         .Invoke(EscapeRoot().GetComponent<EscapeChoiceView>(), null);
     static void Click(Button button)
     {
-        Check(button != null && button.gameObject.activeInHierarchy && button.interactable, "真实按钮当前可交互 " + button.name);
+        Check(button != null && button.gameObject.activeInHierarchy && button.interactable,
+            $"真实按钮当前可交互 {button.name} (active={button.gameObject.activeInHierarchy}, interactable={button.interactable}, timeScale={Time.timeScale})");
         ExecuteEvents.Execute<IPointerClickHandler>(button.gameObject,
             new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left }, ExecuteEvents.pointerClickHandler);
     }

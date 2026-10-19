@@ -298,6 +298,9 @@ public partial class PresentationLayer : MonoBehaviour
             return;
         }
 
+        // 运动暂停时保留此前动作与朝向；消散和过场仍由上方专用播放入口接管。
+        if (!actionData.motionUpdates) return;
+
         UpdateFacing();
         // 实际逻辑：探索待命实体固定待机，不因下落或着地改播。
         if (actionData.HoldIdle)

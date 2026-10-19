@@ -387,6 +387,10 @@ public static class P8P9LevelFlowChecks
         Check(panel.FindUIObj<Text>("CognitionText").text == $"{Mathf.Floor(explorationRules.Cognition.Remaining):0} / {SceneLevelSetup.Current.InitialCognition:0.##}",
             "购买等待时无受控角色也沿用认知向下取整显示");
         typeof(EscapeChoiceView).GetMethod("Refresh", Hidden).Invoke(panel.GetComponentInChildren<EscapeChoiceView>(), null);
+        // 此旧夹具同步验证购买规则；显现时序由 P27 实际 UI 流程单独覆盖。
+        EscapeChoiceView choiceView = panel.GetComponentInChildren<EscapeChoiceView>();
+        typeof(EscapeChoiceView).GetField("pageTime", Hidden).SetValue(choiceView, choiceView.paperFadeSeconds);
+        typeof(EscapeChoiceView).GetMethod("Refresh", Hidden).Invoke(choiceView, null);
         Check(panel.transform.Find("EscapeChoiceArea/Choices/EscapeBudgetText").GetComponent<Text>().text
             == $"剩余认知 {explorationRules.Cognition.Remaining:0.##}",
             "逃生准备按共享认知显示当前实际余额");

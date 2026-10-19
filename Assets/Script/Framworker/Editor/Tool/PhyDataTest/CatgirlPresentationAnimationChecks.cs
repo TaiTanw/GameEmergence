@@ -47,6 +47,7 @@ public static class CatgirlPresentationAnimationChecks
             CheckSwimming(PlayerStateMachine.E_playerState.surfaceSwimming, "SurfaceSwimIdle", "SurfaceSwim");
             CheckFacing();
             CheckFlightAndSurfaceJump();
+            CheckMotionSuspension();
             CheckSequence("Sprint", PlayerStateMachine.E_playerState.isOnGround, 1f, 0f, 1.5f);
             CheckSequence("SwimIdle", PlayerStateMachine.E_playerState.swimming, 0f, 0f, 1f);
             CheckSequence("Swim", PlayerStateMachine.E_playerState.swimming, 0f, 1f, 1f);
@@ -333,6 +334,30 @@ public static class CatgirlPresentationAnimationChecks
         }
     }
 
+    private static void CheckMotionSuspension()
+    {
+        var modes = new[] { PlayerStateMachine.E_playerState.flying, PlayerStateMachine.E_playerState.isOnGround,
+            PlayerStateMachine.E_playerState.swimming, PlayerStateMachine.E_playerState.inAir };
+        string[] states = { "Flight", "move", "Swim", "OnAir" };
+        for (int i = 0; i < modes.Length; i++)
+        {
+            using (var fixture = new Fixture())
+            {
+                fixture.Select(modes[i], 1f, 1f, 1f, i == 1);
+                fixture.Physics.verticalSpeed = 2f;
+                fixture.Expect(states[i], "暂停前选中原动作 " + states[i]);
+                bool facing = fixture.Renderer.flipX;
+                fixture.Action.motionUpdates = false;
+                fixture.Select(PlayerStateMachine.E_playerState.inAir, -1f, 0f, 1f, false);
+                fixture.Physics.verticalSpeed = -2f;
+                fixture.Tick(.15f);
+                fixture.Expect(states[i], "运动停用后保留原动作 " + states[i]);
+                Require(fixture.Renderer.flipX == facing, "运动停用后保留原朝向 " + states[i]);
+                fixture.Action.motionUpdates = true;
+                fixture.Expect("OnAir_Down", "恢复运动后重新消费真实下落事实 " + states[i]);
+            }
+        }
+    }
     private static ObjectReferenceKeyframe[] SpriteKeys(AnimationClip clip)
     {
         foreach (EditorCurveBinding binding in AnimationUtility.GetObjectReferenceCurveBindings(clip))

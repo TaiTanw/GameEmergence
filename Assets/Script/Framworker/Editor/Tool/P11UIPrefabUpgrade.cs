@@ -128,6 +128,7 @@ public static class P11UIPrefabUpgrade
             if (image != null && image.sprite == null) image.color = new Color(.82f, .73f, .59f);
             foreach (Text text in button.GetComponentsInChildren<Text>(true)) text.color = Ink;
         }
+        EscapePreparationLayout.ApplyStyle(panel.Find("EscapeChoiceArea"));
         EnvironmentEditLayout.Ensure(panel.Find("ActionArea/EnvironmentEditArea"), panel);
         // 地图恢复最初的纯色底与浅色文字，不替换地图记录或点击行为。
         Transform map = panel.Find("MapArea");
