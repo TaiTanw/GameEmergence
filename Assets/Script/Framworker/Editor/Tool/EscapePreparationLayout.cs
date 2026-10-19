@@ -35,7 +35,7 @@ public static class EscapePreparationLayout
         Background(overlay, new Color(.015f, .025f, .04f, .72f), true);
         RectTransform fogRect = Rect("AbilityFog", overlay);
         fogRect.anchorMin = fogRect.anchorMax = fogRect.pivot = new Vector2(.5f, .5f);
-        fogRect.sizeDelta = new Vector2(1440, 1080);
+        fogRect.sizeDelta = new Vector2(1656, 1188);
         EscapeFogGraphic fog = fogRect.gameObject.AddComponent<EscapeFogGraphic>();
         fog.material = AssetDatabase.LoadAssetAtPath<Material>("Assets/MyObjAssets/gameObject/Art/UI/EscapeFog.mat");
         fog.raycastTarget = false;
