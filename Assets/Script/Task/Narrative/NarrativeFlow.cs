@@ -59,7 +59,6 @@ public sealed partial class NarrativeFlow : MonoBehaviour
             case "L02_SequentialGates": return "B04";
             case "L03_ElectricTraverse": return "C02";
             case "L04_FoldedWells": return "D03";
-            case "L05_DepartureWorks": return "F01";
             default: return null;
         }
     }
@@ -102,7 +101,6 @@ public sealed partial class NarrativeFlow : MonoBehaviour
         else if (scene == "L02_SequentialGates") yield return Play("B00");
         else if (scene == "L03_ElectricTraverse") yield return Play("C00");
         else if (scene == "L04_FoldedWells") yield return Play("D00");
-        else if (scene == "L05_DepartureWorks") yield return Play("F00");
     }
 
     public IEnumerator Play(string id, bool repeat = false)
