@@ -178,17 +178,13 @@ public sealed partial class NarrativeFlow : MonoBehaviour
 
     void PlaceBook()
     {
-        if (book != null || SceneLevelSetup.Current == null || assets == null || assets.book == null) return;
+        if (book != null || SceneLevelSetup.Current == null) return;
         var go = new GameObject("NarrativeBook_T04");
         book = go.transform;
-        // Decoration only: no collider, physics property, or level-clear interaction.
+        // 只留阅读入口的位置，不生成会挡住玩家的世界图标。
         var actor = InputControlMgr.Instance.Player;
         Vector3 origin = actor != null ? actor.transform.position : SceneLevelSetup.Current.BodyPose;
         book.position = origin + new Vector3(1.5f, -.25f, 0);
-        var sprite = go.AddComponent<SpriteRenderer>();
-        sprite.sprite = assets.book;
-        sprite.sortingOrder = 35;
-        book.localScale = Vector3.one * (.8f / Mathf.Max(.01f, sprite.sprite.bounds.size.y));
     }
 
     void Update()
@@ -202,11 +198,10 @@ public sealed partial class NarrativeFlow : MonoBehaviour
         if (IsOpen)
         {
             // Avoid carrying the click/key which opened a page into its first advance.
-            if (Time.frameCount > openedFrame + 1 && Keyboard.current != null)
-            {
-                if (Keyboard.current.escapeKey.wasPressedThisFrame) Complete();
-                else if (Keyboard.current.spaceKey.wasPressedThisFrame) Next();
-            }
+            // 空格是跳跃键，不拿来翻页或关闭，避免误触把阅读面板收掉。
+            if (Time.frameCount > openedFrame + 1 && Keyboard.current != null
+                && Keyboard.current.escapeKey.wasPressedThisFrame)
+                Complete();
             return;
         }
         var flow = SceneChangeMgr.Instance;
@@ -257,7 +252,7 @@ public sealed partial class NarrativeFlow : MonoBehaviour
         nextLabel = next.GetComponentInChildren<Text>();
         skipButton = Button("Skip", panel, "跳过本段", new Vector2(200,-100), new Vector2(180,50), Complete).gameObject;
         var keys = Label("Keys", panel, new Vector2(-210,-105), new Vector2(390,36), 18);
-        keys.text = "空格继续 · Esc 跳过本段"; keyHint = keys.gameObject;
+        keys.text = "Esc 跳过本段"; keyHint = keys.gameObject;
         var returnMenu = Button("ReturnMenu", shade.transform, "返回主菜单", new Vector2(480,310), new Vector2(190,44), () => SceneChangeMgr.Instance.ReturnToMenu());
         var returnRect = (RectTransform)returnMenu.transform;
         returnRect.anchorMin = returnRect.anchorMax = Vector2.one;

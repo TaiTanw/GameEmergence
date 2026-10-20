@@ -96,7 +96,7 @@ public static class NarrativeIntegrationChecks
         Check(DataAndInitMgr.Instance.HasSeenNarrative("T00"),"skip marks complete in player save");
         Check(Time.timeScale == 1 && !BasicEntity.IsWorldPaused && InputControlMgr.Instance.InputEnabled,"tutorial state restored");
         yield return null;
-        // Open the actual UI button; no physics-changing interaction is attached to the book.
+        // Open the actual UI button; the book marker has no world sprite.
 
         var button = Array.Find(story.GetComponentsInChildren<Button>(true), b=>b.name=="ReadBook");
         Check(button != null && button.gameObject.activeSelf,"book is readable at safe tutorial spawn");
