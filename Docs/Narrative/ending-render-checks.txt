@@ -1,0 +1,123 @@
+PASS three accepted pages E01_StillRaining
+PASS save replay fixture E01_StillRaining
+PASS real physics walk reaches closing performance E01_StillRaining
+PASS reading follows completed closing walk E01_StillRaining
+PASS actor at authored final pose E01_StillRaining
+PASS reading pauses ending clock E01_StillRaining
+PASS menu cannot cover ending pages E01_StillRaining
+PASS ending panel positioned above actors E01_StillRaining
+PASS reading never auto advances or fades E01_StillRaining
+PASS exact approved copy page E01_StillRaining/0
+PASS text height fits E01_StillRaining/0
+PASS no stranded closing punctuation E01_StillRaining/0
+PASS no speaker prefixes E01_StillRaining/0
+PASS scaled panel fits (800.00, 600.00) E01_StillRaining/0
+PASS scaled panel fits (1280.00, 720.00) E01_StillRaining/0
+PASS scaled panel fits (1920.00, 1080.00) E01_StillRaining/0
+PASS scaled panel fits (2560.00, 1080.00) E01_StillRaining/0
+PASS offscreen image E01_StillRaining-1
+PASS offscreen image E01_StillRaining-1-800
+PASS exact approved copy page E01_StillRaining/1
+PASS text height fits E01_StillRaining/1
+PASS no stranded closing punctuation E01_StillRaining/1
+PASS no speaker prefixes E01_StillRaining/1
+PASS scaled panel fits (800.00, 600.00) E01_StillRaining/1
+PASS scaled panel fits (1280.00, 720.00) E01_StillRaining/1
+PASS scaled panel fits (1920.00, 1080.00) E01_StillRaining/1
+PASS scaled panel fits (2560.00, 1080.00) E01_StillRaining/1
+PASS offscreen image E01_StillRaining-2
+PASS exact approved copy page E01_StillRaining/2
+PASS text height fits E01_StillRaining/2
+PASS no stranded closing punctuation E01_StillRaining/2
+PASS no speaker prefixes E01_StillRaining/2
+PASS scaled panel fits (800.00, 600.00) E01_StillRaining/2
+PASS scaled panel fits (1280.00, 720.00) E01_StillRaining/2
+PASS scaled panel fits (1920.00, 1080.00) E01_StillRaining/2
+PASS scaled panel fits (2560.00, 1080.00) E01_StillRaining/2
+PASS offscreen image E01_StillRaining-3
+PASS last page restores ending clock E01_StillRaining
+PASS completed copy saved E01_StillRaining
+PASS natural fade returns to menu E01_StillRaining
+PASS three accepted pages E02_OtherSide
+PASS save replay fixture E02_OtherSide
+PASS real physics walk reaches closing performance E02_OtherSide
+PASS reading follows completed closing walk E02_OtherSide
+PASS actor at authored final pose E02_OtherSide
+PASS reading pauses ending clock E02_OtherSide
+PASS menu cannot cover ending pages E02_OtherSide
+PASS ending panel positioned above actors E02_OtherSide
+PASS reading never auto advances or fades E02_OtherSide
+PASS exact approved copy page E02_OtherSide/0
+PASS text height fits E02_OtherSide/0
+PASS no stranded closing punctuation E02_OtherSide/0
+PASS no speaker prefixes E02_OtherSide/0
+PASS scaled panel fits (800.00, 600.00) E02_OtherSide/0
+PASS scaled panel fits (1280.00, 720.00) E02_OtherSide/0
+PASS scaled panel fits (1920.00, 1080.00) E02_OtherSide/0
+PASS scaled panel fits (2560.00, 1080.00) E02_OtherSide/0
+PASS offscreen image E02_OtherSide-1
+PASS offscreen image E02_OtherSide-1-800
+PASS exact approved copy page E02_OtherSide/1
+PASS text height fits E02_OtherSide/1
+PASS no stranded closing punctuation E02_OtherSide/1
+PASS no speaker prefixes E02_OtherSide/1
+PASS scaled panel fits (800.00, 600.00) E02_OtherSide/1
+PASS scaled panel fits (1280.00, 720.00) E02_OtherSide/1
+PASS scaled panel fits (1920.00, 1080.00) E02_OtherSide/1
+PASS scaled panel fits (2560.00, 1080.00) E02_OtherSide/1
+PASS offscreen image E02_OtherSide-2
+PASS exact approved copy page E02_OtherSide/2
+PASS text height fits E02_OtherSide/2
+PASS no stranded closing punctuation E02_OtherSide/2
+PASS no speaker prefixes E02_OtherSide/2
+PASS scaled panel fits (800.00, 600.00) E02_OtherSide/2
+PASS scaled panel fits (1280.00, 720.00) E02_OtherSide/2
+PASS scaled panel fits (1920.00, 1080.00) E02_OtherSide/2
+PASS scaled panel fits (2560.00, 1080.00) E02_OtherSide/2
+PASS offscreen image E02_OtherSide-3
+PASS last page restores ending clock E02_OtherSide
+PASS completed copy saved E02_OtherSide
+PASS natural fade returns to menu E02_OtherSide
+PASS three accepted pages E03_Unfolded
+PASS save replay fixture E03_Unfolded
+PASS real physics walk reaches closing performance E03_Unfolded
+PASS reading follows completed closing walk E03_Unfolded
+PASS actor at authored final pose E03_Unfolded
+PASS Unfolded actors remain separate after walking together
+PASS reading pauses ending clock E03_Unfolded
+PASS menu cannot cover ending pages E03_Unfolded
+PASS ending panel positioned above actors E03_Unfolded
+PASS reading never auto advances or fades E03_Unfolded
+PASS exact approved copy page E03_Unfolded/0
+PASS text height fits E03_Unfolded/0
+PASS no stranded closing punctuation E03_Unfolded/0
+PASS no speaker prefixes E03_Unfolded/0
+PASS scaled panel fits (800.00, 600.00) E03_Unfolded/0
+PASS scaled panel fits (1280.00, 720.00) E03_Unfolded/0
+PASS scaled panel fits (1920.00, 1080.00) E03_Unfolded/0
+PASS scaled panel fits (2560.00, 1080.00) E03_Unfolded/0
+PASS offscreen image E03_Unfolded-1
+PASS offscreen image E03_Unfolded-1-800
+PASS exact approved copy page E03_Unfolded/1
+PASS text height fits E03_Unfolded/1
+PASS no stranded closing punctuation E03_Unfolded/1
+PASS no speaker prefixes E03_Unfolded/1
+PASS scaled panel fits (800.00, 600.00) E03_Unfolded/1
+PASS scaled panel fits (1280.00, 720.00) E03_Unfolded/1
+PASS scaled panel fits (1920.00, 1080.00) E03_Unfolded/1
+PASS scaled panel fits (2560.00, 1080.00) E03_Unfolded/1
+PASS offscreen image E03_Unfolded-2
+PASS exact approved copy page E03_Unfolded/2
+PASS text height fits E03_Unfolded/2
+PASS no stranded closing punctuation E03_Unfolded/2
+PASS no speaker prefixes E03_Unfolded/2
+PASS scaled panel fits (800.00, 600.00) E03_Unfolded/2
+PASS scaled panel fits (1280.00, 720.00) E03_Unfolded/2
+PASS scaled panel fits (1920.00, 1080.00) E03_Unfolded/2
+PASS scaled panel fits (2560.00, 1080.00) E03_Unfolded/2
+PASS offscreen image E03_Unfolded-3
+PASS last page restores ending clock E03_Unfolded
+PASS completed copy saved E03_Unfolded
+PASS natural fade returns to menu E03_Unfolded
+PASS all displayed Chinese characters available in the actual UI font
+RESULT PASS

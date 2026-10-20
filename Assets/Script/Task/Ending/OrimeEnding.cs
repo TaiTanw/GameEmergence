@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>三个短结局共用的场景编排；只使用结局通信，不接管普通关规则、存档或结局选择。</summary>
+/// <summary>三个结局共用的场景编排；收尾到位后分页阅读，不接管普通关规则或结局选择。</summary>
 public sealed class OrimeEnding : EndingSceneController
 {
     public enum Moment { StillRaining, OtherSide, Unfolded }
@@ -72,9 +72,7 @@ public sealed class OrimeEnding : EndingSceneController
         actor.SetControlEnabled(true);
         following = moment == Moment.Unfolded;
         yield return Reach(context, firstLineX);
-        yield return RevealLine(context, firstLine);
         yield return Reach(context, secondLineX);
-        yield return RevealLine(context, secondLine);
         yield return Reach(context, finishX);
         // 跳跃抵达时先让角色自然落地，再交出物理，避免空中播放行走。
         while (context.IsActive && !actor.IsGrounded) yield return null;
@@ -116,6 +114,10 @@ public sealed class OrimeEnding : EndingSceneController
             if (moment == Moment.OtherSide) Face(companion, 1f);
         }
         Play(actor, "Idle");
+        // The accepted text describes the completed walk and final positions.
+        // Replay always shows all pages; reading pauses the ending clock and actors.
+        yield return NarrativeFlow.Instance.Play("END_" + moment, true);
+        if (!context.IsActive) yield break;
         yield return context.Delay(lastHoldSeconds);
         float fade = 0f;
         while (context.IsActive && fade < 1f)
@@ -130,26 +132,6 @@ public sealed class OrimeEnding : EndingSceneController
     IEnumerator Reach(EndingSceneContext context, float x)
     {
         while (context.IsActive && actor.transform.position.x < x) yield return null;
-    }
-
-    IEnumerator RevealLine(EndingSceneContext context, TextMesh text)
-    {
-        float elapsed = 0f;
-        while (context.IsActive && elapsed < textFadeSeconds)
-        {
-            elapsed += context.DeltaTime;
-            Color color = text.color; color.a = Mathf.Clamp01(elapsed / textFadeSeconds); text.color = color;
-            yield return null;
-        }
-        // 每句话完整保留片刻再淡去，快速跑过也不会直接跳过文字。
-        yield return context.Delay(3f);
-        elapsed = 0f;
-        while (context.IsActive && elapsed < textFadeSeconds)
-        {
-            elapsed += context.DeltaTime;
-            Color color = text.color; color.a = 1f - Mathf.Clamp01(elapsed / textFadeSeconds); text.color = color;
-            yield return null;
-        }
     }
 
     void Update()

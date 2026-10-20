@@ -117,10 +117,16 @@ public sealed partial class NarrativeFlow : MonoBehaviour
         openedFrame = Time.frameCount;
         shade.SetActive(true);
         bool ending = id == "E00" || id == "E01";
+        bool nativeEnding = id.StartsWith("END_", StringComparison.Ordinal);
+        // Ending actors finish near the floor; keep the reading panel above them.
+        var panel = (RectTransform)content.transform.parent;
+        panel.anchorMin = panel.anchorMax = new Vector2(.5f, nativeEnding ? 1f : 0f);
+        panel.anchoredPosition = new Vector2(0, nativeEnding ? -190f : 165f);
+        panel.sizeDelta = new Vector2(1120, nativeEnding ? 260 : 290);
         illustration.SetActive((id == "T00" || ending) && assets != null && assets.room != null);
         roomImage.sprite = ending ? endingSprite : openingSprite;
         roomImage.color = id == "E01" ? new Color(.08f,.08f,.1f) : Color.white;
-        shade.GetComponent<Image>().color = new Color(.025f,.035f,.07f, ending ? 1f : .8f);
+        shade.GetComponent<Image>().color = new Color(.025f,.035f,.07f, ending ? 1f : nativeEnding ? .25f : .8f);
         skipButton.SetActive(true); keyHint.SetActive(true);
         // Keep the current authored camera and parallax framing in the expanded levels.
         prompt.SetActive(false);
@@ -164,6 +170,8 @@ public sealed partial class NarrativeFlow : MonoBehaviour
             content.text = "“" + text.Substring(3) + "”";
         else
             content.text = text;
+        if (active.id.StartsWith("END_", StringComparison.Ordinal))
+            content.text = System.Text.RegularExpressions.Regex.Replace(content.text, "([。！？]”?)", "$1\n").TrimEnd('\n');
         counter.text = (page + 1) + " / " + active.pages.Length;
         nextLabel.text = page + 1 == active.pages.Length ? "继续" : "下一页";
     }
@@ -250,7 +258,10 @@ public sealed partial class NarrativeFlow : MonoBehaviour
         skipButton = Button("Skip", panel, "跳过本段", new Vector2(200,-100), new Vector2(180,50), Complete).gameObject;
         var keys = Label("Keys", panel, new Vector2(-210,-105), new Vector2(390,36), 18);
         keys.text = "空格继续 · Esc 跳过本段"; keyHint = keys.gameObject;
-        Button("ReturnMenu", shade.transform, "返回主菜单", new Vector2(480,310), new Vector2(190,44), () => SceneChangeMgr.Instance.ReturnToMenu());
+        var returnMenu = Button("ReturnMenu", shade.transform, "返回主菜单", new Vector2(480,310), new Vector2(190,44), () => SceneChangeMgr.Instance.ReturnToMenu());
+        var returnRect = (RectTransform)returnMenu.transform;
+        returnRect.anchorMin = returnRect.anchorMax = Vector2.one;
+        returnRect.anchoredPosition = new Vector2(-160,-50);
         prompt = Button("ReadBook", transform, "阅读书页", new Vector2(475,280), new Vector2(190,52), () =>
         {
             if (prompt.activeSelf) StartCoroutine(Play("T04", true));
