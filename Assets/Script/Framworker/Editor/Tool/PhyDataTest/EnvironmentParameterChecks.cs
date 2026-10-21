@@ -186,7 +186,7 @@ public static class EnvironmentParameterChecks
 
     private static void CheckActualPrefab()
     {
-        const string path = "Assets/MyObjAssets/gameObject/Pf/SceneObj/ICE.prefab";
+        const string path = "Assets/MyObjAssets/gameObject/Pf/SceneObj/NewPf/P29_可缩放冰面.prefab";
         byte[] before = File.ReadAllBytes(path);
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
         Check(prefab != null, "实际冰面预设存在");

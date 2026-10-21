@@ -170,6 +170,7 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
 
     public bool TryGetGroundSlowingMultiplier(out float value) => TryGetParameterValue(EnvironmentParameterKind.GroundSlowing, out value);
     public bool TryGetGroundJumpMultiplier(out float value) => TryGetParameterValue(EnvironmentParameterKind.GroundJumpMultiplier, out value);
+    public bool TryGetGroundMovementMultiplier(out float value) => TryGetParameterValue(EnvironmentParameterKind.GroundMovementMultiplier, out value);
     public bool TryGetWallSlideMultiplier(out float value) => TryGetParameterValue(EnvironmentParameterKind.WallSlideMultiplier, out value);
     internal bool TryGetMovementSpeedOffset(out float value) => TryGetParameterValue(EnvironmentParameterKind.MovementSpeedOffset, out value);
     internal bool TryGetPassiveVelocity(out Vector2 value)
@@ -310,10 +311,10 @@ public class BasicPhysicalObject : MonoBehaviour, IEnvironmentSource, IEnvironme
     private bool ValidateParameter(EnvironmentParameter parameter, bool runtime, out string error)
     {
         error = null;
-        if (!(parameter is GroundSlowingParameter) && !(parameter is GroundJumpMultiplierParameter)
+        if (!(parameter is GroundSlowingParameter) && !(parameter is GroundJumpMultiplierParameter) && !(parameter is GroundMovementMultiplierParameter)
             && !(parameter is WallSlideMultiplierParameter) && !(parameter is WaterSwimmingParameter)
             && !(parameter is MovementSpeedOffsetParameter) && !(parameter is PassiveVelocityParameter))
-        { error = $"{name} 的环境参数配置无效：只允许已开放的六类性质。"; return false; }
+        { error = $"{name} 的环境参数配置无效：只允许已开放的七类性质。"; return false; }
         if (!parameter.IsConfigurationValid || (runtime && !parameter.IsRuntimeValid))
         { error = $"{name} 的{parameter.DisplayName}数值无效。"; return false; }
         if (parameter.CalculationCount > EnvironmentCalculationPointLimit)

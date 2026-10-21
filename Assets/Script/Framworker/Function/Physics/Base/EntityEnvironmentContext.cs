@@ -233,6 +233,7 @@ public sealed class EntityEnvironmentContext
         IPlatformMotion platform = source as IPlatformMotion;
         float slowing = response?.SlowingEffect ?? 1f;
         float jumpOffset = response?.JumpHeightNum ?? 0f;
+        float movement = 1f;
         // 新列表也可挂在普通唯一宿主上；只有当前脚下来源的项参与支撑采样。
         if (source is BasicPhysicalObject host)
         {
@@ -240,9 +241,10 @@ public sealed class EntityEnvironmentContext
             if (host is BaseGround || host.IsTriggerEnvironment) { slowing = 1f; jumpOffset = 0f; }
             if (host.TryGetGroundSlowingMultiplier(out float configuredSlowing)) slowing = configuredSlowing;
             if (host.TryGetGroundJumpMultiplier(out float configuredJump)) jumpOffset = configuredJump - 1f;
+            if (host.TryGetGroundMovementMultiplier(out float configuredMovement)) movement = configuredMovement;
         }
         Frame = new EntityEnvironmentFrame(slowing, jumpOffset,
-            platform?.Delta ?? Vector2.zero);
+            platform?.Delta ?? Vector2.zero, movement);
     }
 
     /// <summary>[ENV-L1] 实体禁用入口：快照全部来源再逐个走 ENV-07，同步源端索引；可重复调用。</summary>

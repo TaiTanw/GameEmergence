@@ -62,6 +62,7 @@ public sealed class EnvironmentParameterEditor : Editor
             AddButton(parameters, EnvironmentParameterKind.WaterSwimming, new WaterSwimmingParameter());
             AddButton(parameters, EnvironmentParameterKind.MovementSpeedOffset, new MovementSpeedOffsetParameter());
             AddButton(parameters, EnvironmentParameterKind.PassiveVelocity, new PassiveVelocityParameter());
+            AddButton(parameters, EnvironmentParameterKind.GroundMovementMultiplier, new GroundMovementMultiplierParameter());
         }
         serializedObject.ApplyModifiedProperties();
 

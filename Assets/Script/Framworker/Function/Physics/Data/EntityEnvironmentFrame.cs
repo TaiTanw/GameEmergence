@@ -4,7 +4,7 @@ namespace PhyData
 {
     /// <summary>
     /// 职能：支撑参数的只读采样结果，不是全部环境速度，也不是持续效果的 Binding。
-    /// [ENV-S1] 脚下表面本帧提供的三个数：消退阻力倍率、起跳速度加成、平台已走的世界位移。
+    /// [ENV-S1] 脚下表面本帧提供消退阻力、起跳、走跑倍率及平台世界位移。
     /// 它由 Context.SampleGroundFrame 生成；没有对应能力时分别使用 1、0、零位移。
     /// </summary>
     public readonly struct EntityEnvironmentFrame
@@ -12,12 +12,14 @@ namespace PhyData
         public readonly float slowingMultiplier; // BasicEntity.PhyFunUpdate：乘本帧基础消退阻力。
         public readonly float jumpHeightOffset; // CharacterPhysics：起跳时读取。
         public readonly Vector2 platformDelta; // BasicEntity.SpeedCalculation：一次并入运动快照。
+        public readonly float movementMultiplier; // CharacterPhysics：只乘当前主动走跑速度。
 
-        public EntityEnvironmentFrame(float slowingMultiplier, float jumpHeightOffset, Vector2 platformDelta)
+        public EntityEnvironmentFrame(float slowingMultiplier, float jumpHeightOffset, Vector2 platformDelta, float movementMultiplier = 1f)
         {
             this.slowingMultiplier = slowingMultiplier;
             this.jumpHeightOffset = jumpHeightOffset;
             this.platformDelta = platformDelta;
+            this.movementMultiplier = movementMultiplier;
         }
 
         public static EntityEnvironmentFrame Empty => new EntityEnvironmentFrame(1f, 0f, Vector2.zero);

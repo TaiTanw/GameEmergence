@@ -190,7 +190,7 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         LevelBoxContext.IsSideContact(BodyBounds, box.BodyBounds, pushPullEngageGap);
 
     /// <summary>一个物理步内行走输入为 1 时的水平位移，供自动走近时按剩余间隙缩小输入、避免冲撞。</summary>
-    internal float WalkStepDistance => EffectiveMovementSpeed * Time.fixedDeltaTime;
+    internal float WalkStepDistance => EffectiveMovementSpeed * EnvironmentFrame.movementMultiplier * Time.fixedDeltaTime;
 
     #endregion
 
@@ -260,8 +260,8 @@ public class CharacterPhysics : BasePhysicsEntity, ICanMove, IPlayerFlightExecut
         if (playActionData == null) return 0f;
         if (playActionData.FourWay != FourWayMode.None)
             return playActionData.onMove * EffectiveFourWaySpeed;
-        // 实际逻辑：先乘行为给出的速率倍率，环境修饰仍在后面乘 nowPhyNum。
-        return playActionData.onMove * EffectiveMovementSpeed * playActionData.speedScale;
+        // 走跑消费本步脚下倍率；飞行／游泳已在上面分流，区域加性修饰仍由后续原通道合成。
+        return playActionData.onMove * EffectiveMovementSpeed * playActionData.speedScale * EnvironmentFrame.movementMultiplier;
     }
 
     protected override void PhyEventUpdate()

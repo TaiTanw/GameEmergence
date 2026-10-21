@@ -51,6 +51,7 @@ public sealed class SceneLevelSetupEditor : Editor
             AddButton(properties, new WaterSwimmingParameter());
             AddButton(properties, new MovementSpeedOffsetParameter());
             AddButton(properties, new PassiveVelocityParameter());
+            AddButton(properties, new GroundMovementMultiplierParameter());
             AddButton(properties, new TriggerEnvironmentParameter());
         }
         serializedObject.ApplyModifiedProperties();

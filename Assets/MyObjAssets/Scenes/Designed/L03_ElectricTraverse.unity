@@ -47129,6 +47129,26 @@ PrefabInstance:
       propertyPath: speedChangeNum
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 556694338210650611, guid: c77233028689bb745a49846f546ce948, type: 3}
+      propertyPath: environmentParameters.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 556694338210650611, guid: c77233028689bb745a49846f546ce948, type: 3}
+      propertyPath: environmentParameters.Array.data[0]
+      value: 808884792018076558
+      objectReference: {fileID: 0}
+    - target: {fileID: 556694338210650611, guid: c77233028689bb745a49846f546ce948, type: 3}
+      propertyPath: managedReferences[808884792018076558]
+      value: Assembly-CSharp GroundSlowingParameter
+      objectReference: {fileID: 0}
+    - target: {fileID: 556694338210650611, guid: c77233028689bb745a49846f546ce948, type: 3}
+      propertyPath: managedReferences[808884792018076558].multiplier
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 556694338210650611, guid: c77233028689bb745a49846f546ce948, type: 3}
+      propertyPath: managedReferences[808884792018076558].calculationPoints.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1360802103989790889, guid: c77233028689bb745a49846f546ce948, type: 3}
       propertyPath: m_Size.x
       value: 14.5

@@ -6,7 +6,7 @@ using UnityEngine;
 public enum EnvironmentParameterKind
 {
     GroundSlowing, GroundJumpMultiplier, WallSlideMultiplier,
-    WaterSwimming, MovementSpeedOffset, PassiveVelocity, TriggerEnvironment
+    WaterSwimming, MovementSpeedOffset, PassiveVelocity, TriggerEnvironment, GroundMovementMultiplier
 }
 
 /// <summary>
@@ -237,6 +237,22 @@ public sealed class GroundSlowingParameter : EnvironmentParameter
     public GroundSlowingParameter() { }
     public GroundSlowingParameter(float value) => multiplier = value;
     internal override EnvironmentParameter CreateRuntimeCopy() => new GroundSlowingParameter(multiplier);
+}
+
+/// <summary>脚下来源提供走跑速度倍率；与消退阻力、区域加性移速分别采样。</summary>
+[Serializable]
+public sealed class GroundMovementMultiplierParameter : EnvironmentParameter
+{
+    [SerializeField, Min(0f), Tooltip("站在此地面上的走跑速度倍率；1 为原移速，0 为停止主动走跑。")]
+    private float multiplier = 1f;
+    public override string DisplayName => "地面移速倍率";
+    public override EnvironmentParameterKind Kind => EnvironmentParameterKind.GroundMovementMultiplier;
+    public override string ContactCondition => "脚下支撑／走跑";
+    protected override float ConfiguredValue => multiplier;
+
+    public GroundMovementMultiplierParameter() { }
+    public GroundMovementMultiplierParameter(float value) => multiplier = value;
+    internal override EnvironmentParameter CreateRuntimeCopy() => new GroundMovementMultiplierParameter(multiplier);
 }
 
 /// <summary>脚下采样为普通起跳倍率；以 multiplier−1 接回原加成字段，不影响墙跳。</summary>

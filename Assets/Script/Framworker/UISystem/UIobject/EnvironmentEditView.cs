@@ -512,8 +512,8 @@ public sealed class EnvironmentEditView : MonoBehaviour
             button.GetComponent<Image>().color = compatible || id == selectedBagItemId ? EnvironmentEditLayout.Highlight : EnvironmentEditLayout.Normal;
             button.onClick.AddListener(() => SelectBackpackItem(id)); bagButtons.Add(id, button);
         }
-        CognitionBackpackItem selectedItem = FindItem(selectedBagItemId);
-        backpackSelectionText.text = selectedItem == null ? "" : selectedItem.DisplayName;
+        // 内容行已显示名称和预览去向，不在列表下方重复显示选中倍率。
+        backpackSelectionText.text = "";
         if (LinkedBackpack && geometryTarget)
         {
             // 在两面板之间明确区分选择目标、注入预览与统一确认三个状态。
